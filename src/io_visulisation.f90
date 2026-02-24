@@ -181,7 +181,7 @@ contains
   subroutine write_visu_ini(dm)
     use udf_type_mod
     use parameters_constant_mod, only: ICARTESIAN, ICYLINDRICAL
-    use decomp_2d, only: xszV, yszV, zszV
+    !use decomp_2d, only: xszV, yszV, zszV
     implicit none
     type(t_domain), intent(in) :: dm
     !
@@ -238,16 +238,16 @@ contains
   !========================================================================================================
   subroutine compute_visu_nnode(dm, nnode)
     use udf_type_mod
-    use decomp_2d, only: xszV, yszV, zszV
+    !use decomp_2d, only: xszV, yszV, zszV
     implicit none
     type(t_domain), intent(in) :: dm
     integer, intent(out) :: nnode(NDIM)
 
-    if (any(dm%visu_nskip(1:3) > 1)) then
-      nnode = [ xszV(1), yszV(2), zszV(3) ]  ! your existing convention
-    else
+    !if (any(dm%visu_nskip(1:3) > 1)) then
+    !  nnode = [ xszV(1), yszV(2), zszV(3) ]  ! your existing convention
+    !else
       nnode = dm%np_geo(1:3)
-    end if
+    !end if
   end subroutine compute_visu_nnode
   !========================================================================================================
   subroutine compute_slice_indices(nnode, idx_out)
@@ -577,7 +577,7 @@ module visualisation_field_mod
   private :: find_n_from_npl
   private :: stagger_to_ccc
   private :: slice_prefix
-  private :: write_coarsened_3d
+  !private :: write_coarsened_3d
   private :: write_plane_bin
   private :: write_slice_field_xdmf
   private :: write_visu_3d_binary_and_xdmf
@@ -929,7 +929,8 @@ contains
       if (all(dm%visu_nskip(1:3) == 1)) then
         call write_one_3d_array(accc, trim(field_name), dm%idom, iter, dm%dccc)
       else
-        call write_coarsened_3d(dm, accc, field_name, iter)
+        !call write_coarsened_3d(dm, accc, field_name, iter)
+        call print_warning_msg("write_visu_3d_binary_and_xdmf: coarsened output not supported")
       end if
     end if
     !----------------------- 3D binary -----------------------
@@ -990,25 +991,25 @@ contains
     end select
   end function slice_prefix
   !==========================================================================================================
-  subroutine write_coarsened_3d(dm, ccc, field_name, iter)
-    use udf_type_mod
-    use decomp_2d
-    use decomp_2d_io
-    use io_tools_mod
-    use parameters_constant_mod, only: MAXP, IPENCIL
-    implicit none
-    type(t_domain), intent(in) :: dm
-    real(WP), intent(in) :: ccc(:,:,:)
-    character(*), intent(in) :: field_name
-    integer, intent(in) :: iter
-    real(WP), allocatable :: coarse(:,:,:)
+  ! subroutine write_coarsened_3d(dm, ccc, field_name, iter)
+  !   use udf_type_mod
+  !   use decomp_2d
+  !   use decomp_2d_io
+  !   use io_tools_mod
+  !   use parameters_constant_mod, only: MAXP, IPENCIL
+  !   implicit none
+  !   type(t_domain), intent(in) :: dm
+  !   real(WP), intent(in) :: ccc(:,:,:)
+  !   character(*), intent(in) :: field_name
+  !   integer, intent(in) :: iter
+  !   real(WP), allocatable :: coarse(:,:,:)
 
-    allocate(coarse(xstV(1):xenV(1), xstV(2):xenV(2), xstV(3):xenV(3)))
-    coarse = MAXP
-    call fine_to_coarseV(IPENCIL(1), ccc, coarse)
-    call write_one_3d_array(coarse, trim(field_name), dm%idom, iter, dm%dccc)
-    deallocate(coarse)
-  end subroutine write_coarsened_3d
+  !   allocate(coarse(xstV(1):xenV(1), xstV(2):xenV(2), xstV(3):xenV(3)))
+  !   coarse = MAXP
+  !   call fine_to_coarseV(IPENCIL(1), ccc, coarse)
+  !   call write_one_3d_array(coarse, trim(field_name), dm%idom, iter, dm%dccc)
+  !   deallocate(coarse)
+  ! end subroutine write_coarsened_3d
   !==========================================================================================================
   subroutine write_plane_bin(dm, accc_in, dir, npl, bin_file)
     use udf_type_mod

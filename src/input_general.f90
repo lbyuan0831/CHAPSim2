@@ -659,6 +659,7 @@ contains
         domain(:)%iAccuracy = domain(1)%iAccuracy
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%iviscous
         domain(:)%iviscous = domain(1)%iviscous
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%outlet_sponge_layer(1:2)
         ! some schemes are still testing, check >>>
         if(domain(1)%icoordinate == ICYLINDRICAL) then
           domain(1)%iAccuracy = IACCU_CD2
@@ -689,6 +690,10 @@ contains
             write (*, wrtfmt1i) 'time marching scheme :', domain(i)%iTimeScheme
             write (*, wrtfmt2s) 'current spatial accuracy scheme :', get_name_iacc(domain(i)%iAccuracy)
             write (*, wrtfmt1i) 'viscous term treatment  :', domain(i)%iviscous
+            if(domain(1)%outlet_sponge_layer(1) > MINP) then
+              write (*, wrtfmt2r) 'outlet sponge layer thickness :', domain(i)%outlet_sponge_layer(1)
+              write (*, wrtfmt2r) 'outlet sponge layer strength (Re):', domain(i)%outlet_sponge_layer(2)
+            end if
           end do
         end if
       !----------------------------------------------------------------------------------------------------------
@@ -852,6 +857,7 @@ contains
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%is_record_xoutlet, domain(1)%is_read_xinlet
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%ndbfre, domain(1)%ndbstart, domain(1)%ndbend
         
+        domain(1)%visu_nskip(1:3) = 1 ! This is a temporary solution to wait for features from 2decomp lib.
         do i = 1, nxdomain
           if(domain(1)%ndbfre/=0) &
           domain(:)%ndbend = (domain(1)%ndbend - domain(1)%ndbstart + 1)/domain(1)%ndbfre * domain(1)%ndbfre + domain(1)%ndbstart - 1
@@ -943,8 +949,12 @@ contains
     !----------------------------------------------------------------------------------------------------------
     ! cross session conditions
     !----------------------------------------------------------------------------------------------------------
-    if(is_any_energyeq .and. domain(1)%is_periodic(1)) then
-      domain(:)%inlet_tbuffer_len = ZERO
+    if(domain(1)%is_periodic(1)) then
+      domain(1)%outlet_sponge_layer(1:2) = ZERO
+    end if
+    if(domain(1)%is_periodic(1) .or. &
+      .not. is_any_energyeq) then
+      domain(1)%inlet_tbuffer_len = ZERO
     end if
     if((.not. domain(1)%is_periodic(2)) .and. is_any_energyeq) then
       ! check!
@@ -955,9 +965,10 @@ contains
       domain(:)%fft_skip_c2c(2) = .true.
     end if
     if (.not. domain(1)%fft_skip_c2c(2)) domain(:)%mstret = MSTRET_3FMD
+    !
+    is_single_RK_projection = .false.
     if(is_any_energyeq) then
     !   if(domain(1)%ibcx_nominal(2,1)==IBC_CONVECTIVE) then
-         is_single_RK_projection = .false.
          if(is_single_RK_projection) &
          call Print_warning_msg('is_single_RK_projection on could introduce very high pressure.')
     !     !is_damping_drhodt = .true.

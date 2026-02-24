@@ -102,6 +102,11 @@ contains
       call alloc_x(fl%mVisc,   dm%dccc) ; fl%mVisc = ONE
       call alloc_x(fl%dDens0, dm%dccc)  ; fl%dDens0 = ONE
     end if
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      allocate (fl%rre_sponge_c(dm%dccc%xsz(1))); fl%rre_sponge_c = ZERO
+      allocate (fl%rre_sponge_p(dm%dpcc%xsz(1))); fl%rre_sponge_p = ZERO
+      call Calculate_vis_sponge(fl, dm)  
+    end if
 
     if(nrank == 0) call Print_debug_end_msg()
     return
