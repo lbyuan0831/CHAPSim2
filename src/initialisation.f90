@@ -102,6 +102,11 @@ contains
       call alloc_x(fl%mVisc,   dm%dccc) ; fl%mVisc = ONE
       call alloc_x(fl%dDens0, dm%dccc)  ; fl%dDens0 = ONE
     end if
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      allocate (fl%rre_sponge_c(dm%dccc%xsz(1))); fl%rre_sponge_c = ZERO
+      allocate (fl%rre_sponge_p(dm%dpcc%xsz(1))); fl%rre_sponge_p = ZERO
+      call Calculate_vis_sponge(fl, dm)  
+    end if
 
     if(nrank == 0) call Print_debug_end_msg()
     return
@@ -162,7 +167,7 @@ contains
     use math_mod
     use boundary_conditions_mod
     use flatten_index_mod
-    use io_visualisation_mod
+    !use io_visualisation_mod
     use wtformat_mod
     use find_max_min_ave_mod
     use wrt_debug_field_mod
@@ -587,7 +592,7 @@ contains
     use udf_type_mod
     use parameters_constant_mod
     use io_restart_mod
-    use io_visualisation_mod
+    use visualisation_field_mod
     use wtformat_mod
     use solver_tools_mod
     use continuity_eq_mod
@@ -695,7 +700,7 @@ contains
     use thermo_info_mod
     use io_restart_mod
     use statistics_mod
-    use io_visualisation_mod
+    use visualisation_field_mod
     use boundary_conditions_mod
     implicit none
 

@@ -7,6 +7,7 @@ module solver_tools_mod
   !
   public  :: Update_Re
   public  :: Update_PrGr
+  public  :: Calculate_vis_sponge
   public  :: Calculate_xz_mean_yprofile
   public  :: Adjust_to_xzmean_zero
   !public  :: Get_volumetric_average_3d ! not used anymore
@@ -47,7 +48,7 @@ contains
 
     return
   end subroutine Update_Re
-
+!==========================================================================================================
   subroutine Update_PrGr(fl, tm)
     use parameters_constant_mod
     use thermo_info_mod
@@ -98,6 +99,60 @@ contains
     
     return
   end subroutine Update_PrGr
+!==========================================================================================================
+  subroutine Calculate_vis_sponge(fl, dm)
+    use parameters_constant_mod
+    use thermo_info_mod
+    use udf_type_mod
+    use math_mod
+    implicit none
+    !
+    type(t_domain), intent(in)    :: dm
+    type(t_flow),   intent(inout) :: fl
+    !
+    real(WP) :: x_start, Ls, vis, coeff, hx
+    real(WP) :: x, xi, x_offset
+    integer  :: i, nx, n
+    logical  :: has_sponge
+
+    if(dm%outlet_sponge_layer(1) <= MINP) return
+    ! --- sponge params ---
+    Ls = dm%outlet_sponge_layer(1)    ! sponge length
+    !
+    hx      = dm%h(1)
+    x_start = dm%lxx - Ls
+    !
+    vis = ONE / dm%outlet_sponge_layer(2)
+    coeff   = vis / TWO           ! = 1/(2*mu)
+    !
+    do n = 1, 2 
+      if (n == 1) then 
+        !Cell-centre array (ccc): global index nx
+        fl%rre_sponge_c = ZERO
+        nx       = dm%dccc%xsz(1)
+        x_offset = hx / TWO
+      else
+        !Node  array (pcc) : global index nx
+        fl%rre_sponge_p = ZERO
+        nx       = dm%dpcc%xsz(1)
+        x_offset = ZERO
+      end if
+
+      do i = 1, nx
+        x = REAL(i - 1, WP) * hx + x_offset
+        if (x < x_start) cycle
+
+        xi = (x - x_start) / Ls
+        if(n==1) then 
+          fl%rre_sponge_c(i) = coeff * (ONE - COS_WP(PI * xi))
+        else
+          fl%rre_sponge_p(i) = coeff * (ONE - COS_WP(PI * xi))
+        end if
+      end do
+    end do 
+
+    return
+  end subroutine Calculate_vis_sponge
 !==========================================================================================================
 !> \brief The main code for initialising flow variables
 !>

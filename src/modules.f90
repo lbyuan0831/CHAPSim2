@@ -525,7 +525,9 @@ module udf_type_mod
     real(wp) :: fbcx_const(2, NBC) ! bc values, (5 variables, 2 sides)
     real(wp) :: fbcy_const(2, NBC) ! bc values, (5 variables, 2 sides)
     real(wp) :: fbcz_const(2, NBC) ! bc values, (5 variables, 2 sides)
-
+    real(WP) :: inlet_tbuffer_len
+    real(WP) :: outlet_sponge_layer(2) ! outlet_sponge_layer(1) = length of sponge layer, outlet_sponge_layer(2) for min. Re_sponge (max. viscosity)
+    
     real(wp) :: lxx
     real(wp) :: lyt
     real(wp) :: lyb
@@ -747,7 +749,10 @@ module udf_type_mod
     real(WP), allocatable :: tavg_fuh (:, :, :, :) ! 3 = rho*u*h, rho*v*h, rho*w*h
     real(WP), allocatable :: tavg_fuuh(:, :, :, :) ! 6 = rho*uu*h, rho*uv*h, rho*uw*h, rho*vv*h, rho*vw*h, rho*ww*h
     ! MHD
-    real(WP), allocatable :: tavg_eu  (:, :, :, :)  ! 3 = phi * u, phi * v, phi * w
+    real(WP), allocatable :: tavg_eu  (:, :, :, :) ! 3 = phi * u, phi * v, phi * w
+    !
+    real(WP), allocatable :: rre_sponge_p(:)         ! vis=1/Re_sponge at centre in sponge layer
+    real(WP), allocatable :: rre_sponge_c(:)         ! vis=1/Re_sponge at node in sponge layer
     
   end type t_flow
 !----------------------------------------------------------------------------------------------------------

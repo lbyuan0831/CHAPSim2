@@ -185,13 +185,13 @@ module code_performance_mod
       t_preparation = t_step_start - t_code_start
       !call mpi_barrier(MPI_COMM_WORLD, ierror)
       call mpi_allreduce(t_preparation, t_preparation0, 1, MPI_REAL_WP, MPI_MAX, MPI_COMM_WORLD, ierror)
-      if(nrank == 0) call Print_debug_mid_msg ("Code Performance Info")
-      if(nrank == 0) call Print_debug_inline_msg ("    Time for code preparation : " // &
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_mid_msg ("Code Performance Info")
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_inline_msg ("    Time for code preparation : " // &
           trim(real2str(t_preparation0))//' s')
 !----------------------------------------------------------------------------------------------------------
     else if (itype == CPU_TIME_ITER_START) then
       call cpu_time(t_iter_start)
-      if(nrank == 0) call Print_debug_start_msg ("Time Step = "//trim(int2str(iter))// &
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_start_msg ("Time Step = "//trim(int2str(iter))// &
           '/'//trim(int2str(niter))) !trim(int2str(niter-iterfrom)))
 !----------------------------------------------------------------------------------------------------------
     else if (itype == CPU_TIME_ITER_END) then
@@ -213,24 +213,29 @@ module code_performance_mod
       t_aveiter0   = t_work(3)
       t_remaining0 = t_work(4)
 
-      if(nrank == 0) call Print_debug_mid_msg ("Code Performance Info")
-      if(nrank == 0) call Print_debug_inline_msg ("    Time for this time step : " // &
-          trim(real2str(t_this_iter0))//' s')
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_mid_msg ("Code Performance Info")
+      if(nrank == 0) then 
+        if (.not. is_IO_off) then 
+          call Print_debug_inline_msg ("    Time for iteration, current vs average: " // &
+          trim(real2str(t_this_iter0))//' s'//' vs '//trim(real2str(t_aveiter0))//' s')
+        else
+          write(*, *) iter, t_this_iter0, t_aveiter0
+        end if
+      end if
 
       call Convert_sec_to_hms (t_elaspsed0, hrs, mins, secs)
-      if(nrank == 0) call Print_debug_inline_msg ("    Elaspsed Wallclock Time : "// &
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_inline_msg ("    Elaspsed Wallclock Time : "// &
            trim(int2str(hrs)) // ' h ' // &
            trim(int2str(mins)) // ' m ' // &
            trim(real2str(secs)) // ' s ')
 
       call Convert_sec_to_hms (t_remaining0, hrs, mins, secs)
-      if(nrank == 0) then
+      if(nrank == 0 .and. .not. is_IO_off) then
         call Print_debug_inline_msg ("    Remaning Wallclock Time : "// &
            trim(int2str(hrs)) // ' h ' // &
            trim(int2str(mins)) // ' m ' // &
            trim(real2str(secs)) // ' s ')
-        call Print_debug_inline_msg ("    Moving averaged time per iteration  : "// &
-           trim(real2str(t_aveiter0))//' s')
+        
       !if(nrank == 0) call Print_debug_mid_msg ("Code Performance Info")  
       end if
 !----------------------------------------------------------------------------------------------------------
@@ -249,7 +254,7 @@ module code_performance_mod
       t_aveiter0 = t_work(2)
 
       call Convert_sec_to_hms (t_total0, hrs, mins, secs)
-      if(nrank == 0) then
+      if(nrank == 0 .and. .not. is_IO_off) then
         call Print_debug_mid_msg ("Code Performance Info")
         call Print_debug_inline_msg   ("    Averaged time per iteration  : "// &
            trim(real2str(t_aveiter0))//' s')
@@ -1539,7 +1544,7 @@ contains
       if (imin) opt_work(1) = varmin_work
       if (imax) opt_work(2) = varmax_work
     end if
-    if(nrank == 0 .and. present(opt_name)) then
+    if(nrank == 0 .and. present(opt_name) .and. .not. is_IO_off) then
       if(present(opt_abs)) then
         abs = '-abs-'
       else
@@ -1718,7 +1723,7 @@ contains
 !write(*,*) 'test_vol' , vol_work
 #ifdef DEBUG_STEPS  
       if (dabs(vol_work - dm%vol) > 1.0e-10_WP) write (*, *) 'volume calc error: ', vol_work, dm%vol
-      if(nrank == 0 .and. present(str)) then
+      if(nrank == 0 .and. present(str) .and. .not. is_IO_off) then
         if(itype == SPACE_AVERAGE) then
           write (*, wrtfmt1e) " volumetric average of "//trim(str)//" = ", fo_work
         else 
