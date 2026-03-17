@@ -185,13 +185,13 @@ module code_performance_mod
       t_preparation = t_step_start - t_code_start
       !call mpi_barrier(MPI_COMM_WORLD, ierror)
       call mpi_allreduce(t_preparation, t_preparation0, 1, MPI_REAL_WP, MPI_MAX, MPI_COMM_WORLD, ierror)
-      if(nrank == 0) call Print_debug_mid_msg ("Code Performance Info")
-      if(nrank == 0) call Print_debug_inline_msg ("    Time for code preparation : " // &
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_mid_msg ("Code Performance Info")
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_inline_msg ("    Time for code preparation : " // &
           trim(real2str(t_preparation0))//' s')
 !----------------------------------------------------------------------------------------------------------
     else if (itype == CPU_TIME_ITER_START) then
       call cpu_time(t_iter_start)
-      if(nrank == 0) call Print_debug_start_msg ("Time Step = "//trim(int2str(iter))// &
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_start_msg ("Time Step = "//trim(int2str(iter))// &
           '/'//trim(int2str(niter))) !trim(int2str(niter-iterfrom)))
 !----------------------------------------------------------------------------------------------------------
     else if (itype == CPU_TIME_ITER_END) then
@@ -213,24 +213,29 @@ module code_performance_mod
       t_aveiter0   = t_work(3)
       t_remaining0 = t_work(4)
 
-      if(nrank == 0) call Print_debug_mid_msg ("Code Performance Info")
-      if(nrank == 0) call Print_debug_inline_msg ("    Time for this time step : " // &
-          trim(real2str(t_this_iter0))//' s')
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_mid_msg ("Code Performance Info")
+      if(nrank == 0) then 
+        if (.not. is_IO_off) then 
+          call Print_debug_inline_msg ("    Time for iteration, current vs average: " // &
+          trim(real2str(t_this_iter0))//' s'//' vs '//trim(real2str(t_aveiter0))//' s')
+        else
+          write(*, *) iter, t_this_iter0, t_aveiter0
+        end if
+      end if
 
       call Convert_sec_to_hms (t_elaspsed0, hrs, mins, secs)
-      if(nrank == 0) call Print_debug_inline_msg ("    Elaspsed Wallclock Time : "// &
+      if(nrank == 0 .and. .not. is_IO_off) call Print_debug_inline_msg ("    Elaspsed Wallclock Time : "// &
            trim(int2str(hrs)) // ' h ' // &
            trim(int2str(mins)) // ' m ' // &
            trim(real2str(secs)) // ' s ')
 
       call Convert_sec_to_hms (t_remaining0, hrs, mins, secs)
-      if(nrank == 0) then
+      if(nrank == 0 .and. .not. is_IO_off) then
         call Print_debug_inline_msg ("    Remaning Wallclock Time : "// &
            trim(int2str(hrs)) // ' h ' // &
            trim(int2str(mins)) // ' m ' // &
            trim(real2str(secs)) // ' s ')
-        call Print_debug_inline_msg ("    Moving averaged time per iteration  : "// &
-           trim(real2str(t_aveiter0))//' s')
+
       !if(nrank == 0) call Print_debug_mid_msg ("Code Performance Info")  
       end if
 !----------------------------------------------------------------------------------------------------------
@@ -249,7 +254,7 @@ module code_performance_mod
       t_aveiter0 = t_work(2)
 
       call Convert_sec_to_hms (t_total0, hrs, mins, secs)
-      if(nrank == 0) then
+      if(nrank == 0 .and. .not. is_IO_off) then
         call Print_debug_mid_msg ("Code Performance Info")
         call Print_debug_inline_msg   ("    Averaged time per iteration  : "// &
            trim(real2str(t_aveiter0))//' s')
@@ -446,6 +451,7 @@ module random_number_generation_mod
   public :: initialise_random_number
   public :: Generate_rvec_random
   public :: Generate_r_random
+  public :: lcg_random
 
 contains
   subroutine initialise_random_number ( seed )
@@ -592,6 +598,7 @@ contains
   end subroutine Generate_rvec_random
 
 !**********************************************************************************************************************************
+  ! This may not work with nvfortran
   subroutine Generate_r_random ( rlo, rhi, r )
     !
     !*******************************************************************************
@@ -630,7 +637,36 @@ contains
 
     return
   end subroutine Generate_r_random
-  
+
+  ! This works with nvfortran
+  subroutine lcg_random(seed, r)
+    !$acc routine seq
+    use parameters_constant_mod, only : ONE, TWO
+    use iso_fortran_env, only: int32
+
+    implicit none
+
+    integer(int32), intent(inout) :: seed
+    real(wp), intent(out) :: r
+    integer(int32), parameter :: a = 16807_int32
+    integer(int32), parameter :: m = 2147483647_int32
+    integer(int32), parameter :: q = 127773_int32
+    integer(int32), parameter :: r0 = 2836_int32
+    integer(int32) :: k
+
+    ! Map any incoming seed safely into [1, m-1].
+    if (seed <= 0_int32) seed = modulo(seed, m - 1_int32) + 1_int32
+
+    ! Park-Miller LCG using Schrage's method (no integer overflow in 32-bit).
+    k = seed / q
+    seed = a * (seed - k * q) - r0 * k
+    if (seed < 0_int32) seed = seed + m
+
+    r = real(seed, wp) / real(m, wp)
+    r = TWO * r - ONE
+
+  end subroutine
+
 end module random_number_generation_mod
 
 !module index_mod
@@ -882,7 +918,9 @@ contains
       case (IPENCIL(1))
         call transpose_x_to_y(var, var_ypencil, dtmp)
       case (IPENCIL(2))
-        var_ypencil = var
+        !$acc kernels default(present)
+        var_ypencil(:,:,:) = var(:,:,:)
+        !$acc end kernels
       case (IPENCIL(3))
         call transpose_z_to_y(var, var_ypencil, dtmp)
       case default
@@ -904,12 +942,16 @@ contains
 
     select case (pencil)
       case (IPENCIL(1))
+        !$acc data create(var_ypencil)
         call transpose_x_to_y(var, var_ypencil, dtmp)
         call transpose_y_to_z(var_ypencil, var_zpencil, dtmp)
+        !$acc end data
       case (IPENCIL(2))
         call transpose_y_to_z(var, var_zpencil, dtmp)
       case (IPENCIL(3))
-        var_zpencil = var
+        !$acc kernels default(present)
+        var_zpencil(:,:,:) = var(:,:,:)
+        !$acc end kernels
       case default
         ! Handle invalid pencil case (optional: add error handling)
     end select
@@ -929,12 +971,16 @@ contains
 
     select case (pencil)
       case (IPENCIL(1))
+        !$acc data create(var_ypencil)
         call transpose_z_to_y(var_zpencil, var_ypencil, dtmp)
         call transpose_y_to_x(var_ypencil, var, dtmp)
+        !$acc end data
       case (IPENCIL(2))
         call transpose_z_to_y(var_zpencil, var, dtmp)
       case (IPENCIL(3))
-        var = var_zpencil
+        !$acc kernels default(present)
+        var(:,:,:) = var_zpencil(:,:,:)
+        !$acc end kernels
       case default
         ! Handle invalid pencil case (optional: add error handling)
     end select
@@ -955,7 +1001,9 @@ contains
       case (IPENCIL(1))
         call transpose_y_to_x(var_ypencil, var, dtmp)
       case (IPENCIL(2))
-        var = var_ypencil
+        !$acc kernels default(present)
+        var(:,:,:) = var_ypencil(:,:,:)
+        !$acc end kernels
       case (IPENCIL(3))
         call transpose_y_to_z(var_ypencil, var, dtmp)
       case default
@@ -986,17 +1034,22 @@ module decomp_extended_mod
     real(WP), dimension(dtmp%yst(1) : dtmp%yen(2), dtmp%ysz(2), dtmp%zsz(3)), intent(out) :: vou
 
     integer :: i, j, k, ii
-    vou = ZERO
-    do k = 1, dtmp%ysz(3)
-      do j = 1, dtmp%ysz(2)
-        do i = 1, dtmp%ysz(1)
+    integer :: nx, ny, nz
+
+    nx = dtmp%ysz(1); ny = dtmp%ysz(2); nz = dtmp%ysz(3)
+    !$acc parallel loop collapse(3) private(ii) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
           ii = dtmp%yst(1) + i - 1
           vou(ii, j, k) = vin(i, j, k)
         end do
       end do
     end do
+    !$acc end parallel loop
+
     return
-  end subroutine 
+  end subroutine
 !==========================================================================================================
   subroutine zpencil_index_llg2ggg(vin, vou, dtmp)
     use decomp_2d
@@ -1008,17 +1061,21 @@ module decomp_extended_mod
     real(WP), dimension(dtmp%zst(1) : dtmp%zen(1), dtmp%zst(2) : dtmp%zen(2), dtmp%zsz(3)), intent(out) :: vou
 
     integer :: i, j, k, jj, ii
+    integer :: nx, ny, nz
 
-    vou = ZERO
-    do k = 1, dtmp%zsz(3)
-      do j = 1, dtmp%zsz(2)
-        jj = dtmp%zst(2) + j - 1 !local2global_yid(j, dtmp)
-        do i = 1, dtmp%zsz(1)
+    nx = dtmp%zsz(1); ny = dtmp%zsz(2); nz = dtmp%zsz(3)
+    !$acc parallel loop collapse(3) private(ii, jj) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          jj = dtmp%zst(2) + j - 1 !local2global_yid(j, dtmp)
           ii = dtmp%zst(1) + i - 1
           vou(ii, jj, k) = vin(i, j, k)
         end do
       end do
     end do
+    !$acc end parallel loop
+
     return
   end subroutine
 !==========================================================================================================  
@@ -1033,23 +1090,25 @@ module decomp_extended_mod
     
 
     integer :: i, j, k, jj, ii
-!write(*,*) 'vin', nrank, size(vin, 1), size(vin, 2),size(vin, 3)
-!write(*,*) 'vou', nrank, size(vou, 1), size(vou, 2),size(vou, 3)
+    integer :: nx, ny, nz
 
-    vou = ZERO
-    do k = 1, dtmp%zsz(3)
-      do j = 1, dtmp%zsz(2)
-        jj = dtmp%zst(2) + j - 1 !local2global_yid(j, dtmp)
-        do i = 1, dtmp%zsz(1)
+    nx = dtmp%zsz(1); ny = dtmp%zsz(2); nz = dtmp%zsz(3)
+    !$acc parallel loop collapse(3) private(ii, jj) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          jj = dtmp%zst(2) + j - 1 !local2global_yid(j, dtmp)
           ii = dtmp%zst(1) + i - 1
           vou(i, j, k) = vin(ii, jj, k)
         end do
       end do
     end do
+    !$acc end parallel loop
+
     return
   end subroutine
-end module 
 
+end module
 !============================================================================
 !============================================================================
 module cylindrical_rn_mod
@@ -1110,26 +1169,40 @@ contains
     real(WP), dimension(dtmp%ysz(1), dtmp%ysz(2), dtmp%ysz(3)) :: var_ypencil, var_ypencil1
     real(WP), dimension(dtmp%zsz(1), dtmp%zsz(2), dtmp%zsz(3)) :: var_zpencil, var_zpencil1
     !real(WP), dimension(dtmp%zsz(1)) :: uz, uy
-    integer :: k, i
+    integer  :: i, j, k
+    integer  :: nx, ny, nz
     real(WP) :: theta, sign
 
     ! only for axis value
     if (dm%icase /= ICASE_PIPE .or. dm%icoordinate /= ICYLINDRICAL) return
-    !
+
+    !$acc data create(var_ypencil, var_ypencil1, var_zpencil, var_zpencil1)
     if(idir == IDIM(3)) then ! for qz
       call transpose_to_y_pencil(var, var_ypencil, dtmp, pencil)
-      var_ypencil(:, 1, :) = ZERO ! zero qz at axis
+      nx = dtmp%ysz(1); nz = dtmp%ysz(3)
+      !$acc parallel loop collapse(2) default(present)
+      do k=1, nz; do i=1, nx
+        var_ypencil(i, 1, k) = ZERO ! zero qz at axis
+      end do; end do
+      !$acc end parallel loop
       call transpose_from_y_pencil(var_ypencil, var, dtmp, pencil)
     else if(idir == IDIM(1)) then ! for ux, or scalars
       call transpose_to_z_pencil(var, var_zpencil, dtmp, pencil)
       if(dtmp%zst(2) == 1) then  ! for axis jj == 1 only
-        do i = 1, dtmp%zsz(1)
+        nx = dtmp%zsz(1); nz = dtmp%zsz(3)
+        !$acc parallel loop collapse(1) private(theta) default(present)
+        do i = 1, nx
           theta = ZERO
-          do k = 1, dtmp%zsz(3)
+          !$acc loop seq
+          do k = 1, nz
             theta = theta + var_zpencil(i, 1, k)
           end do
-          var_zpencil(i, 1, :) = theta / real(dtmp%zsz(3), WP)
-        end do 
+          !$acc loop seq
+          do k=1, nz
+            var_zpencil(i, 1, k) = theta / real(nz, WP)
+          end do
+        end do
+        !$acc end parallel loop
       end if
       call transpose_from_z_pencil(var_zpencil, var, dtmp, pencil)
     else if(idir == IDIM(2) .or. idir == IDIM(0)) then
@@ -1141,12 +1214,20 @@ contains
         if(is_reversed) sign = - ONE
       end if
       ! Apply symmetry condition to find neighboring points
-      do k = 1, dtmp%zsz(3)
-        var_zpencil1(:, :, k) = sign * var_zpencil(:, :, dm%knc_sym(k))
-      end do
+      nx = dtmp%zsz(1); ny = dtmp%zsz(2); nz = dtmp%zsz(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k=1, nz; do j=1, ny; do i=1,nx
+        var_zpencil1(i, j, k) = sign * var_zpencil(i, j, dm%knc_sym(k))
+      end do; end do; end do
+      !$acc end parallel loop
       ! Transpose back to y-pencil and get the multiple valued ur at axis
       call transpose_z_to_y(var_zpencil1, var_ypencil1, dtmp)
-      var_ypencil(:, 1, :) = (var_ypencil1(:, 2, :) + var_ypencil(:, 2, :)) * HALF
+      nx = dtmp%ysz(1); nz = dtmp%ysz(3)
+      !$acc parallel loop collapse(2) default(present)
+      do k=1, nz; do i=1,nx
+        var_ypencil(i, 1, k) = (var_ypencil1(i, 2, k) + var_ypencil(i, 2, k)) * HALF
+      end do; end do
+      !$acc end parallel loop
       ! Transpose to z-pencil for decomposition
       !call transpose_y_to_z(var_ypencil, var_zpencil, dtmp)
       ! below is eq(83) & (76) of https://doi.org/10.1016/j.jcp.2003.12.015 (Morinishi2004JCP)
@@ -1194,6 +1275,8 @@ contains
     else 
       call Print_error_msg('Invalid input for IDIM in axis_estimating_radial_xpx')
     end if
+    !$acc end data
+
     return
   end subroutine axis_estimating_radial_xpx
 
@@ -1215,20 +1298,29 @@ contains
     ! Initialize dimensions based on pencil
     call get_dimensions(dtmp, pencil, nx, ny, nz, nyst)
     !is_axis = .false.
+
     do j = 1, ny
       jj = nyst + j - 1
-      rjn = r(jj)**n
       if (r(jj) > (MAXP * HALF)) then
         !is_axis = .true.
         if (jj /= 1) call Print_error_msg("Error: r(j) = 0 at j /= 1.")
-      else
-        do k = 1, nz
-          do i = 1, nx
-            var(i, j, k) = var(i, j, k) * rjn
-          end do
-        end do
       end if
     end do
+
+    !$acc parallel loop collapse(3) private(jj, rjn) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          jj  = nyst + j - 1
+          rjn = r(jj)**n
+          if (r(jj) <= (MAXP * HALF)) then
+            var(i, j, k) = var(i, j, k) * rjn
+          end if
+        end do
+      end do
+    end do
+    !$acc end parallel loop
+
   end subroutine multiple_cylindrical_rn
 
   !============================================================================
@@ -1253,18 +1345,25 @@ contains
 
     do j = 1, ny
       jj = nyst + j - 1
-      rjn = r(jj)**n
       if (r(jj) > (MAXP * HALF)) then
         if (jj /= 1) call Print_error_msg("Error: r(j) = 0 at j /= 1.")
-      else
-        do i = 1, nx
+      end if
+    end do
+
+    !$acc parallel loop collapse(2) private(jj, rjn) default(present)
+    do j = 1, ny
+      do i = 1, nx
+        jj  = nyst + j - 1
+        rjn = r(jj)**n
+        if (r(jj) <= (MAXP * HALF)) then
           var(i, j, 1) = var(i, j, 1) * rjn
           var(i, j, 2) = var(i, j, 2) * rjn
           var(i, j, 3) = var(i, j, 1)
           var(i, j, 4) = var(i, j, 2)
-        end do
-      end if
+        end if
+      end do
     end do
+    !$acc end parallel loop
 
   end subroutine multiple_cylindrical_rn_xx4
 
@@ -1291,12 +1390,10 @@ contains
     r1n = r(1)**n
     jmax = nyst + ny - 1
     rjn = (r(jmax)**n)
-
+    !$acc parallel loop collapse(2) default(present)
     do k = 1, nz
       do i = 1, nx
-        if (r(1) > (MAXP * HALF)) then
-          ! Axis handling using estimate_azimuthal_xpx_on_axis or axis_estimating_radial_xpx
-        else
+        if (r(1) <= (MAXP * HALF)) then
           var(i, 1, k) = var(i, 1, k) * r1n
         end if
         var(i, 2, k) = var(i, 2, k) * rjn
@@ -1304,6 +1401,7 @@ contains
         var(i, 4, k) = var(i, 2, k)
       end do
     end do
+    !$acc end parallel loop
 
   end subroutine multiple_cylindrical_rn_x4x
 
@@ -1426,7 +1524,20 @@ contains
 
     varmax = ZERO
     idl = 0
-    idg = 0 
+    idg = 0
+
+#ifdef USE_GPU
+    !indices cannot be recorded using reduction on OpenACC
+    !$acc parallel loop collapse(3) reduction(max:varmax) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          if(abs_wp(var(i, j, k)) > varmax) varmax = abs_wp(var(i, j, k))
+        end do
+      end do
+    end do
+    !$acc end parallel loop
+#else
     do k = 1, nz
       do j = 1, ny
         do i = 1, nx
@@ -1440,6 +1551,7 @@ contains
         end do
       end do
     end do
+#endif
     !varmax = MAXVAL( abs_wp( var ) ) 
     !call mpi_barrier(MPI_COMM_WORLD, ierror)
     call mpi_allreduce(varmax, varmax_work, 1, MPI_REAL_WP, MPI_MAX, MPI_COMM_WORLD, ierror)
@@ -1519,6 +1631,8 @@ contains
       end select
     end if
 
+    !$acc parallel loop collapse(3) reduction(max:varmax) reduction(min:varmin) &
+    !$acc&                          default(present) private(dummy)
     do k = 1, nz
       do j = 1, ny
         do i = 1, nx
@@ -1529,6 +1643,7 @@ contains
         end do
       end do
     end do
+    !$acc end parallel loop
 
     !call mpi_barrier(MPI_COMM_WORLD, ierror)
     if (imax) call mpi_allreduce(varmax, varmax_work, 1, MPI_REAL_WP, MPI_MAX, MPI_COMM_WORLD, ierror)
@@ -1539,7 +1654,7 @@ contains
       if (imin) opt_work(1) = varmin_work
       if (imax) opt_work(2) = varmax_work
     end if
-    if(nrank == 0 .and. present(opt_name)) then
+    if(nrank == 0 .and. present(opt_name) .and. .not. is_IO_off) then
       if(present(opt_abs)) then
         abs = '-abs-'
       else
@@ -1672,7 +1787,7 @@ contains
 #ifdef DEBUG_STEPS 
     real(WP) :: vol_real
 #endif
-    integer :: i, j, k, jj
+    integer  :: i, j, k, jj, nx, ny, nz
     real(WP) :: dx, dy, dz, ymapping
 
     !----------------------------------------------------------------------------------------------------------
@@ -1687,21 +1802,24 @@ contains
       vol = ZERO
       fo  = ZERO
       dx = dm%h(1)
-      dy = dm%h(2)
-      dz = dm%h(3)
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1 !(j, dtmp)
-        if(dm%icoordinate == ICYLINDRICAL) &
-        dz = dm%h(3) * dm%rc(jj)
-        if(dm%is_stretching(2)) &
-        dy = dm%h(2) / dm%yMappingcc(jj, 1)
-        do k = 1, dtmp%xsz(3)
-          do i = 1, dtmp%xsz(1)
+      nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+      !$acc parallel loop collapse(3) private(jj, dy, dz) reduction(+:fo, vol) default(present)
+      do k = 1, nz
+        do j = 1, ny
+          do i = 1, nx
+            jj = dtmp%xst(2) + j - 1 !(j, dtmp)
+            dy = dm%h(2)
+            dz = dm%h(3)
+            if(dm%icoordinate == ICYLINDRICAL) &
+              dz = dm%h(3) * dm%rc(jj)
+            if(dm%is_stretching(2)) &
+              dy = dm%h(2) / dm%yMappingcc(jj, 1)
             fo = fo + var(i, j, k) * dy * dx * dz
             vol = vol + dy * dx * dz
           end do
         end do
       end do
+      !$acc end parallel loop
 
       !call mpi_barrier(MPI_COMM_WORLD, ierror)
       array(1) = fo
@@ -1718,7 +1836,7 @@ contains
 !write(*,*) 'test_vol' , vol_work
 #ifdef DEBUG_STEPS  
       if (dabs(vol_work - dm%vol) > 1.0e-10_WP) write (*, *) 'volume calc error: ', vol_work, dm%vol
-      if(nrank == 0 .and. present(str)) then
+      if(nrank == 0 .and. present(str) .and. .not. is_IO_off) then
         if(itype == SPACE_AVERAGE) then
           write (*, wrtfmt1e) " volumetric average of "//trim(str)//" = ", fo_work
         else 
@@ -1748,7 +1866,7 @@ contains
 #ifdef DEBUG_STEPS 
     real(WP) :: area_real
 #endif
-    integer :: j, k, jj, nx, ny, nz
+    integer  :: j, k, jj, nx, ny, nz
     real(WP) :: dy, dz
 
     !if(dtmp /= dm%dpcc) call Print_error_msg("Error: Get_area_average_2d_for_yz_pcc is for pcc only.")
@@ -1760,9 +1878,7 @@ contains
     ! integral(f(y), dy) = integral(f(y(s)), dy(s)) = integral(f(y(s)) * dy/ds, ds)
     !----------------------------------------------------------------------------------------------------------
       area = ZERO
-      fo  = ZERO
-      dy = dm%h(2)
-      dz = dm%h(3)
+      fo   = ZERO
       if(str=='varx') then
         nx = dtmp%xsz(1)
       else if(str=='fbcx') then
@@ -1770,22 +1886,25 @@ contains
       else
         call Print_error_msg("Error: Get_area_average_2d_for_fbcx is for varx or fbcx only.")
       end if
-      ny = dtmp%xsz(2)
-      nz = dtmp%xsz(3)
-      do j = 1, ny
-        jj = dtmp%xst(2) + j - 1 !(j, dtmp)
-        !dy = dm%yp(jj+1) - dm%yp(jj)
-        if(dm%is_stretching(2)) &
-        dy = dm%h(2) / dm%yMappingcc(jj, 1)
-        if(dm%icoordinate == ICYLINDRICAL) then
-          dz = dm%h(3) * dm%rc(jj)
-        end if
-        do k = 1, nz
+
+      ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+      !$acc parallel loop collapse(2) private(jj, dy, dz) reduction(+:fo, area) present(var)
+      do k = 1, nz
+        do j = 1, ny
+          jj = dtmp%xst(2) + j - 1 !(j, dtmp)
+          !dy = dm%yp(jj+1) - dm%yp(jj)
+          dy = dm%h(2)
+          dz = dm%h(3)
+          if(dm%is_stretching(2)) &
+            dy = dm%h(2) / dm%yMappingcc(jj, 1)
+          if(dm%icoordinate == ICYLINDRICAL) &
+            dz = dm%h(3) * dm%rc(jj)
           fo(1) = fo(1) + var(1,  j, k) * dy * dz
           fo(2) = fo(2) + var(nx, j, k) * dy * dz
           area = area + dy * dz
         end do
       end do
+      !$acc end parallel loop
 
       array(1:2) = fo(1:2)
       array(3) = area
@@ -1833,11 +1952,7 @@ contains
     ! integral(f(y), dy) = integral(f(y(s)), dy(s)) = integral(f(y(s)) * dy/ds, ds)
     !----------------------------------------------------------------------------------------------------------
       area = ZERO
-      fo  = ZERO
-      dy = dm%h(2)
-      dx = dm%h(1)
-      nx = dtmp%zsz(1)
-      ny = dtmp%zsz(2)
+      fo   = ZERO
       if(str=='varz') then
         nz = dtmp%zsz(3)
       else if(str=='fbcz') then
@@ -1845,16 +1960,22 @@ contains
       else
         call Print_error_msg("Error: Get_area_average_2d_for_fbcz is for varz or fbcz only.")
       end if
+
+      nx = dtmp%zsz(1); ny = dtmp%zsz(2)
+      !$acc parallel loop collapse(2) private(jj, dx, dy) reduction(+:fo, area) present(var)
       do j = 1, ny
-        jj = dtmp%zst(2) + j - 1 !(j, dtmp)
-        if(dm%is_stretching(2)) &
-        dy = dm%h(2) / dm%yMappingcc(jj, 1)
         do i = 1, nx
-          fo(1) = fo(1) + var(i, j, 1)  * dy * dx
-          fo(2) = fo(2) + var(i, j, nz) * dy * dx
-          area = area + dy * dx
+          jj = dtmp%zst(2) + j - 1 !(j, dtmp)
+          dx = dm%h(1)
+          dy = dm%h(2)
+          if(dm%is_stretching(2)) &
+            dy = dm%h(2) / dm%yMappingcc(jj, 1)
+          fo(1) = fo(1) + var(i, j, 1)  * dx * dy
+          fo(2) = fo(2) + var(i, j, nz) * dx * dy
+          area = area + dx * dy
         end do
       end do
+      !$acc end parallel loop
 
       array(1:2) = fo(1:2)
       array(3) = area
@@ -1902,8 +2023,8 @@ contains
     ! integral(f(y), dy) = integral(f(y(s)), dy(s)) = integral(f(y(s)) * dy/ds, ds)
     !----------------------------------------------------------------------------------------------------------
       area = ZERO
-      fo  = ZERO
-      
+      fo   = ZERO
+
       nx = dtmp%ysz(1)
       if(str=='vary') then
         ny = dtmp%ysz(2)
@@ -1924,6 +2045,8 @@ contains
         dz1 = dz
         dzn = dz
       end if
+
+      !$acc parallel loop collapse(2) reduction(+:fo, area) present(var)
       do k = 1, nz
         do i = 1, nx
           fo(1) = fo(1) + var(i, 1,  k) * dx * dz1
@@ -1932,6 +2055,7 @@ contains
           area(2) = area(2) + dx * dzn
         end do
       end do
+      !$acc end parallel loop
 
       array(1:2) = fo(1:2)
       array(3:4) = area(1:2)
@@ -1952,4 +2076,5 @@ contains
 
     return
   end subroutine
+
  end module

@@ -37,7 +37,10 @@ module geometry_mod
   private :: Buildup_grid_mapping_1D_tanh
   private :: Buildup_grid_mapping_1D_powerlaw
   public  :: Buildup_geometry_mesh_info
-  
+
+  public  :: copyin_device_geometry
+  public  :: cleanup_device_mem_geometry
+
 contains
 
   subroutine Buildup_grid_mapping_1D_powerlaw (str, n, dm, y, mp, opt_yp)
@@ -569,14 +572,10 @@ contains
     dm%vol = ZERO
     do j = 1, dm%nc(2)
       if(dm%icoordinate == ICYLINDRICAL) &
-      dz = dm%h(3) * dm%rc(j)
+        dz = dm%h(3) * dm%rc(j)
       if(dm%is_stretching(2)) &
-      dy = dm%h(2) / dm%yMappingcc(j, 1)
-      do k = 1, dm%nc(3)
-        do i = 1, dm%nc(1)
-          dm%vol = dm%vol + dy * dx * dz
-        end do
-      end do
+        dy = dm%h(2) / dm%yMappingcc(j, 1)
+      dm%vol = dm%vol + dy * dx * dz * dm%nc(1) * dm%nc(3)
     end do
     ! method 2
     select case(dm%icase)
@@ -683,5 +682,52 @@ contains
     if(nrank == 0) call Print_debug_end_msg()
     return
   end subroutine  Buildup_geometry_mesh_info
+
+  subroutine copyin_device_geometry(dm)
+    use udf_type_mod
+    use parameters_constant_mod
+
+    implicit none
+
+    type(t_domain), intent(inout)  :: dm
+
+    !$acc enter data copyin(dm%yp, dm%yc, dm%yMappingpt, dm%yMappingcc, dm%rp, dm%rc, dm%rpi, dm%rci)
+    !$acc enter data copyin(dm%knc_sym)
+
+    if(dm%is_thermo) then
+      if(dm%ibcx_nominal(2, 1)==IBC_CONVECTIVE) then
+        !$acc enter data copyin(dm%xdamping)
+      end if
+      if(dm%ibcz_nominal(2, 1)==IBC_CONVECTIVE) then
+        !$acc enter data copyin(dm%zdamping)
+      end if
+    end if
+
+    return
+  end subroutine
+
+  subroutine cleanup_device_mem_geometry(dm)
+    use udf_type_mod
+    use parameters_constant_mod
+
+    implicit none
+
+    type(t_domain), intent(inout)  :: dm
+
+    !$acc exit data delete(dm%yp, dm%yc, dm%yMappingpt, dm%yMappingcc, dm%rp, dm%rc, dm%rpi, dm%rci)
+    !$acc exit data delete(dm%knc_sym)
+
+    if(dm%is_thermo) then
+      if(dm%ibcx_nominal(2, 1)==IBC_CONVECTIVE) then
+        !$acc exit data delete(dm%xdamping)
+      end if
+      if(dm%ibcz_nominal(2, 1)==IBC_CONVECTIVE) then
+        !$acc exit data delete(dm%zdamping)
+      end if
+    end if
+
+    return
+  end subroutine
+
 end module geometry_mod
 

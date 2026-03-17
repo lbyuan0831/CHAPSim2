@@ -489,6 +489,27 @@ module udf_type_mod
     integer :: visu_nskip(NDIM)
     integer :: stat_istart
     integer :: stat_nskip(NDIM)
+    integer :: stat_u
+    integer :: stat_p
+    integer :: stat_pu
+    integer :: stat_uu
+    integer :: stat_uuu
+    integer :: stat_dudu
+    integer :: stat_h
+    integer :: stat_T
+    integer :: stat_f
+    integer :: stat_fu
+    integer :: stat_fh
+    integer :: stat_TT
+    integer :: stat_fuu
+    integer :: stat_fuh
+    integer :: stat_fuuu
+    integer :: stat_fuuh
+    integer :: stat_e
+    integer :: stat_j
+    integer :: stat_eu
+    integer :: stat_ej
+    integer :: stat_jj
     integer :: nsubitr
     integer :: istret, mstret
     integer :: ndbfre
@@ -525,7 +546,9 @@ module udf_type_mod
     real(wp) :: fbcx_const(2, NBC) ! bc values, (5 variables, 2 sides)
     real(wp) :: fbcy_const(2, NBC) ! bc values, (5 variables, 2 sides)
     real(wp) :: fbcz_const(2, NBC) ! bc values, (5 variables, 2 sides)
-
+    real(WP) :: inlet_tbuffer_len
+    real(WP) :: outlet_sponge_layer(2) ! outlet_sponge_layer(1) = length of sponge layer, outlet_sponge_layer(2) for min. Re_sponge (max. viscosity)
+    
     real(wp) :: lxx
     real(wp) :: lyt
     real(wp) :: lyb
@@ -717,7 +740,7 @@ module udf_type_mod
     real(WP), allocatable :: tavg_pru (:, :, :, :)  ! 3  = pu, pv, pw
     real(WP), allocatable :: tavg_uu  (:, :, :, :)  ! 6  = uu, uv, uw, vv, vw, ww
     real(WP), allocatable :: tavg_uuu (:, :, :, :)  ! 10 = uuu, uuv, uuw, uvv, uvw, uww, vvv, vvw, vww, www
-    real(WP), allocatable :: tavg_dudu(:, :, :, :)  ! 6  = dui/dxk * duj/duk (covers 45 = dui/dxj * dum/dun)
+    real(WP), allocatable :: tavg_dudu(:, :, :, :)  ! 6  = dui/dxk * duj/dxk (covers 45 = dui/dxj * dum/dxn)
     ! du/dx * du/dx, du/dx * du/dy, du/dx * du/dz (1 2 3)
     ! du/dx * dv/dx, du/dx * dv/dy, du/dx * dv/dz (4 5 6)
     ! du/dx * dw/dz, du/dx * dw/dy, du/dx * dw/dz (7 8 9)
@@ -748,7 +771,14 @@ module udf_type_mod
     real(WP), allocatable :: tavg_fuuh(:, :, :, :) ! 6 = rho*uu*h, rho*uv*h, rho*uw*h, rho*vv*h, rho*vw*h, rho*ww*h
     ! MHD
     real(WP), allocatable :: tavg_eu  (:, :, :, :)  ! 3 = phi * u, phi * v, phi * w
-    
+
+    real(WP), allocatable :: rre_sponge_p(:)         ! vis=1/Re_sponge at centre in sponge layer
+    real(WP), allocatable :: rre_sponge_c(:)         ! vis=1/Re_sponge at node in sponge layer
+
+    ! workspace pointers (allocatables in derived types are not well supported in case of GPU)
+    real(WP), pointer, contiguous, dimension(:) :: wk1, wk2, wk3, wk4, wk5
+    real(WP), pointer, contiguous, dimension(:) :: wkbc1, wkbc2, wkbc3, wkbc4, wkbc5
+
   end type t_flow
 !----------------------------------------------------------------------------------------------------------
 !  thermo info
@@ -786,6 +816,7 @@ module udf_type_mod
     type(t_fluidThermoProperty) :: ftp_ini ! undimensional
   end type t_thermo
   type(t_fluid_parameter) :: fluidparam ! dimensional
+  !$acc declare create(fluidparam)
 !----------------------------------------------------------------------------------------------------------
 !  mhd info
 !---------------------------------------------------------------------------------------------------------- 
@@ -970,37 +1001,43 @@ contains
 
   ! abs
   elemental function abs_sp ( r ) result(d)
-  real(kind = S6P), intent(in) :: r
-  real(kind = S6P) :: d
+    !$acc routine seq
+    real(kind = S6P), intent(in) :: r
+    real(kind = S6P) :: d
     d = abs ( r )
   end function
 
   elemental function abs_dp ( r ) result (d)
-  real(kind = D15P), intent(in) :: r
-  real(kind = D15P) :: d
+    !$acc routine seq
+    real(kind = D15P), intent(in) :: r
+    real(kind = D15P) :: d
     d = dabs ( r ) 
   end function
 
   elemental function abs_csp ( r ) result(d)
-  COMPLEX(kind = S6P), intent(in) :: r
-  real(kind = S6P) :: d
+    !$acc routine seq
+    COMPLEX(kind = S6P), intent(in) :: r
+    real(kind = S6P) :: d
     d = abs ( r )
   end function
 
   elemental function abs_cdp ( r ) result (d)
-  COMPLEX(kind = D15P), intent(in) :: r
-  real(kind = D15P) :: d
+    !$acc routine seq
+    COMPLEX(kind = D15P), intent(in) :: r
+    real(kind = D15P) :: d
     d = abs ( r ) 
   end function
 
   ! sqrt
   pure function sqrt_sp ( r ) result(d)
+    !$acc routine seq
     real(kind = S6P), intent(in) :: r
     real(kind = S6P) :: d
     d = sqrt ( r )
   end function
 
   pure function sqrt_dp ( r ) result (d)
+    !$acc routine seq
     real(kind = D15P), intent(in) :: r
     real(kind = D15P) :: d
     d = dsqrt ( r ) 
@@ -1008,12 +1045,14 @@ contains
 
   ! sin
   pure function sin_sp ( r ) result(d)
+    !$acc routine seq
     real(kind = S6P), intent(in) :: r
     real(kind = S6P) :: d
     d = sin ( r )
   end function
 
   pure function sin_dp ( r ) result (d)
+    !$acc routine seq
     real(kind = D15P), intent(in) :: r
     real(kind = D15P) :: d
     d = dsin ( r ) 
@@ -1021,12 +1060,14 @@ contains
 
   ! cos
   pure function cos_sp ( r ) result(d)
+    !$acc routine seq
     real(kind = S6P), intent(in) :: r
     real(kind = S6P) :: d
     d = cos ( r )
   end function
 
   pure function cos_dp ( r ) result (d)
+    !$acc routine seq
     real(kind = D15P), intent(in) :: r
     real(kind = D15P) :: d
     d = dcos ( r ) 
@@ -1034,12 +1075,14 @@ contains
 
   ! tanh
   pure function tanh_sp ( r ) result(d)
+    !$acc routine seq
     real(kind = S6P), intent(in) :: r
     real(kind = S6P) :: d
     d = tanh ( r )
   end function
 
   pure function tanh_dp ( r ) result (d)
+    !$acc routine seq
     real(kind = D15P), intent(in) :: r
     real(kind = D15P) :: d
     d = dtanh ( r ) 
@@ -1047,12 +1090,14 @@ contains
 
   ! tan
   pure function tan_sp ( r ) result(d)
+    !$acc routine seq
     real(kind = S6P), intent(in) :: r
     real(kind = S6P) :: d
     d = tan ( r )
   end function
 
   pure function tan_dp ( r ) result (d)
+    !$acc routine seq
     real(kind = D15P), intent(in) :: r
     real(kind = D15P) :: d
     d = tan ( r ) 
@@ -1060,18 +1105,21 @@ contains
 
   ! atan
   pure function atan_sp ( r ) result(d)
+    !$acc routine seq
     real(kind = S6P), intent(in) :: r
     real(kind = S6P) :: d
     d = atan ( r )
   end function
 
   pure function atan_dp ( r ) result (d)
+    !$acc routine seq
     real(kind = D15P), intent(in) :: r
     real(kind = D15P) :: d
     d = atan ( r ) 
   end function
 
   pure function rl(complexnumber) result(res)
+    !$acc routine seq
     use decomp_2d_mpi, only: mytype
     implicit none
     real(mytype) :: res
@@ -1080,6 +1128,7 @@ contains
   end function rl
 
   pure function iy(complexnumber) result(res)
+    !$acc routine seq
     use decomp_2d_constants, only: mytype
     implicit none
     real(mytype) :: res
@@ -1088,6 +1137,7 @@ contains
   end function iy
 
   pure function cx(realpart, imaginarypart) result(res)
+    !$acc routine seq
     use decomp_2d_constants, only: mytype
     implicit none
     complex(mytype) :: res
@@ -1097,6 +1147,7 @@ contains
 
   ! Safe division with MINP check
   pure function safe_divide(numerator, denominator) result(res)
+    !$acc routine seq
     use decomp_2d_constants, only: mytype
     real(mytype), intent(in) :: numerator, denominator
     real(mytype) :: res
@@ -1110,6 +1161,7 @@ contains
 
   ! heaviside_step
   pure function heaviside_step ( r ) result (d)
+    !$acc routine seq
     real(kind = WP), intent(in) :: r
     real(kind = WP) :: d
     d = ZERO
@@ -1123,6 +1175,7 @@ contains
   end function
 
   subroutine compute_dfdx_central2(N, f, x, dfdx)
+    !$acc routine seq
     integer, intent(in)  :: N
     real(WP), intent(in)  :: f(N), x(N)
     real(WP), intent(out) :: dfdx(N)
@@ -1202,12 +1255,14 @@ module flatten_index_mod
 contains
 
  function flatten_3d_to_1d(i, j, k, Nx, Ny) result(n)
+   !$acc routine seq
    integer, intent(in) :: i, j, k, Nx, Ny
    integer :: n
    n = i + Nx * (j - 1)  + Nx * Ny * (k - 1)
  end function
  
  function flatten_2d_to_1d(i, j, Nx) result(n)
+   !$acc routine seq
    integer, intent(in) :: i, j, Nx
    integer :: n
    n = i + Nx * (j - 1)

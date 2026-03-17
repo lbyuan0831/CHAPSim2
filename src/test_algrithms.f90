@@ -505,7 +505,7 @@ contains
           is_flow = .true.
           flow(i)%time = flow(i)%time + domain(i)%dt
           !call Check_cfl_diffusion ( flow(i), domain(i))
-          !call Check_cfl_convection(flow(i)%qx, flow(i)%qy, flow(i)%qz, domain(i))
+          !call Check_cfl_convection(flow(i)%qx, flow(i)%qy, flow(i)%qz, flow(i), domain(i))
         end if
 !==========================================================================================================
 !     setting up thermo solver
@@ -601,7 +601,7 @@ subroutine Test_algorithms()
 end subroutine 
 
 
-subroutine test_poisson(dm)
+subroutine test_poisson(fl, dm)
   use udf_type_mod
   use poisson_interface_mod
   use math_mod
@@ -610,6 +610,7 @@ subroutine test_poisson(dm)
   
 ! based on TGV3D mesh
   type(t_domain), intent(inout) :: dm
+  type(t_flow),   intent(inout) :: fl
 
   real(WP), dimension( dm%dccc%xsz(1), dm%dccc%xsz(2), dm%dccc%xsz(3) ) :: rhs, rhs0, phi, phi0
   real(WP), dimension( dm%dccc%ysz(1), dm%dccc%ysz(2), dm%dccc%ysz(3) ) :: rhs_ypencil
@@ -648,7 +649,7 @@ subroutine test_poisson(dm)
     end do
   end do
 
-  call solve_fft_poisson(rhs, dm)
+  call solve_fft_poisson(rhs, fl, dm)
   phi = rhs
 
 !==========================================================================================================

@@ -34,25 +34,42 @@ module operations
 
   logical, save :: bc_ghost_cd = .true.
   logical, save :: bc_intp_upw = .false.
+  !$acc declare copyin(bc_ghost_cd)
+  !$acc declare copyin(bc_intp_upw)
 
   logical, save :: flg_wrn_xmidp_c2p_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_xmidp_c2p_dirichlet (2) = (/.false., .false./)
   logical, save :: flg_wrn_xmidp_c2p_neumann   (2) = (/.false., .false./)
   logical, save :: flg_wrn_xmidp_p2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_xmidp_p2c_neumann   (2) = (/.false., .false./)
- 
+  !$acc declare copyin(flg_wrn_xmidp_c2p_interior)
+  !$acc declare copyin(flg_wrn_xmidp_c2p_dirichlet)
+  !$acc declare copyin(flg_wrn_xmidp_c2p_neumann)
+  !$acc declare copyin(flg_wrn_xmidp_p2c_interior)
+  !$acc declare copyin(flg_wrn_xmidp_p2c_neumann)
+
   logical, save :: flg_wrn_ymidp_c2p_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_ymidp_c2p_dirichlet (2) = (/.false., .false./)
   logical, save :: flg_wrn_ymidp_c2p_neumann   (2) = (/.false., .false./)
   logical, save :: flg_wrn_ymidp_p2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_ymidp_p2c_neumann   (2) = (/.false., .false./)
- 
+  !$acc declare copyin(flg_wrn_ymidp_c2p_interior)
+  !$acc declare copyin(flg_wrn_ymidp_c2p_dirichlet)
+  !$acc declare copyin(flg_wrn_ymidp_c2p_neumann)
+  !$acc declare copyin(flg_wrn_ymidp_p2c_interior)
+  !$acc declare copyin(flg_wrn_ymidp_p2c_neumann)
+
   logical, save :: flg_wrn_zmidp_c2p_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_zmidp_c2p_dirichlet (2) = (/.false., .false./)
   logical, save :: flg_wrn_zmidp_c2p_neumann   (2) = (/.false., .false./)
   logical, save :: flg_wrn_zmidp_p2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_zmidp_p2c_neumann   (2) = (/.false., .false./)
- 
+  !$acc declare copyin(flg_wrn_zmidp_c2p_interior)
+  !$acc declare copyin(flg_wrn_zmidp_c2p_dirichlet)
+  !$acc declare copyin(flg_wrn_zmidp_c2p_neumann)
+  !$acc declare copyin(flg_wrn_zmidp_p2c_interior)
+  !$acc declare copyin(flg_wrn_zmidp_p2c_neumann)
+
   logical, save :: flg_wrn_x1der_c2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_x1der_c2c_dirichlet (2) = (/.false., .false./)
   logical, save :: flg_wrn_x1der_c2c_neumann   (2) = (/.false., .false./)
@@ -63,6 +80,16 @@ module operations
   logical, save :: flg_wrn_x1der_c2p_neumann   (2) = (/.false., .false./)
   logical, save :: flg_wrn_x1der_p2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_x1der_p2c_neumann   (2) = (/.false., .false./)
+  !$acc declare copyin(flg_wrn_x1der_c2c_interior)
+  !$acc declare copyin(flg_wrn_x1der_c2c_dirichlet)
+  !$acc declare copyin(flg_wrn_x1der_c2c_neumann)
+  !$acc declare copyin(flg_wrn_x1der_p2p_interior)
+  !$acc declare copyin(flg_wrn_x1der_p2p_neumann)
+  !$acc declare copyin(flg_wrn_x1der_c2p_interior)
+  !$acc declare copyin(flg_wrn_x1der_c2p_dirichlet)
+  !$acc declare copyin(flg_wrn_x1der_c2p_neumann)
+  !$acc declare copyin(flg_wrn_x1der_p2c_interior)
+  !$acc declare copyin(flg_wrn_x1der_p2c_neumann)
 
   logical, save :: flg_wrn_y1der_c2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_y1der_c2c_dirichlet (2) = (/.false., .false./)
@@ -74,6 +101,16 @@ module operations
   logical, save :: flg_wrn_y1der_c2p_neumann   (2) = (/.false., .false./)
   logical, save :: flg_wrn_y1der_p2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_y1der_p2c_neumann   (2) = (/.false., .false./)
+  !$acc declare copyin(flg_wrn_y1der_c2c_interior)
+  !$acc declare copyin(flg_wrn_y1der_c2c_dirichlet)
+  !$acc declare copyin(flg_wrn_y1der_c2c_neumann)
+  !$acc declare copyin(flg_wrn_y1der_p2p_interior)
+  !$acc declare copyin(flg_wrn_y1der_p2p_neumann)
+  !$acc declare copyin(flg_wrn_y1der_c2p_interior)
+  !$acc declare copyin(flg_wrn_y1der_c2p_dirichlet)
+  !$acc declare copyin(flg_wrn_y1der_c2p_neumann)
+  !$acc declare copyin(flg_wrn_y1der_p2c_interior)
+  !$acc declare copyin(flg_wrn_y1der_p2c_neumann)
 
   logical, save :: flg_wrn_z1der_c2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_z1der_c2c_dirichlet (2) = (/.false., .false./)
@@ -85,6 +122,16 @@ module operations
   logical, save :: flg_wrn_z1der_c2p_neumann   (2) = (/.false., .false./)
   logical, save :: flg_wrn_z1der_p2c_interior  (2) = (/.false., .false./)
   logical, save :: flg_wrn_z1der_p2c_neumann   (2) = (/.false., .false./)
+  !$acc declare copyin(flg_wrn_z1der_c2c_interior)
+  !$acc declare copyin(flg_wrn_z1der_c2c_dirichlet)
+  !$acc declare copyin(flg_wrn_z1der_c2c_neumann)
+  !$acc declare copyin(flg_wrn_z1der_p2p_interior)
+  !$acc declare copyin(flg_wrn_z1der_p2p_neumann)
+  !$acc declare copyin(flg_wrn_z1der_c2p_interior)
+  !$acc declare copyin(flg_wrn_z1der_c2p_dirichlet)
+  !$acc declare copyin(flg_wrn_z1der_c2p_neumann)
+  !$acc declare copyin(flg_wrn_z1der_p2c_interior)
+  !$acc declare copyin(flg_wrn_z1der_p2c_neumann)
 !----------------------------------------------------------------------------------------------------------
 ! basic coefficients for TDMA of 1st deriviative  
 ! to store coefficients for TDMA
@@ -123,24 +170,30 @@ module operations
   ! collocated C2C
   real(WP), save, public :: d1fC2C(NL,   NS, NBCS:NBCE, NACC)
   real(WP), save, public :: d1rC2C(NL, 2*NS, NBCS:NBCE, NACC)
+  !$acc declare create(d1fC2C, d1rC2C)
   ! collocated P2P
   real(WP), save, public :: d1fP2P(NL,   NS, NBCS:NBCE, NACC)
   real(WP), save, public :: d1rP2P(NL, 2*NS, NBCS:NBCE, NACC)
+  !$acc declare create(d1fP2P, d1rP2P)
   ! staggered C2P
   real(WP), save, public :: d1fC2P(NL,   NS, NBCS:NBCE, NACC)
   real(WP), save, public :: d1rC2P(NL, 2*NS, NBCS:NBCE, NACC)
+  !$acc declare create(d1fC2P, d1rC2P)
   ! staggered P2C
   real(WP), save, public :: d1fP2C(NL,   NS, NBCS:NBCE, NACC)
   real(WP), save, public :: d1rP2C(NL, 2*NS, NBCS:NBCE, NACC)
+  !$acc declare create(d1fP2C, d1rP2C)
 !----------------------------------------------------------------------------------------------------------
 ! for iterpolation
 !----------------------------------------------------------------------------------------------------------
   ! interpolation P2C
   real(WP), save, public :: m1fP2C(NL,   NS, NBCS:NBCE, NACC)
   real(WP), save, public :: m1rP2C(NL, 2*NS, NBCS:NBCE, NACC)
+  !$acc declare create(m1fP2C, m1rP2C)
   ! interpolation C2P
   real(WP), save, public :: m1fC2P(NL,   NS, NBCS:NBCE, NACC)
   real(WP), save, public :: m1rC2P(NL, 2*NS, NBCS:NBCE, NACC)
+  !$acc declare create(m1fC2P, m1rC2P)
 
 !----------------------------------------------------------------------------------------------------------
 ! coefficients array for TDMA of 1st deriviative  
@@ -183,7 +236,8 @@ module operations
     real(WP), allocatable :: dm2x_C2P(:, :, :, :)
   end type t_xtdma_lhs
 
-  type(t_xtdma_lhs), allocatable :: xtdma_lhs(:) 
+  type(t_xtdma_lhs), allocatable :: xtdma_lhs(:)
+  !$acc declare create(xtdma_lhs)
 
 !----------------------------------------------------------------------------------------------------------
 ! y : pre-processed TDMA LHS Matrix for 1st deriviative
@@ -192,21 +246,25 @@ module operations
   real(WP), allocatable :: bd1y_P2P(:, :, :, :)
   real(WP), allocatable :: cd1y_P2P(:, :, :, :)
   real(WP), allocatable :: dd1y_P2P(:, :, :, :)
+  !$acc declare create(ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
 
   real(WP), allocatable :: ad1y_C2C(:, :, :, :)
   real(WP), allocatable :: bd1y_C2C(:, :, :, :)
   real(WP), allocatable :: cd1y_C2C(:, :, :, :)
   real(WP), allocatable :: dd1y_C2C(:, :, :, :)
+  !$acc declare create(ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
 
   real(WP), allocatable :: ad1y_P2C(:, :, :, :)
   real(WP), allocatable :: bd1y_P2C(:, :, :, :)
   real(WP), allocatable :: cd1y_P2C(:, :, :, :)
   real(WP), allocatable :: dd1y_P2C(:, :, :, :)
+  !$acc declare create(ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
 
   real(WP), allocatable :: ad1y_C2P(:, :, :, :)
   real(WP), allocatable :: bd1y_C2P(:, :, :, :)
   real(WP), allocatable :: cd1y_C2P(:, :, :, :)
   real(WP), allocatable :: dd1y_C2P(:, :, :, :)
+  !$acc declare create(ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P)
 !----------------------------------------------------------------------------------------------------------
 ! y : pre-processed TDMA LHS Matrix for mid-point interpolation
 !----------------------------------------------------------------------------------------------------------
@@ -214,11 +272,13 @@ module operations
   real(WP), allocatable :: bm1y_P2C(:, :, :, :)
   real(WP), allocatable :: cm1y_P2C(:, :, :, :)
   real(WP), allocatable :: dm1y_P2C(:, :, :, :)
+  !$acc declare create(am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
 
   real(WP), allocatable :: am1y_C2P(:, :, :, :)
   real(WP), allocatable :: bm1y_C2P(:, :, :, :)
   real(WP), allocatable :: cm1y_C2P(:, :, :, :)
   real(WP), allocatable :: dm1y_C2P(:, :, :, :)
+  !$acc declare create(am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
 !----------------------------------------------------------------------------------------------------------
 ! z : pre-processed TDMA LHS Matrix for 1st deriviative
 !----------------------------------------------------------------------------------------------------------
@@ -226,21 +286,25 @@ module operations
   real(WP), allocatable :: bd1z_P2P(:, :, :, :)
   real(WP), allocatable :: cd1z_P2P(:, :, :, :)
   real(WP), allocatable :: dd1z_P2P(:, :, :, :)
+  !$acc declare create(ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
 
   real(WP), allocatable :: ad1z_C2C(:, :, :, :)
   real(WP), allocatable :: bd1z_C2C(:, :, :, :)
   real(WP), allocatable :: cd1z_C2C(:, :, :, :)
   real(WP), allocatable :: dd1z_C2C(:, :, :, :)
+  !$acc declare create(ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
 
   real(WP), allocatable :: ad1z_P2C(:, :, :, :)
   real(WP), allocatable :: bd1z_P2C(:, :, :, :)
   real(WP), allocatable :: cd1z_P2C(:, :, :, :)
   real(WP), allocatable :: dd1z_P2C(:, :, :, :)
+  !$acc declare create(ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
 
   real(WP), allocatable :: ad1z_C2P(:, :, :, :)
   real(WP), allocatable :: bd1z_C2P(:, :, :, :)
   real(WP), allocatable :: cd1z_C2P(:, :, :, :)
   real(WP), allocatable :: dd1z_C2P(:, :, :, :)
+  !$acc declare create(ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
 !----------------------------------------------------------------------------------------------------------
 ! z : pre-processed TDMA LHS Matrix for mid-point interpolation
 !----------------------------------------------------------------------------------------------------------
@@ -248,11 +312,13 @@ module operations
   real(WP), allocatable :: bm1z_P2C(:, :, :, :)
   real(WP), allocatable :: cm1z_P2C(:, :, :, :)
   real(WP), allocatable :: dm2z_P2C(:, :, :, :)
+  !$acc declare create(am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
 
   real(WP), allocatable :: am1z_C2P(:, :, :, :)
   real(WP), allocatable :: bm1z_C2P(:, :, :, :)
   real(WP), allocatable :: cm1z_C2P(:, :, :, :)
   real(WP), allocatable :: dm2z_C2P(:, :, :, :)
+  !$acc declare create(am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
 !----------------------------------------------------------------------------------------------------------
 ! processures
 !----------------------------------------------------------------------------------------------------------
@@ -302,6 +368,7 @@ module operations
   public  :: Get_x_1der_C2P_3D
   public  :: Get_y_1der_C2P_3D
   public  :: Get_z_1der_C2P_3D
+  public  :: Get_z_1der_C2P_3D_halo  !only for test
 
   private :: Prepare_TDMA_1deri_P2C_RHS_array
   private :: Get_x_1der_P2C_1D
@@ -316,6 +383,8 @@ module operations
 
   private :: reduce_bc_to_interp
   private :: check_size
+
+  public  :: cleanup_device_mem_operation
 
 contains
 
@@ -1503,7 +1572,10 @@ contains
       m1fP2C(:, :, IBC_DIRICHLET, :) = m1fP2C(:, :, IBC_INTERIOR, :)
       m1rP2C(:, :, IBC_DIRICHLET, :) = m1rP2C(:, :, IBC_INTERIOR, :)
     end if
-    
+
+    !$acc update device(d1fC2C, d1rC2C, d1fP2P, d1rP2P, d1fC2P, d1rC2P, d1fP2C, d1rP2C, &
+    !$acc&              m1fC2P, m1rC2P, m1fP2C, m1rP2C)
+
     if(nrank == 0) call Print_debug_end_msg()
     return
   end subroutine Prepare_compact_coefficients
@@ -1540,11 +1612,14 @@ contains
 
     integer :: i, j, m, k
 
+    !$acc kernels default(present)
     a(:, :, :, :) =  ZERO
     b(:, :, :, :) =  ZERO
     c(:, :, :, :) =  ZERO
     d(:, :, :, :) =  ZERO
+    !$acc end kernels
     k = IBC_PERIODIC
+    !$acc parallel loop collapse(3) present(a, b, c, d, coeff)
     do m = 1, NACC
       do j = NBCS, NBCE
         do i = NBCS, NBCE
@@ -1583,6 +1658,7 @@ contains
         end do
       end do
     end do
+    !$acc end parallel loop
 
     return
   end subroutine Buildup_TDMA_LHS_array
@@ -1621,6 +1697,7 @@ contains
     allocate (bd1y_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_C2C = ZERO
     allocate (cd1y_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_C2C = ZERO
     allocate (dd1y_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_C2C = ZERO
+    !$acc enter data create(ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
     call Buildup_TDMA_LHS_array(nsz, d1fC2C, &
           ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
 
@@ -1628,6 +1705,7 @@ contains
     allocate (bd1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_P2C = ZERO
     allocate (cd1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_P2C = ZERO
     allocate (dd1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_P2C = ZERO
+    !$acc enter data create(ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
     call Buildup_TDMA_LHS_array(nsz, d1fP2C, &
           ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
 
@@ -1635,6 +1713,7 @@ contains
     allocate (bm1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1y_P2C = ZERO
     allocate (cm1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1y_P2C = ZERO
     allocate (dm1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm1y_P2C = ZERO
+    !$acc enter data create(am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
     call Buildup_TDMA_LHS_array(nsz, m1fP2C, &
           am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
 
@@ -1647,6 +1726,7 @@ contains
     allocate (bd1y_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_P2P = ZERO
     allocate (cd1y_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_P2P = ZERO
     allocate (dd1y_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_P2P = ZERO
+    !$acc enter data create(ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
     call Buildup_TDMA_LHS_array(nsz, d1fP2P, &
           ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
 
@@ -1654,6 +1734,7 @@ contains
     allocate (bd1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_C2P = ZERO
     allocate (cd1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_C2P = ZERO
     allocate (dd1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_C2P = ZERO
+    !$acc enter data create(ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P)
     call Buildup_TDMA_LHS_array(nsz, d1fC2P, &
           ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P) 
 
@@ -1661,6 +1742,7 @@ contains
     allocate (bm1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1y_C2P = ZERO
     allocate (cm1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1y_C2P = ZERO
     allocate (dm1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm1y_C2P = ZERO
+    !$acc enter data create(am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
     call Buildup_TDMA_LHS_array(nsz, m1fC2P, &
           am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
 
@@ -1674,6 +1756,7 @@ contains
     allocate (bd1z_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_C2C = ZERO
     allocate (cd1z_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_C2C = ZERO
     allocate (dd1z_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_C2C = ZERO
+    !$acc enter data create(ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
     call Buildup_TDMA_LHS_array(nsz, d1fC2C, &
           ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
 
@@ -1681,6 +1764,7 @@ contains
     allocate (bd1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_P2C = ZERO
     allocate (cd1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_P2C = ZERO
     allocate (dd1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_P2C = ZERO
+    !$acc enter data create(ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
     call Buildup_TDMA_LHS_array(nsz, d1fP2C, &
           ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
 
@@ -1688,6 +1772,7 @@ contains
     allocate (bm1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1z_P2C = ZERO
     allocate (cm1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1z_P2C = ZERO
     allocate (dm2z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm2z_P2C = ZERO
+    !$acc enter data create(am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
     call Buildup_TDMA_LHS_array(nsz, m1fP2C, &
           am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
 
@@ -1702,6 +1787,7 @@ contains
     allocate (bd1z_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_P2P = ZERO
     allocate (cd1z_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_P2P = ZERO
     allocate (dd1z_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_P2P = ZERO
+    !$acc enter data create(ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
     call Buildup_TDMA_LHS_array(nsz, d1fP2P, &
           ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
 
@@ -1709,6 +1795,7 @@ contains
     allocate (bd1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_C2P = ZERO
     allocate (cd1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_C2P = ZERO
     allocate (dd1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_C2P = ZERO
+    !$acc enter data create(ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
     call Buildup_TDMA_LHS_array(nsz, d1fC2P, &
           ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
 
@@ -1716,6 +1803,7 @@ contains
     allocate (bm1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1z_C2P = ZERO
     allocate (cm1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1z_C2P = ZERO
     allocate (dm2z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm2z_C2P = ZERO
+    !$acc enter data create(am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
     call Buildup_TDMA_LHS_array(nsz, m1fC2P, &
           am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
 
@@ -1727,12 +1815,15 @@ contains
 !----------------------------------------------------------------------------------------------------------
 ! x-direction, with nc unknows
 !----------------------------------------------------------------------------------------------------------
+      !$acc enter data create(xtdma_lhs(i))
       nsz = domain(i)%nc(1)
 
       allocate (xtdma_lhs(i)%ad1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%ad1x_C2C = ZERO
       allocate (xtdma_lhs(i)%bd1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_C2C = ZERO
       allocate (xtdma_lhs(i)%cd1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_C2C = ZERO
       allocate (xtdma_lhs(i)%dd1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_C2C = ZERO
+      !$acc enter data create(xtdma_lhs(i)%ad1x_C2C, xtdma_lhs(i)%bd1x_C2C, &
+      !$acc&                  xtdma_lhs(i)%cd1x_C2C, xtdma_lhs(i)%dd1x_C2C)
       call Buildup_TDMA_LHS_array(nsz , d1fC2C, &
             xtdma_lhs(i)%ad1x_C2C, &
             xtdma_lhs(i)%bd1x_C2C, &
@@ -1743,6 +1834,8 @@ contains
       allocate (xtdma_lhs(i)%bd1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_P2C = ZERO
       allocate (xtdma_lhs(i)%cd1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_P2C = ZERO
       allocate (xtdma_lhs(i)%dd1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_P2C = ZERO
+      !$acc enter data create(xtdma_lhs(i)%ad1x_P2C, xtdma_lhs(i)%bd1x_P2C, &
+      !$acc&                  xtdma_lhs(i)%cd1x_P2C, xtdma_lhs(i)%dd1x_P2C)
       call Buildup_TDMA_LHS_array(nsz , d1fP2C, &
             xtdma_lhs(i)%ad1x_P2C, &
             xtdma_lhs(i)%bd1x_P2C, &
@@ -1753,11 +1846,13 @@ contains
       allocate (xtdma_lhs(i)%bm1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bm1x_P2C = ZERO
       allocate (xtdma_lhs(i)%cm1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cm1x_P2C = ZERO
       allocate (xtdma_lhs(i)%dm2x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dm2x_P2C = ZERO
+      !$acc enter data create(xtdma_lhs(i)%am1x_P2C, xtdma_lhs(i)%bm1x_P2C, &
+      !$acc&                  xtdma_lhs(i)%cm1x_P2C, xtdma_lhs(i)%dm2x_P2C)
       call Buildup_TDMA_LHS_array(nsz , m1fP2C, &
           xtdma_lhs(i)%am1x_P2C, &
           xtdma_lhs(i)%bm1x_P2C, &
           xtdma_lhs(i)%cm1x_P2C, &
-          xtdma_lhs(i)%dm2x_P2C)      
+          xtdma_lhs(i)%dm2x_P2C)
 
 !----------------------------------------------------------------------------------------------------------
 ! x-direction, with np unknows
@@ -1768,6 +1863,8 @@ contains
       allocate (xtdma_lhs(i)%bd1x_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_P2P = ZERO
       allocate (xtdma_lhs(i)%cd1x_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_P2P = ZERO
       allocate (xtdma_lhs(i)%dd1x_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_P2P = ZERO
+      !$acc enter data create(xtdma_lhs(i)%ad1x_P2P, xtdma_lhs(i)%bd1x_P2P, &
+      !$acc&                  xtdma_lhs(i)%cd1x_P2P, xtdma_lhs(i)%dd1x_P2P)
       call Buildup_TDMA_LHS_array(nsz , d1fP2P, &
             xtdma_lhs(i)%ad1x_P2P, &
             xtdma_lhs(i)%bd1x_P2P, &
@@ -1778,6 +1875,8 @@ contains
       allocate (xtdma_lhs(i)%bd1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_C2P = ZERO
       allocate (xtdma_lhs(i)%cd1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_C2P = ZERO
       allocate (xtdma_lhs(i)%dd1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_C2P = ZERO
+      !$acc enter data create(xtdma_lhs(i)%ad1x_C2P, xtdma_lhs(i)%bd1x_C2P, &
+      !$acc&                  xtdma_lhs(i)%cd1x_C2P, xtdma_lhs(i)%dd1x_C2P)
       call Buildup_TDMA_LHS_array(nsz , d1fC2P, &
             xtdma_lhs(i)%ad1x_C2P, &
             xtdma_lhs(i)%bd1x_C2P, &
@@ -1788,11 +1887,13 @@ contains
       allocate (xtdma_lhs(i)%bm1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bm1x_C2P = ZERO
       allocate (xtdma_lhs(i)%cm1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cm1x_C2P = ZERO
       allocate (xtdma_lhs(i)%dm2x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dm2x_C2P = ZERO
+      !$acc enter data create(xtdma_lhs(i)%am1x_C2P, xtdma_lhs(i)%bm1x_C2P, &
+      !$acc&                  xtdma_lhs(i)%cm1x_C2P, xtdma_lhs(i)%dm2x_C2P)
       call Buildup_TDMA_LHS_array(nsz , m1fC2P, &
           xtdma_lhs(i)%am1x_C2P, &
           xtdma_lhs(i)%bm1x_C2P, &
           xtdma_lhs(i)%cm1x_C2P, &
-          xtdma_lhs(i)%dm2x_C2P)      
+          xtdma_lhs(i)%dm2x_C2P)
 
     end do
 
@@ -3960,10 +4061,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_x_midp_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_x_midp_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_x_midp_C2P_3D
+
+  subroutine Get_x_midp_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use tridiagonal_matrix_algorithm
+    use udf_type_mod
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 1) )
     real(WP)   :: fo( size(fo3d, 1) )
     real(WP)   :: fbc(4)
-    integer :: k, j
+    integer    :: k, j
 
 !----------------------------------------------------------------------------------------------------------
 !  default : x-pencil calculation
@@ -3992,8 +4115,282 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_x_midp_C2P_3D
+    return
+  end subroutine Get_x_midp_C2P_3D_cpu
+
+  subroutine Get_x_midp_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use tridiagonal_matrix_algorithm
+    use udf_type_mod
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 1) )
+    real(WP) :: fo( size(fo3d, 1) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(-1:2, size(fi3d,2), size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d2, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc2, is_bc4, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_midp_C2P_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_midp_C2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_midp_C2P_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_midp_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d2 = size(fi3d, 2)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    ixsub = dm%idom
+    dp(1) = dm%h(1)
+    dp(3) = dm%h(1) * TWO
+    dp(2) = dm%h(1)
+    dp(4) = dm%h(1) * TWO
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = m1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_xmidp_c2p_interior(ii), 'IBC_INTERIOR', 'Get_x_midp_C2P_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_xmidp_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_x_midp_C2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_xmidp_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_x_midp_C2P_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(1:4, j, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(0, j,k) = fbc(1)
+        fc2d(-1,j,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(0 ,j,k) = fi3d(nfi  ,j,k)
+        fc2d(-1,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(0 ,j,k) = fi3d(1,j,k)
+        fc2d(-1,j,k) = fi3d(2,j,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(0 ,j,k) = -fi3d(1,j,k)
+        fc2d(-1,j,k) = -fi3d(2,j,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(0 ,j,k) = TWO * fbc(1) - fi3d(1,j,k)
+        fc2d(-1,j,k) = TWO * fbc(1) - fi3d(2,j,k)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(0 ,j,k) = fi3d(1,j,k) - fbc(1) * dp(1)
+        fc2d(-1,j,k) = fi3d(2,j,k) - fbc(1) * dp(3)
+      else
+        fc2d(0 ,j,k) = MAXP
+        fc2d(-1,j,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(1,j,k) = fbc(2)
+        fc2d(2,j,k) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(1,j,k) = fi3d(1,j,k)
+        fc2d(2,j,k) = fi3d(2,j,k)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(1,j,k) = fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(1,j,k) = -fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = -fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(1,j,k) = TWO * fbc(2) - fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = TWO * fbc(2) - fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(1,j,k) = fi3d(nfi  ,j,k) + fbc(2) * dp(2)
+        fc2d(2,j,k) = fi3d(nfi-1,j,k) + fbc(2) * dp(4)
+      else
+        fc2d(1,j,k) = MAXP
+        fc2d(2,j,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfi3d2; do i = 1, nfo
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4,j,k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc1 = (is_bc1 .or. &
+                ibc(1) == IBC_NEUMANN)
+      end if
+
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc5 = (is_bc5 .or. &
+                ibc(2) == IBC_NEUMANN)
+      end if
+
+      is_bc2 = is_bc1
+      if(bc_ghost_cd) then
+          is_bc2 = (is_bc2 .or. &
+              ibc(1) == IBC_DIRICHLET)
+      end if
+
+      is_bc4 = is_bc5
+      if(bc_ghost_cd) then
+        is_bc4 = (is_bc4 .or. &
+              ibc(2) == IBC_DIRICHLET)
+      end if
+
+      if(i == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1)) * ( fi3d(i  ,j,k) + fc2d( 0,j,k) )+ &
+                        coeff( 1, 2, ibc(1)) * ( fi3d(i+1,j,k) + fc2d(-1,j,k) )
+        else if (ibc(1) == IBC_DIRICHLET) then
+          fo3d(i,j,k) = fbc(1)
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i+4,j,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i+5,j,k)
+        end if
+
+      else if(i == 2) then
+        if(is_bc2) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1)) * ( fi3d(i  ,j,k) + fi3d(i-1,j,k) ) + &
+                        coeff( 2, 2, ibc(1)) * ( fi3d(i+1,j,k) + fc2d(0  ,j,k) )
+        else 
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i+4,j,k)
+        end if
+
+      else if(i == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(1,j,k) + fi3d(i-1,j,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(2,j,k) + fi3d(i-2,j,k) )
+        else if (ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k) + fi3d(i-1,j,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fc2d(1,j,k) + fi3d(i-2,j,k) )
+        else if (ibc(2) == IBC_DIRICHLET) then
+          fo3d(i,j,k) = fbc(2)
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i-4,j,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i-5,j,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i-6,j,k)
+        end if
+
+      else if(i == nfo-1) then
+        if(is_bc4) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k) + fi3d(i-1,j,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(1,j,k) + fi3d(i-2,j,k) )
+        else if (ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i  ,j,k) + fi3d(i-1,j,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i+1,j,k) + fi3d(i-2,j,k) )
+        else 
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i-4,j,k) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i-5,j,k)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i  ,j,k) + fi3d(i-1,j,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i+1,j,k) + fi3d(i-2,j,k) )
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do j = 1, nfi3d2
+        !$acc loop seq
+        do i = 1, nfo
+          fo(i) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              xtdma_lhs(ixsub)%am1x_C2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%bm1x_C2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%cm1x_C2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%dm2x_C2P(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+    end if
+
+    return
+  end subroutine Get_x_midp_C2P_3D_gpu
 !==========================================================================================================
   subroutine Get_x_midp_P2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4006,11 +4403,46 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :) !2 layer each side
+
+#ifdef USE_GPU
+    call Get_x_midp_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_x_midp_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_x_midp_P2C_3D
+
+  subroutine Get_x_midp_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :) !2 layer each side
+
     real(WP)   :: fi( size(fi3d, 1) )
     real(WP)   :: fo( size(fo3d, 1) )
-    integer :: k, j
     real(WP)   :: fbc(4)
-    
+    integer    :: k, j
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_midp_P2C_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_midp_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_midp_P2C_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_midp_P2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
     fo3d(:, :, :) = ZERO
     do k = 1, size(fi3d, 3)
       do j = 1, size(fi3d, 2)
@@ -4025,8 +4457,253 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_x_midp_P2C_3D
+    return
+  end subroutine Get_x_midp_P2C_3D_cpu
+
+  subroutine Get_x_midp_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :) !2 layer each side
+
+    real(WP) :: fi( size(fi3d, 1) )
+    real(WP) :: fo( size(fo3d, 1) )
+    integer  :: i, ii, j, k
+    real(WP) :: fbc(4)
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(-1:2, size(fi3d,2), size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d2, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_midp_P2C_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_midp_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_midp_P2C_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_midp_P2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d2 = size(fi3d, 2)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    ixsub = dm%idom
+    dp(1) = dm%h(1) * TWO
+    dp(3) = dm%h(1) * FOUR
+    dp(2) = dm%h(1) * TWO
+    dp(4) = dm%h(1) * FOUR
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = m1rP2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_xmidp_p2c_interior(ii), 'IBC_INTERIOR', 'Get_x_midp_P2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_xmidp_p2c_neumann(ii), 'IBC_NEUMANN', 'Get_x_midp_P2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(1:4, j, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d(0 ,j,k) = fbc(1)
+        fp2d(-1,j,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d(0 ,j,k) = fi3d(nfi  ,j,k)
+        fp2d(-1,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d(0 ,j,k) = fi3d(2,j,k)
+        fp2d(-1,j,k) = fi3d(3,j,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d(0 ,j,k) = -fi3d(2,j,k)
+        fp2d(-1,j,k) = -fi3d(3,j,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(0 ,j,k) = TWO * fbc(1) - fi3d(2,j,k)
+          fp2d(-1,j,k) = TWO * fbc(1) - fi3d(3,j,k)
+        else
+          fp2d(0 ,j,k) = TWO * fi3d(1,j,k) - fi3d(2,j,k)
+          fp2d(-1,j,k) = TWO * fi3d(1,j,k) - fi3d(3,j,k)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d(0 ,j,k) = fi3d(2,j,k) - fbc(1) * dp(1)
+        fp2d(-1,j,k) = fi3d(3,j,k) - fbc(1) * dp(3)
+      else
+        fp2d(0 ,j,k) = MAXP
+        fp2d(-1,j,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(1,j,k) = fbc(2)
+        fp2d(2,j,k) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(1,j,k) = fi3d(1,j,k)
+        fp2d(2,j,k) = fi3d(2,j,k)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(1,j,k) = fi3d(nfi-1,j,k)
+        fp2d(2,j,k) = fi3d(nfi-2,j,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(1,j,k) = - fi3d(nfi-1,j,k)
+        fp2d(2,j,k) = - fi3d(nfi-2,j,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(1,j,k) = fi3d(nfi-1,j,k) + fbc(2) * dp(2)
+        fp2d(2,j,k) = fi3d(nfi-2,j,k) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(1,j,k) = TWO * fbc(2) - fi3d(nfi-1,j,k)
+          fp2d(2,j,k) = TWO * fbc(2) - fi3d(nfi-2,j,k)
+        else
+          fp2d(1,j,k) = TWO * fi3d(nfi,j,k) - fi3d(nfi-1,j,k)
+          fp2d(2,j,k) = TWO * fi3d(nfi,j,k) - fi3d(nfi-2,j,k)
+        end if
+      else
+        fp2d(1,j,k) = MAXP
+        fp2d(2,j,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfi3d2; do i = 1, nfo
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4, j, k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc1 =(is_bc1 .or. &
+                 ibc(1) == IBC_DIRICHLET .or. &
+                 ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc5 =(is_bc5 .or. &
+                 ibc(2) == IBC_DIRICHLET .or. &
+                 ibc(2) == IBC_NEUMANN)
+      end if
+
+      if(i == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j,k) + fi3d(i+1,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fp2d(0,j,k) + fi3d(i+2,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i+4,j,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i+5,j,k)
+        end if
+
+      else if(i == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fi3d(i,j  ,k) + fi3d(i+1,j,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fi3d(i-1,j,k) + fp2d(1  ,j,k) )
+        else if( ibc(2) == IBC_PERIODIC ) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i  ,j,k) + fp2d(1,j,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fi3d(i-1,j,k) + fp2d(2,j,k) )
+        else
+          fo3d(nfo,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                          coeff( 5, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                          coeff( 5, 3, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                          coeff( 5, 4, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                          coeff( 5, 5, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                          coeff( 5, 6, IBC_INTRPL) * fi3d(i-4,j,k)
+        end if
+
+      else if(i == nfo-1) then
+        if( ibc(2) == IBC_PERIODIC ) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i  ,j,k) + fi3d(i+1,j,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i-1,j,k) + fp2d(1  ,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i  ,j,k) + fi3d(i+1,j,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fi3d(i-1,j,k) + fi3d(i+2,j,k) )
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i  ,j,k) + fi3d(i+1,j,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i-1,j,k) + fi3d(i+2,j,k) )
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then 
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do j = 1, nfi3d2
+        !$acc loop seq
+        do i = 1, nfo
+          fo(i) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              xtdma_lhs(ixsub)%am1x_P2C(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%bm1x_P2C(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%cm1x_P2C(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%dm2x_P2C(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_x_midp_P2C_3D_gpu
+
 !==========================================================================================================
   subroutine Get_y_midp_C2P_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4039,10 +4716,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_y_midp_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_y_midp_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_y_midp_C2P_3D
+
+  subroutine Get_y_midp_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 2) )
     real(WP)   :: fo( size(fo3d, 2) )
     real(WP)   :: fbc(4)
-    integer :: k, i
+    integer    :: k, i
 
 !----------------------------------------------------------------------------------------------------------
 !  default : y-pencil calculation
@@ -4071,8 +4770,283 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_y_midp_C2P_3D
+    return
+  end subroutine Get_y_midp_C2P_3D_cpu
+
+  subroutine Get_y_midp_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 2) )
+    real(WP) :: fo( size(fo3d, 2) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(size(fi3d,1), -1:2, size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d1, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc2, is_bc4, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : y-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_y_midp_C2P_3D")
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_y_midp_C2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_y_midp_C2P_3D")
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_y_midp_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = (dm%yc(1) - dm%yp(1)) * TWO
+    dp(3) = (dm%yc(2) - dm%yp(1)) * TWO
+    dp(2) = (dm%yp(dm%np(2)) - dm%yc(dm%nc(2)  )) * TWO
+    dp(4) = (dm%yp(dm%np(2)) - dm%yc(dm%nc(2)-1)) * TWO
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = m1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_ymidp_c2p_interior(ii), 'IBC_INTERIOR', 'Get_y_midp_C2P_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_ymidp_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_y_midp_C2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_ymidp_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_y_midp_C2P_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i, 1:4, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(i,0 ,k) = fbc(1)
+        fc2d(i,-1,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(i,0 ,k) = fi3d(i,nfi  ,k)
+        fc2d(i,-1,k) = fi3d(i,nfi-1,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(i,0 ,k) = fi3d(i,1,k)
+        fc2d(i,-1,k) = fi3d(i,2,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(i,0 ,k) = -fi3d(i,1,k)
+        fc2d(i,-1,k) = -fi3d(i,2,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(i,0 ,k) = TWO * fbc(1) - fi3d(i,1,k)
+        fc2d(i,-1,k) = TWO * fbc(1) - fi3d(i,2,k)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(i,0 ,k) = fi3d(i,1,k) - fbc(1) * dp(1)
+        fc2d(i,-1,k) = fi3d(i,2,k) - fbc(1) * dp(3)
+      else
+        fc2d(i,0 ,k) = MAXP
+        fc2d(i,-1,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(i,1,k) = fbc(2)
+        fc2d(i,2,k) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(i,1,k) = fi3d(i,1,k)
+        fc2d(i,2,k) = fi3d(i,2,k)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(i,1,k) = fi3d(i,nfi  ,k)
+        fc2d(i,2,k) = fi3d(i,nfi-1,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(i,1,k) = -fi3d(i,nfi  ,k)
+        fc2d(i,2,k) = -fi3d(i,nfi-1,k)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(i,1,k) = TWO * fbc(2) - fi3d(i,nfi  ,k)
+        fc2d(i,2,k) = TWO * fbc(2) - fi3d(i,nfi-1,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(i,1,k) = fi3d(i,nfi  ,k) + fbc(2) * dp(2)
+        fc2d(i,2,k) = fi3d(i,nfi-1,k) + fbc(2) * dp(4)
+      else
+        fc2d(i,1,k) = MAXP
+        fc2d(i,2,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc1 = (is_bc1 .or. &
+                ibc(1) == IBC_NEUMANN)
+      end if
+
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc5 = (is_bc5 .or. &
+                ibc(2) == IBC_NEUMANN)
+      end if
+
+      is_bc2 = is_bc1
+      if(bc_ghost_cd) then
+          is_bc2 = (is_bc2 .or. &
+              ibc(1) == IBC_DIRICHLET)
+      end if
+
+      is_bc4 = is_bc5
+      if(bc_ghost_cd) then
+        is_bc4 = (is_bc4 .or. &
+              ibc(2) == IBC_DIRICHLET)
+      end if
+
+      if(j == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1)) * ( fi3d(i,j  ,k) + fc2d(i, 0,k) )+ &
+                        coeff( 1, 2, ibc(1)) * ( fi3d(i,j+1,k) + fc2d(i,-1,k) )
+        else if (ibc(1) == IBC_DIRICHLET) then
+          fo3d(i,j,k) = fbc(1)
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j+2,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j+3,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j+4,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j+5,k)
+        end if
+
+      else if(j == 2) then
+        if(is_bc2) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1)) * ( fi3d(i,j  ,k) + fi3d(i,j-1,k) ) + &
+                        coeff( 2, 2, ibc(1)) * ( fi3d(i,j+1,k) + fc2d(i,0  ,k) )
+        else 
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i,j+2,k) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i,j+3,k) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i,j+4,k)
+        end if
+
+      else if(j == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(i,1,k) + fi3d(i,j-1,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(i,2,k) + fi3d(i,j-2,k) )
+        else if (ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k) + fi3d(i,j-1,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fc2d(i,1,k) + fi3d(i,j-2,k) )
+        else if (ibc(2) == IBC_DIRICHLET) then
+          fo3d(i,j,k) = fbc(2)
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i,j-2,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i,j-3,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i,j-4,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i,j-5,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i,j-6,k)
+        end if
+
+      else if(j == nfo-1) then
+        if(is_bc4) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k) + fi3d(i,j-1,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(i,1,k) + fi3d(i,j-2,k) )
+        else if (ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j  ,k) + fi3d(i,j-1,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j+1,k) + fi3d(i,j-2,k) )
+        else 
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i,j-2,k) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i,j-3,k) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i,j-4,k) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i,j-5,k)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i,j  ,k) + fi3d(i,j-1,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i,j+1,k) + fi3d(i,j-2,k) )
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do i = 1, nfi3d1
+        !$acc loop seq
+        do j = 1, nfo
+          fo(j) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              am1y_C2P(:, ibc(1), ibc(2), iacc), &
+              bm1y_C2P(:, ibc(1), ibc(2), iacc), &
+              cm1y_C2P(:, ibc(1), ibc(2), iacc), &
+              dm1y_C2P(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_y_midp_C2P_3D_gpu
+
 !==========================================================================================================
   subroutine Get_y_midp_P2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4085,10 +5059,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_y_midp_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_y_midp_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_y_midp_P2C_3D
+
+  subroutine Get_y_midp_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+    
     real(WP)   :: fi( size(fi3d, 2) )
     real(WP)   :: fo( size(fo3d, 2) )
-    integer :: k, i
-    real(WP) :: fbc(4)
+    real(WP)   :: fbc(4)
+    integer    :: k, i
 !----------------------------------------------------------------------------------------------------------
 !  default : y-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4117,8 +5113,251 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_y_midp_P2C_3D
+    return
+  end subroutine Get_y_midp_P2C_3D_cpu
+
+  subroutine Get_y_midp_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 2) )
+    real(WP) :: fo( size(fo3d, 2) )
+    integer  :: i, ii, j, k
+    real(WP) :: fbc(4)
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(size(fi3d,1), -1:2, size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : y-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_y_midp_P2C_3D")
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_y_midp_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_y_midp_C2P_3D")
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_y_midp_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = ( dm%yp(2) - dm%yp(1) ) * TWO
+    dp(3) = ( dm%yp(3) - dm%yp(1) ) * TWO
+    dp(2) = ( dm%yp(dm%np(2)) - dm%yp(dm%np(2)-1) ) * TWO
+    dp(4) = ( dm%yp(dm%np(2)) - dm%yp(dm%np(2)-2) ) * TWO
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = m1rP2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_ymidp_p2c_interior(ii), 'IBC_INTERIOR', 'Get_y_midp_P2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_ymidp_p2c_neumann(ii), 'IBC_NEUMANN', 'Get_y_midp_P2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i, 1:4, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d(i, 0,k) = fbc(1)
+        fp2d(i,-1,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d(i, 0,k) = fi3d(i,nfi  ,k)
+        fp2d(i,-1,k) = fi3d(i,nfi-1,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d(i, 0,k) = fi3d(i,2,k)
+        fp2d(i,-1,k) = fi3d(i,3,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d(i, 0,k) = -fi3d(i,2,k)
+        fp2d(i,-1,k) = -fi3d(i,3,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i, 0,k) = TWO * fbc(1) - fi3d(i,2,k)
+          fp2d(i,-1,k) = TWO * fbc(1) - fi3d(i,3,k)
+        else
+          fp2d(i, 0,k) = TWO * fi3d(i,1,k) - fi3d(i,2,k)
+          fp2d(i,-1,k) = TWO * fi3d(i,1,k) - fi3d(i,3,k)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d(i, 0,k) = fi3d(i,2,k) - fbc(1) * dp(1)
+        fp2d(i,-1,k) = fi3d(i,3,k) - fbc(1) * dp(3)
+      else
+        fp2d(i, 0,k) = MAXP
+        fp2d(i,-1,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(i,1,k) = fbc(2)
+        fp2d(i,2,k) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(i,1,k) = fi3d(i,1,k)
+        fp2d(i,2,k) = fi3d(i,2,k)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(i,1,k) = fi3d(i,nfi-1,k)
+        fp2d(i,2,k) = fi3d(i,nfi-2,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(i,1,k) = - fi3d(i,nfi-1,k)
+        fp2d(i,2,k) = - fi3d(i,nfi-2,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(i,1,k) = fi3d(i,nfi-1,k) + fbc(2) * dp(2)
+        fp2d(i,2,k) = fi3d(i,nfi-2,k) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i,1,k) = TWO * fbc(2) - fi3d(i,nfi-1,k)
+          fp2d(i,2,k) = TWO * fbc(2) - fi3d(i,nfi-2,k)
+        else
+          fp2d(i,1,k) = TWO * fi3d(i,nfi,k) - fi3d(i,nfi-1,k)
+          fp2d(i,2,k) = TWO * fi3d(i,nfi,k) - fi3d(i,nfi-2,k)
+        end if
+      else
+        fp2d(i,1,k) = MAXP
+        fp2d(i,2,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc1 =(is_bc1 .or. &
+                 ibc(1) == IBC_DIRICHLET .or. &
+                 ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc5 =(is_bc5 .or. &
+                 ibc(2) == IBC_DIRICHLET .or. &
+                 ibc(2) == IBC_NEUMANN)
+      end if
+
+      if(j == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j,k) + fi3d(i,j+1,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fp2d(i,0,k) + fi3d(i,j+2,k) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j+2,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j+3,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j+4,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j+5,k)
+        end if
+
+      else if(j == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fi3d(i,j  ,k) + fi3d(i,j+1,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fi3d(i,j-1,k) + fp2d(i,1  ,k) )
+        else if( ibc(2) == IBC_PERIODIC ) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j  ,k) + fp2d(i,1,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fi3d(i,j-1,k) + fp2d(i,2,k) )
+        else
+          fo3d(nfo,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                          coeff( 5, 2, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                          coeff( 5, 3, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                          coeff( 5, 4, IBC_INTRPL) * fi3d(i,j-2,k) + &
+                          coeff( 5, 5, IBC_INTRPL) * fi3d(i,j-3,k) + &
+                          coeff( 5, 6, IBC_INTRPL) * fi3d(i,j-4,k)
+        end if
+
+      else if(j == nfo-1) then
+        if( ibc(2) == IBC_PERIODIC ) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j  ,k) + fi3d(i,j+1,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j-1,k) + fp2d(i,1  ,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j  ,k) + fi3d(i,j+1,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fi3d(i,j-1,k) + fi3d(i,j+2,k) )
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i,j  ,k) + fi3d(i,j+1,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i,j-1,k) + fi3d(i,j+2,k) )
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do i = 1, nfi3d1
+        !$acc loop seq
+        do j = 1, nfo
+          fo(j) = fo3d(i,j,k)
+        end do
+      call Solve_TDMA(is_periodic, fo(:), &
+            am1y_P2C(:, ibc(1), ibc(2), iacc), &
+            bm1y_P2C(:, ibc(1), ibc(2), iacc), &
+            cm1y_P2C(:, ibc(1), ibc(2), iacc), &
+            dm1y_P2C(:, ibc(1), ibc(2), iacc), &
+            nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_y_midp_P2C_3D_gpu
+
   !==========================================================================================================
   subroutine Get_z_midp_C2P_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4131,10 +5370,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_z_midp_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_z_midp_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_z_midp_C2P_3D
+
+  subroutine Get_z_midp_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 3) )
     real(WP)   :: fo( size(fo3d, 3) )
     real(WP)   :: fbc(4)
-    integer :: j, i
+    integer    :: j, i
 
 !----------------------------------------------------------------------------------------------------------
 !  default : z-pencil calculation
@@ -4164,8 +5425,282 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_z_midp_C2P_3D
+    return
+  end subroutine Get_z_midp_C2P_3D_cpu
+
+  subroutine Get_z_midp_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 3) )
+    real(WP) :: fo( size(fo3d, 3) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(size(fi3d,1), size(fi3d,2), -1:2)
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d2, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc2, is_bc4, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : z-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_z_midp_C2P_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_z_midp_C2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_z_midp_C2P_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_z_midp_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d2 = size(fi3d, 2)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = dm%h(3)
+    dp(3) = dm%h(3) * TWO
+    dp(2) = dm%h(3)
+    dp(4) = dm%h(3) * TWO
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = m1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_zmidp_c2p_interior(ii), 'IBC_INTERIOR', 'Get_z_midp_C2P_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_zmidp_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_z_midp_C2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_zmidp_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_z_midp_C2P_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i,j,1:4)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(i,j,0 ) = fbc(1)
+        fc2d(i,j,-1) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(i,j,0 ) = fi3d(i,j,nfi  )
+        fc2d(i,j,-1) = fi3d(i,j,nfi-1)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(i,j,0 ) = fi3d(i,j,1)
+        fc2d(i,j,-1) = fi3d(i,j,2)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(i,j,0 ) = -fi3d(i,j,1)
+        fc2d(i,j,-1) = -fi3d(i,j,2)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(i,j,0 ) = TWO * fbc(1) - fi3d(i,j,1)
+        fc2d(i,j,-1) = TWO * fbc(1) - fi3d(i,j,2)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(i,j,0 ) = fi3d(i,j,1) - fbc(1) * dp(1)
+        fc2d(i,j,-1) = fi3d(i,j,2) - fbc(1) * dp(3)
+      else
+        fc2d(i,j,0 ) = MAXP
+        fc2d(i,j,-1) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(i,j,1) = fbc(2)
+        fc2d(i,j,2) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(i,j,1) = fi3d(i,j,1)
+        fc2d(i,j,2) = fi3d(i,j,2)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(i,j,1) = fi3d(i,j,nfi  )
+        fc2d(i,j,2) = fi3d(i,j,nfi-1)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(i,j,1) = -fi3d(i,j,nfi  )
+        fc2d(i,j,2) = -fi3d(i,j,nfi-1)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(i,j,1) = TWO * fbc(2) - fi3d(i,j,nfi  )
+        fc2d(i,j,2) = TWO * fbc(2) - fi3d(i,j,nfi-1)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(i,j,1) = fi3d(i,j,nfi  ) + fbc(2) * dp(2)
+        fc2d(i,j,2) = fi3d(i,j,nfi-1) + fbc(2) * dp(4)
+      else
+        fc2d(i,j,1) = MAXP
+        fc2d(i,j,2) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+    do k = 1, nfo; do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i,j,1:4)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc1 = (is_bc1 .or. &
+                ibc(1) == IBC_NEUMANN)
+      end if
+
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc5 = (is_bc5 .or. &
+                ibc(2) == IBC_NEUMANN)
+      end if
+
+      is_bc2 = is_bc1
+      if(bc_ghost_cd) then
+          is_bc2 = (is_bc2 .or. &
+              ibc(1) == IBC_DIRICHLET)
+      end if
+
+      is_bc4 = is_bc5
+      if(bc_ghost_cd) then
+        is_bc4 = (is_bc4 .or. &
+              ibc(2) == IBC_DIRICHLET)
+      end if
+
+      if(k == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1)) * ( fi3d(i,j,k  ) + fc2d(i,j,0 ) )+ &
+                        coeff( 1, 2, ibc(1)) * ( fi3d(i,j,k+1) + fc2d(i,j,-1) )
+        else if (ibc(1) == IBC_DIRICHLET) then
+          fo3d(i,j,k) = fbc(1)
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j,k+2) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j,k+3) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j,k+4) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j,k+5)
+        end if
+
+      else if(k == 2) then
+        if(is_bc2) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1)) * ( fi3d(i,j,k  ) + fi3d(i,j,k-1) ) + &
+                        coeff( 2, 2, ibc(1)) * ( fi3d(i,j,k+1) + fc2d(i,j,0  ) )
+        else 
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i,j,k+2) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i,j,k+3) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i,j,k+4)
+        end if
+
+      else if(k == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(i,j,1) + fi3d(i,j,k-1) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(i,j,2) + fi3d(i,j,k-2) )
+        else if (ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k) + fi3d(i,j,k-1) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fc2d(i,j,1) + fi3d(i,j,k-2) )
+        else if (ibc(2) == IBC_DIRICHLET) then
+          fo3d(i,j,k) = fbc(2)
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i,j,k-2) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i,j,k-3) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i,j,k-4) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i,j,k-5) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i,j,k-6)
+        end if
+
+      else if(k == nfo-1) then
+        if(is_bc4) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k) + fi3d(i,j,k-1) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(i,j,1) + fi3d(i,j,k-2) )
+        else if (ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j,k  ) + fi3d(i,j,k-1) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j,k+1) + fi3d(i,j,k-2) )
+        else 
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i,j,k-2) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i,j,k-3) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i,j,k-4) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i,j,k-5)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i,j,k  ) + fi3d(i,j,k-1) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i,j,k+1) + fi3d(i,j,k-2) )
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do j = 1, nfi3d2; do i = 1, nfi3d1
+        !$acc loop seq
+        do k = 1, nfo
+          fo(k) = fo3d(i,j,k)
+        end do
+      call Solve_TDMA(is_periodic, fo(:), &
+            am1z_C2P(:, ibc(1), ibc(2), iacc), &
+            bm1z_C2P(:, ibc(1), ibc(2), iacc), &
+            cm1z_C2P(:, ibc(1), ibc(2), iacc), &
+            dm2z_C2P(:, ibc(1), ibc(2), iacc), &
+            nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_z_midp_C2P_3D_gpu
+
 !==========================================================================================================
   subroutine Get_z_midp_P2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4178,10 +5713,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_z_midp_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_z_midp_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_z_midp_P2C_3D
+
+  subroutine Get_z_midp_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 3) )
     real(WP)   :: fo( size(fo3d, 3) )
-    integer :: j, i
     real(WP)   :: fbc(4)
+    integer    :: j, i
 !----------------------------------------------------------------------------------------------------------
 !  default : z-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4210,8 +5767,250 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_z_midp_P2C_3D
+    return
+  end subroutine Get_z_midp_P2C_3D_cpu
+
+  subroutine Get_z_midp_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 3) )
+    real(WP) :: fo( size(fo3d, 3) )
+    integer  :: i, ii, j, k
+    real(WP) :: fbc(4)
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(size(fi3d,1), size(fi3d,2), -1:2)
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d2, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : z-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_z_midp_P2C_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_z_midp_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_z_midp_P2C_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_z_midp_P2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d2 = size(fi3d, 2)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = dm%h(3) * TWO
+    dp(3) = dm%h(3) * FOUR
+    dp(2) = dm%h(3) * TWO
+    dp(4) = dm%h(3) * FOUR
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = m1rP2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_zmidp_p2c_interior(ii), 'IBC_INTERIOR', 'Get_z_midp_P2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_zmidp_p2c_neumann(ii), 'IBC_NEUMANN', 'Get_z_midp_P2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i, j, 1:4)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d(i,j, 0) = fbc(1)
+        fp2d(i,j,-1) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d(i,j, 0) = fi3d(i,j,nfi  )
+        fp2d(i,j,-1) = fi3d(i,j,nfi-1)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d(i,j, 0) = fi3d(i,j,2)
+        fp2d(i,j,-1) = fi3d(i,j,3)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d(i,j, 0) = -fi3d(i,j,2)
+        fp2d(i,j,-1) = -fi3d(i,j,3)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i,j, 0) = TWO * fbc(1) - fi3d(i,j,2)
+          fp2d(i,j,-1) = TWO * fbc(1) - fi3d(i,j,3)
+        else
+          fp2d(i,j, 0) = TWO * fi3d(i,j,1) - fi3d(i,j,2)
+          fp2d(i,j,-1) = TWO * fi3d(i,j,1) - fi3d(i,j,3)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d(i,j, 0) = fi3d(i,j,2) - fbc(1) * dp(1)
+        fp2d(i,j,-1) = fi3d(i,j,3) - fbc(1) * dp(3)
+      else
+        fp2d(i,j, 0) = MAXP
+        fp2d(i,j,-1) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(i,j,1) = fbc(2)
+        fp2d(i,j,2) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(i,j,1) = fi3d(i,j,1)
+        fp2d(i,j,2) = fi3d(i,j,2)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(i,j,1) = fi3d(i,j,nfi-1)
+        fp2d(i,j,2) = fi3d(i,j,nfi-2)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(i,j,1) = - fi3d(i,j,nfi-1)
+        fp2d(i,j,2) = - fi3d(i,j,nfi-2)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(i,j,1) = fi3d(i,j,nfi-1) + fbc(2) * dp(2)
+        fp2d(i,j,2) = fi3d(i,j,nfi-2) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i,j,1) = TWO * fbc(2) - fi3d(i,j,nfi-1)
+          fp2d(i,j,2) = TWO * fbc(2) - fi3d(i,j,nfi-2)
+        else
+          fp2d(i,j,1) = TWO * fi3d(i,j,nfi) - fi3d(i,j,nfi-1)
+          fp2d(i,j,2) = TWO * fi3d(i,j,nfi) - fi3d(i,j,nfi-2)
+        end if
+      else
+        fp2d(i,j,1) = MAXP
+        fp2d(i,j,2) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc5)
+    do k = 1, nfo; do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i, j, 1:4)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc1 =(is_bc1 .or. &
+                 ibc(1) == IBC_DIRICHLET .or. &
+                 ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc5 =(is_bc5 .or. &
+                 ibc(2) == IBC_DIRICHLET .or. &
+                 ibc(2) == IBC_NEUMANN)
+      end if
+
+      if(k == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j,k) + fi3d(i,j,k+1) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fp2d(i,j,0) + fi3d(i,j,k+2) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j,k+2) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j,k+3) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j,k+4) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j,k+5)
+        end if
+
+      else if(k == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fi3d(i,j,k  ) + fi3d(i,j,k+1) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fi3d(i,j,k-1) + fp2d(i,j,1  ) )
+        else if( ibc(2) == IBC_PERIODIC ) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k  ) + fp2d(i,j,1) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fi3d(i,j,k-1) + fp2d(i,j,2) )
+        else
+          fo3d(nfo,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                          coeff( 5, 2, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                          coeff( 5, 3, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                          coeff( 5, 4, IBC_INTRPL) * fi3d(i,j,k-2) + &
+                          coeff( 5, 5, IBC_INTRPL) * fi3d(i,j,k-3) + &
+                          coeff( 5, 6, IBC_INTRPL) * fi3d(i,j,k-4)
+        end if
+
+      else if(k == nfo-1) then
+        if( ibc(2) == IBC_PERIODIC ) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j,k  ) + fi3d(i,j,k+1) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j,k-1) + fp2d(i,j,1  ) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k  ) + fi3d(i,j,k+1) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fi3d(i,j,k-1) + fi3d(i,j,k+2) )
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i,j,k  ) + fi3d(i,j,k+1) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i,j,k-1) + fi3d(i,j,k+2) )
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do j = 1, nfi3d2; do i = 1, nfi3d1
+        !$acc loop seq
+        do k = 1, nfo
+          fo(k) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              am1z_P2C(:, ibc(1), ibc(2), iacc), &
+              bm1z_P2C(:, ibc(1), ibc(2), iacc), &
+              cm1z_P2C(:, ibc(1), ibc(2), iacc), &
+              dm2z_P2C(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_z_midp_P2C_3D_gpu
 !==========================================================================================================
 !> \brief To caculate the 1st-deriviate in 3D.
 !---------------------------------------------------------------------------------------------------------- 
@@ -4242,10 +6041,31 @@ contains
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
 
+#ifdef USE_GPU
+    call Get_x_1der_C2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_x_1der_C2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_x_1der_C2C_3D
+
+  subroutine Get_x_1der_C2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 1) )
     real(WP)   :: fo( size(fo3d, 1) )
     real(WP)   :: fbc(4)
-    integer :: k, j
+    integer    :: k, j
 !----------------------------------------------------------------------------------------------------------
 !  default : x-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4275,9 +6095,283 @@ contains
     end do
 
     return 
-  end subroutine Get_x_1der_C2C_3D
+  end subroutine Get_x_1der_C2C_3D_cpu
+
+  subroutine Get_x_1der_C2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 1) )
+    real(WP) :: fo( size(fo3d, 1) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(-1:2, size(fi3d,2), size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d2, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc(2)
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_1der_C2C_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_1der_C2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_1der_C2C_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_1der_C2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d2 = size(fi3d, 2)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    ixsub = dm%idom
+    dp(1) = dm%h(1)
+    dp(3) = dm%h(1) * TWO
+    dp(2) = dm%h(1)
+    dp(4) = dm%h(1) * TWO
+    dd    = dm%h1r(1)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rC2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_c2c_interior(ii), 'IBC_INTERIOR', 'Get_x_1der_C2C_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_c2c_dirichlet(ii), 'IBC_DIRICHLET', 'Get_x_1der_C2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_c2c_neumann(ii), 'IBC_NEUMANN', 'Get_x_1der_C2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(1:4, j, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(0, j,k) = fbc(1)
+        fc2d(-1,j,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(0 ,j,k) = fi3d(nfi  ,j,k)
+        fc2d(-1,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(0 ,j,k) = fi3d(1,j,k)
+        fc2d(-1,j,k) = fi3d(2,j,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(0 ,j,k) = -fi3d(1,j,k)
+        fc2d(-1,j,k) = -fi3d(2,j,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(0 ,j,k) = TWO * fbc(1) - fi3d(1,j,k)
+        fc2d(-1,j,k) = TWO * fbc(1) - fi3d(2,j,k)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(0 ,j,k) = fi3d(1,j,k) - fbc(1) * dp(1)
+        fc2d(-1,j,k) = fi3d(2,j,k) - fbc(1) * dp(3)
+      else
+        fc2d(0 ,j,k) = MAXP
+        fc2d(-1,j,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(1,j,k) = fbc(2)
+        fc2d(2,j,k) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(1,j,k) = fi3d(1,j,k)
+        fc2d(2,j,k) = fi3d(2,j,k)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(1,j,k) = fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(1,j,k) = -fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = -fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(1,j,k) = TWO * fbc(2) - fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = TWO * fbc(2) - fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(1,j,k) = fi3d(nfi  ,j,k) + fbc(2) * dp(2)
+        fc2d(2,j,k) = fi3d(nfi-1,j,k) + fbc(2) * dp(4)
+      else
+        fc2d(1,j,k) = MAXP
+        fc2d(2,j,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2; do i = 1, nfo
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4,j,k)
+
+      do ii = 1, 2 
+        is_bc(ii) = (ibc(ii) == IBC_INTERIOR   .or. &
+                     ibc(ii) == IBC_PERIODIC   .or. &
+                     ibc(ii) == IBC_SYMMETRIC  .or. &
+                     ibc(ii) == IBC_ASYMMETRIC)
+        if(bc_ghost_cd) then
+          is_bc(ii) = (is_bc(ii)              .or. &
+                    ibc(ii) == IBC_DIRICHLET  .or. &
+                    ibc(ii) == IBC_NEUMANN)
+        end if
+      end do
+
+      if(i == 1) then
+        if(is_bc(1)) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i+1,j,k) - fc2d(0 ,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i+2,j,k) - fc2d(-1,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i+4,j,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i+5,j,k)
+        end if
+
+      else if(i == 2) then
+        if(is_bc(1)) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1) ) * ( fi3d(i+1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 2, 2, ibc(1) ) * ( fi3d(i+2,j,k) - fc2d(0  ,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i+4,j,k)
+        end if
+
+      else if(i == nfo) then
+        if(is_bc(2)) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(2,j,k) - fi3d(i-2,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i-4,j,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i-5,j,k)
+        end if
+
+      else if (i == nfo-1) then
+        if(is_bc(2)) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i+1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(1  ,j,k) - fi3d(i-2,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i-4,j,k)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff(3, 1, IBC_PERIODIC) * (fi3d(i+1,j,k) - fi3d(i-1,j,k)) + &
+                      coeff(3, 2, IBC_PERIODIC) * (fi3d(i+2,j,k) - fi3d(i-2,j,k))
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do j = 1, nfi3d2
+        !$acc loop seq
+        do i = 1, nfo
+          fo(i) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              xtdma_lhs(ixsub)%ad1x_C2C(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%bd1x_C2C(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%cd1x_C2C(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%dd1x_C2C(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_x_1der_C2C_3D_gpu
+
 !==========================================================================================================
   subroutine Get_x_1der_P2P_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_x_1der_P2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_x_1der_P2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_x_1der_P2P_3D
+
+  subroutine Get_x_1der_P2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
     use udf_type_mod
     use tridiagonal_matrix_algorithm
@@ -4292,7 +6386,7 @@ contains
     real(WP)   :: fi( size(fi3d, 1) )
     real(WP)   :: fo( size(fo3d, 1) )
     real(WP)   :: fbc(4)
-    integer :: k, j
+    integer    :: k, j
 
 !----------------------------------------------------------------------------------------------------------
 !  default : x-pencil calculation
@@ -4322,8 +6416,270 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_x_1der_P2P_3D
+    return
+  end subroutine Get_x_1der_P2P_3D_cpu
+
+  subroutine Get_x_1der_P2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 1) )
+    real(WP) :: fo( size(fo3d, 1) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(-1:2, size(fi3d,2), size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d2, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1(2), is_bc2(2)
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_1der_P2P_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_1der_P2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_1der_P2P_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_1der_P2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d2 = size(fi3d, 2)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    ixsub = dm%idom
+    dp(1) = dm%h(1) * TWO
+    dp(3) = dm%h(1) * FOUR
+    dp(2) = dm%h(1) * TWO
+    dp(4) = dm%h(1) * FOUR
+    dd    = dm%h1r(1)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rP2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_p2p_interior(ii), 'IBC_INTERIOR', 'Get_x_1der_P2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_p2p_neumann(ii), 'IBC_NEUMANN', 'Get_x_1der_P2P_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4, j, k)
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d( 0,j,k) = fbc(1)
+        fp2d(-1,j,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d( 0,j,k) = fi3d(nfi  ,j,k)
+        fp2d(-1,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d( 0,j,k) = fi3d(2,j,k)
+        fp2d(-1,j,k) = fi3d(3,j,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d( 0,j,k) = -fi3d(2,j,k)
+        fp2d(-1,j,k) = -fi3d(3,j,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d( 0,j,k) = TWO * fbc(1) - fi3d(2,j,k)
+          fp2d(-1,j,k) = TWO * fbc(1) - fi3d(3,j,k)
+        else
+          fp2d( 0,j,k) = TWO * fi3d(1,j,k) - fi3d(2,j,k)
+          fp2d(-1,j,k) = TWO * fi3d(1,j,k) - fi3d(3,j,k)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d( 0,j,k) = fi3d(2,j,k) - fbc(1) * dp(1)
+        fp2d(-1,j,k) = fi3d(3,j,k) - fbc(1) * dp(3)
+      else
+        fp2d( 0,j,k) = MAXP
+        fp2d(-1,j,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(1,j,k) = fbc(2)
+        fp2d(2,j,k) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(1,j,k) = fi3d(1,j,k)
+        fp2d(2,j,k) = fi3d(2,j,k)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(1,j,k) = fi3d(nfi-1,j,k)
+        fp2d(2,j,k) = fi3d(nfi-2,j,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(1,j,k) = - fi3d(nfi-1,j,k)
+        fp2d(2,j,k) = - fi3d(nfi-2,j,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(1,j,k) = fi3d(nfi-1,j,k) + fbc(2) * dp(2)
+        fp2d(2,j,k) = fi3d(nfi-2,j,k) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(1,j,k) = TWO * fbc(2) - fi3d(nfi-1,j,k)
+          fp2d(2,j,k) = TWO * fbc(2) - fi3d(nfi-2,j,k)
+        else
+          fp2d(1,j,k) = TWO * fi3d(nfi,j,k) - fi3d(nfi-1,j,k)
+          fp2d(2,j,k) = TWO * fi3d(nfi,j,k) - fi3d(nfi-2,j,k)
+        end if
+      else
+        fp2d(1,j,k) = MAXP
+        fp2d(2,j,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2)
+    do k = 1, nfi3d3; do j = 1, nfi3d2; do i = 1, nfo
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4, j, k)
+
+      do ii = 1, 2
+        is_bc1(ii) = (ibc(ii) == IBC_INTERIOR   .or. &
+                      ibc(ii) == IBC_PERIODIC   .or. &
+                      ibc(ii) == IBC_SYMMETRIC  .or. &
+                      ibc(ii) == IBC_ASYMMETRIC)
+        if(bc_ghost_cd) then
+          is_bc1(ii) = (is_bc1(ii) .or. &
+                        ibc(ii) == IBC_DIRICHLET)
+        end if
+        is_bc2(ii) = is_bc1(ii)
+        if(bc_ghost_cd) then
+          is_bc2(ii) = (is_bc2(ii) .or. &
+                        ibc(ii) == IBC_DIRICHLET .or. &
+                        ibc(ii) == IBC_NEUMANN)
+        end if
+      end do
+
+      if(i == 1) then
+        if(is_bc1(1)) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i+1,j,k) - fp2d( 0,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i+2,j,k) - fp2d(-1,j,k) )
+        else if(ibc(1) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(1)/dd
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i+4,j,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i+5,j,k) 
+        end if
+
+      else if(i == 2) then
+        if(is_bc2(1)) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1) ) * ( fi3d(i+1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 2, 2, ibc(1) ) * ( fi3d(i+2,j,k) - fp2d(0  ,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i+4,j,k)
+        end if
+
+      else if (i == nfo) then
+        if(is_bc1(2)) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fp2d(1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fp2d(2,j,k) - fi3d(i-2,j,k) )
+        else if(ibc(2) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(2)/dd
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i-4,j,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i-5,j,k)
+        end if
+
+      else if (i == nfo-1) then
+        if(is_bc2(2)) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i+1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fp2d(1  ,j,k) - fi3d(i-2,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i-4,j,k)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i+1,j,k) - fi3d(i-1,j,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i+2,j,k) - fi3d(i-2,j,k) )
+
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then 
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do j = 1, nfi3d2
+        !$acc loop seq
+        do i = 1, nfo
+          fo(i) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              xtdma_lhs(ixsub)%ad1x_P2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%bd1x_P2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%cd1x_P2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%dd1x_P2P(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_x_1der_P2P_3D_gpu
 !==========================================================================================================
   subroutine Get_x_1der_C2P_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4336,10 +6692,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_x_1der_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_x_1der_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_x_1der_C2P_3D
+
+  subroutine Get_x_1der_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 1) )
     real(WP)   :: fo( size(fo3d, 1) )
     real(WP)   :: fbc(4)
-    integer :: k, j
+    integer    :: k, j
 !----------------------------------------------------------------------------------------------------------
 !  default : x-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4357,7 +6735,7 @@ contains
     do k = 1, size(fi3d, 3)
       do j = 1, size(fi3d, 2)
         fi(:) = fi3d(:, j, k)
-        if(present(fbc2d)) then 
+        if(present(fbc2d)) then
           fbc(1:4) = fbc2d(1:4, j, k)
           call Get_x_1der_C2P_1D(fi, fo, dm, iacc, ibc, fbc)
         else
@@ -4367,10 +6745,309 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_x_1der_C2P_3D
+    return
+  end subroutine Get_x_1der_C2P_3D_cpu
+
+  subroutine Get_x_1der_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 1) )
+    real(WP) :: fo( size(fo3d, 1) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(-1:2, size(fi3d,2), size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d2, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc2, is_bc4, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_1der_C2P_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_1der_C2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_1der_C2P_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_1der_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d2 = size(fi3d, 2)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    ixsub = dm%idom
+    dp(1) = dm%h(1)
+    dp(3) = dm%h(1) * TWO
+    dp(2) = dm%h(1)
+    dp(4) = dm%h(1) * TWO
+    dd    = dm%h1r(1)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_c2p_interior(ii), 'IBC_INTERIOR', 'Get_x_1der_C2P_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_x_1der_C2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_x_1der_C2P_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(1:4, j, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(0, j,k) = fbc(1)
+        fc2d(-1,j,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(0 ,j,k) = fi3d(nfi  ,j,k)
+        fc2d(-1,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(0 ,j,k) = fi3d(1,j,k)
+        fc2d(-1,j,k) = fi3d(2,j,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(0 ,j,k) = -fi3d(1,j,k)
+        fc2d(-1,j,k) = -fi3d(2,j,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(0 ,j,k) = TWO * fbc(1) - fi3d(1,j,k)
+        fc2d(-1,j,k) = TWO * fbc(1) - fi3d(2,j,k)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(0 ,j,k) = fi3d(1,j,k) - fbc(1) * dp(1)
+        fc2d(-1,j,k) = fi3d(2,j,k) - fbc(1) * dp(3)
+      else
+        fc2d(0 ,j,k) = MAXP
+        fc2d(-1,j,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(1,j,k) = fbc(2)
+        fc2d(2,j,k) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(1,j,k) = fi3d(1,j,k)
+        fc2d(2,j,k) = fi3d(2,j,k)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(1,j,k) = fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(1,j,k) = -fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = -fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(1,j,k) = TWO * fbc(2) - fi3d(nfi  ,j,k)
+        fc2d(2,j,k) = TWO * fbc(2) - fi3d(nfi-1,j,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(1,j,k) = fi3d(nfi  ,j,k) + fbc(2) * dp(2)
+        fc2d(2,j,k) = fi3d(nfi-1,j,k) + fbc(2) * dp(4)
+      else
+        fc2d(1,j,k) = MAXP
+        fc2d(2,j,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfi3d2; do i = 1, nfo
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4,j,k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc1 = (is_bc1 .or. &
+                ibc(1) == IBC_DIRICHLET)
+      end if
+      is_bc2 = is_bc1
+      if(bc_ghost_cd) then
+          is_bc2 = (is_bc2 .or. &
+              ibc(1) == IBC_DIRICHLET .or. &
+              ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc5 = (is_bc5 .or. &
+                ibc(2) == IBC_DIRICHLET)
+      end if
+      is_bc4 = is_bc5
+      if(bc_ghost_cd) then
+        is_bc4 = (is_bc4 .or. &
+              ibc(1) == IBC_DIRICHLET .or. &
+              ibc(1) == IBC_NEUMANN)
+      end if
+
+      if(i == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i  ,j,k) - fc2d(0 ,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i+1,j,k) - fc2d(-1,j,k) )
+        else if(ibc(1) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(1)/dd
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i+4,j,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i+5,j,k)
+        end if
+
+      else if(i == 2) then
+        if(is_bc2) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1) ) * ( fi3d(i  ,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 2, 2, ibc(1) ) * ( fi3d(i+1,j,k) - fc2d(0  ,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i+4,j,k)
+        end if
+
+      else if(i == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(1,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(2,j,k) - fi3d(i-2,j,k) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fc2d(1,j,k) - fi3d(i-2,j,k) )
+        else if(ibc(2) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(2)/dd
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i-4,j,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i-5,j,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i-6,j,k)
+        end if
+
+      else if (i == nfo-1) then
+        if(is_bc4) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(1,j,k) - fi3d(i-2,j,k) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i  ,j,k) - fi3d(i-1,j,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i+1,j,k) - fi3d(i-2,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i-4,j,k) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i-5,j,k)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff(3, 1, IBC_PERIODIC) * (fi3d(i  ,j,k) - fi3d(i-1,j,k)) + &
+                      coeff(3, 2, IBC_PERIODIC) * (fi3d(i+1,j,k) - fi3d(i-2,j,k))
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do j = 1, nfi3d2
+        !$acc loop seq
+        do i = 1, nfo
+          fo(i) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              xtdma_lhs(ixsub)%ad1x_C2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%bd1x_C2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%cd1x_C2P(:, ibc(1), ibc(2), iacc), &
+              xtdma_lhs(ixsub)%dd1x_C2P(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_x_1der_C2P_3D_gpu
 !==========================================================================================================
   subroutine Get_x_1der_P2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_x_1der_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_x_1der_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_x_1der_P2C_3D
+
+  subroutine Get_x_1der_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
     use udf_type_mod
     use tridiagonal_matrix_algorithm
@@ -4385,7 +7062,7 @@ contains
     real(WP)   :: fi( size(fi3d, 1) )
     real(WP)   :: fo( size(fo3d, 1) )
     real(WP)   :: fbc(4)
-    integer :: k, j
+    integer    :: k, j
 !----------------------------------------------------------------------------------------------------------
 !  default : x-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4413,8 +7090,259 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_x_1der_P2C_3D
+    return
+  end subroutine Get_x_1der_P2C_3D_cpu
+
+  subroutine Get_x_1der_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 1) )
+    real(WP) :: fo( size(fo3d, 1) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(-1:2, size(fi3d,2), size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: ixsub
+    integer  :: nfi3d2, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : x-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_x_1der_P2C_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_x_1der_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_x_1der_P2C_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_x_1der_P2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d2 = size(fi3d, 2)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    ixsub = dm%idom
+    dp(1) = dm%h(1) * TWO
+    dp(3) = dm%h(1) * FOUR
+    dp(2) = dm%h(1) * TWO
+    dp(4) = dm%h(1) * FOUR
+    dd    = dm%h1r(1)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rP2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_p2c_interior(ii), 'IBC_INTERIOR', 'Get_x_1der_P2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_x1der_p2c_neumann(ii), 'IBC_NEUMANN', 'Get_x_1der_P2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do j = 1, nfi3d2
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(1:4, j, k)
+      else
+        fbc(1:4) = ZERO
+      endif
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d(0 ,j,k) = fbc(1)
+        fp2d(-1,j,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d(0 ,j,k) = fi3d(nfi  ,j,k)
+        fp2d(-1,j,k) = fi3d(nfi-1,j,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d(0 ,j,k) = fi3d(2,j,k)
+        fp2d(-1,j,k) = fi3d(3,j,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d(0 ,j,k) = -fi3d(2,j,k)
+        fp2d(-1,j,k) = -fi3d(3,j,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(0 ,j,k) = TWO * fbc(1) - fi3d(2,j,k)
+          fp2d(-1,j,k) = TWO * fbc(1) - fi3d(3,j,k)
+        else
+          fp2d(0 ,j,k) = TWO * fi3d(1,j,k) - fi3d(2,j,k)
+          fp2d(-1,j,k) = TWO * fi3d(1,j,k) - fi3d(3,j,k)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d(0 ,j,k) = fi3d(2,j,k) - fbc(1) * dp(1)
+        fp2d(-1,j,k) = fi3d(3,j,k) - fbc(1) * dp(3)
+      else
+        fp2d(0 ,j,k) = MAXP
+        fp2d(-1,j,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(1,j,k) = fbc(2)
+        fp2d(2,j,k) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(1,j,k) = fi3d(1,j,k)
+        fp2d(2,j,k) = fi3d(2,j,k)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(1,j,k) = fi3d(nfi-1,j,k)
+        fp2d(2,j,k) = fi3d(nfi-2,j,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(1,j,k) = - fi3d(nfi-1,j,k)
+        fp2d(2,j,k) = - fi3d(nfi-2,j,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(1,j,k) = fi3d(nfi-1,j,k) + fbc(2) * dp(2)
+        fp2d(2,j,k) = fi3d(nfi-2,j,k) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(1,j,k) = TWO * fbc(2) - fi3d(nfi-1,j,k)
+          fp2d(2,j,k) = TWO * fbc(2) - fi3d(nfi-2,j,k)
+        else
+          fp2d(1,j,k) = TWO * fi3d(nfi,j,k) - fi3d(nfi-1,j,k)
+          fp2d(2,j,k) = TWO * fi3d(nfi,j,k) - fi3d(nfi-2,j,k)
+        end if
+      else
+        fp2d(1,j,k) = MAXP
+        fp2d(2,j,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfi3d2; do i = 1, nfo
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(1:4, j, k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc1 =(is_bc1 .or. &
+                 ibc(1) == IBC_DIRICHLET .or. &
+                 ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc5 =(is_bc5 .or. &
+                 ibc(2) == IBC_DIRICHLET .or. &
+                 ibc(2) == IBC_NEUMANN)
+      end if
+
+      if(i == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i+1,j,k) - fi3d(i,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i+2,j,k) - fp2d(0,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i+2,j,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i+3,j,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i+4,j,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i+5,j,k)
+        end if
+
+      else if(i == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fi3d(i+1,j,k) - fi3d(i  ,j,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fp2d(1  ,j,k) - fi3d(i-1,j,k) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fp2d(1,j,k) - fi3d(i  ,j,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fp2d(2,j,k) - fi3d(i-1,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i+1,j,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i  ,j,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i-1,j,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i-2,j,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i-3,j,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i-4,j,k)
+        end if
+
+      else if(i == nfo-1) then
+        if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i+1,j,k) - fi3d(i  ,j,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fp2d(1  ,j,k) - fi3d(i-1,j,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i+1,j,k) - fi3d(i  ,j,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i+2,j,k) - fi3d(i-1,j,k) )
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i+1,j,k) - fi3d(i  ,j,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i+2,j,k) - fi3d(i-1,j,k) )
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+!   TODO: TDMA algorithm refactoring needed for GPU
+!!  FIXME: this needs to be reconsidered (the same for all other relevant operations)
+!!  using fo(i) = fo3d(i,j,k) will cause data race on GPU, while directly passing
+!!  fo3d works only for the x-direction, in which passed array slice is contiguous in memory
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do j = 1, nfi3d2
+        !$acc loop seq
+        do i = 1, nfo
+          fo(i) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+            xtdma_lhs(ixsub)%ad1x_P2C(:, ibc(1), ibc(2), iacc), &
+            xtdma_lhs(ixsub)%bd1x_P2C(:, ibc(1), ibc(2), iacc), &
+            xtdma_lhs(ixsub)%cd1x_P2C(:, ibc(1), ibc(2), iacc), &
+            xtdma_lhs(ixsub)%dd1x_P2C(:, ibc(1), ibc(2), iacc), &
+            nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_x_1der_P2C_3D_gpu
 !==========================================================================================================
   subroutine Get_y_1der_C2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4520,10 +7448,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_y_1der_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_y_1der_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_y_1der_C2P_3D
+
+  subroutine Get_y_1der_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 2) )
     real(WP)   :: fo( size(fo3d, 2) )
     real(WP)   :: fbc(4)
-    integer :: k, i
+    integer    :: k, i
 !----------------------------------------------------------------------------------------------------------
 !  default : y-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4551,11 +7501,743 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_y_1der_C2P_3D
+    return
+  end subroutine Get_y_1der_C2P_3D_cpu
 
+  subroutine Get_y_1der_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi(size(fi3d,2))
+    real(WP) :: fo(size(fo3d,2))
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k, lane
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(size(fi3d,1), -1:2, size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc2, is_bc4, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : y-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_y_1der_C2P_3D")
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_y_1der_C2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_y_1der_C2P_3D")
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_y_1der_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+!!!  2D vectorization option 1: the most efficient option
+!!!  if not using acc loop seq for fo3d, wrong copy from fo to fo3d occurs
+!    !$acc parallel loop collapse(2) private(fi, fo, fbc) present(fi3d, fo3d, fbc2d)
+!    do k = 1, nfi3d3
+!      do i = 1, nfi3d1
+!        !$acc loop seq
+!        do j = 1, nfi
+!          fi(j) = fi3d(i,j,k)
+!        end do
+!        if(present(fbc2d)) then
+!          fbc(1:4) = fbc2d(i, 1:4, k)
+!          call Get_y_1der_C2P_1D(fi, fo, dm, iacc, ibc, fbc)
+!        else
+!          call Get_y_1der_C2P_1D(fi, fo, dm, iacc, ibc)
+!        end if
+!        !$acc loop seq
+!        do j = 1, nfo
+!          fo3d(i,j,k) = fo(j)
+!        end do
+!      end do
+!    end do
+!    !$acc end parallel loop
+
+!!!  2D vectorization option 2: similar to option 1
+!    !$acc parallel default(present)
+!    !$acc loop gang
+!    do k = 1, nfi3d3
+!      !$acc loop vector private(fi, fo, fbc)
+!      do i = 1, nfi3d1
+!        !$acc loop seq
+!        do j = 1, nfi
+!         fi(j) = fi3d(i,j,k)
+!        end do
+!        if(present(fbc2d)) then
+!          fbc(1:4) = fbc2d(i, 1:4, k)
+!          call Get_y_1der_C2P_1D(fi, fo, dm, iacc, ibc, fbc)
+!        else
+!          call Get_y_1der_C2P_1D(fi, fo, dm, iacc, ibc)
+!        end if
+!        !$acc loop seq
+!        do j = 1, 33
+!          fo3d(i,j,k) = fo(j)
+!        end do
+!      end do
+!    end do
+!    !$acc end parallel
+
+!!!  2D vectorization option 3: slightly less efficient
+!!!  This works with putting fi fo fbc to vector private to avoid race issue
+!    !$acc parallel default(present)
+!    !$acc loop gang collapse(2)
+!    do k = 1, nfi3d3
+!      do i = 1, nfi3d1
+!        !$acc loop vector private(fi, fo, fbc)
+!        do lane = 1, 1
+!          fi(1:nfi) = fi3d(i,1:nfi,k)
+!          if(present(fbc2d)) then
+!            fbc(1:4) = fbc2d(i, 1:4, k)
+!            call Get_y_1der_C2P_1D(fi, fo, dm, iacc, ibc, fbc)
+!          else
+!            call Get_y_1der_C2P_1D(fi, fo, dm, iacc, ibc)
+!          end if
+!          fo3d(i,1:nfo,k) = fo(1:nfo)
+!        end do
+!      end do
+!    end do
+!    !$acc end parallel loop
+
+!!!  2D vectorization option 4: high cost, inefficient
+!!!  Passing array slices with non-contiguous memory significantly hurts the efficiency on GPU
+!    !$acc parallel default(present)
+!    !$acc loop gang collapse(2)
+!    do k = 1, nfi3d3
+!      do i = 1, nfi3d1
+!        if(present(fbc2d)) then
+!          call Get_y_1der_C2P_1D(fi3d(i,1:nfi,k), fo3d(i,1:nfo,k), dm, iacc, ibc, fbc2d(i, 1:4, k))
+!        else
+!          call Get_y_1der_C2P_1D(fi3d(i,1:nfi,k), fo3d(i,1:nfo,k), dm, iacc, ibc)
+!        end if
+!      end do
+!    end do
+!    !$acc end parallel loop
+
+!! 3D vectorization (only for non-compact schemes) inline code:
+    dp(1) = (dm%yc(1) - dm%yp(1)) * TWO
+    dp(3) = (dm%yc(2) - dm%yp(1)) * TWO
+    dp(2) = (dm%yp(dm%np(2)) - dm%yc(dm%nc(2)  )) * TWO
+    dp(4) = (dm%yp(dm%np(2)) - dm%yc(dm%nc(2)-1)) * TWO
+    dd    = dm%h1r(2)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+!!  Option 1: directly using the 3d array to avoid any copy involving non-contiguous
+!!            memory access, provding maximum efficiency
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_c2p_interior(ii), 'IBC_INTERIOR', 'Get_y_1der_C2P_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_y_1der_C2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_y_1der_C2P_1D')
+        end select
+      end if
+    end do
+
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i, 1:4, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(i,0 ,k) = fbc(1)
+        fc2d(i,-1,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(i,0 ,k) = fi3d(i,nfi  ,k)
+        fc2d(i,-1,k) = fi3d(i,nfi-1,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(i,0 ,k) = fi3d(i,1,k)
+        fc2d(i,-1,k) = fi3d(i,2,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(i,0 ,k) = -fi3d(i,1,k)
+        fc2d(i,-1,k) = -fi3d(i,2,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(i,0 ,k) = TWO * fbc(1) - fi3d(i,1,k)
+        fc2d(i,-1,k) = TWO * fbc(1) - fi3d(i,2,k)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(i,0 ,k) = fi3d(i,1,k) - fbc(1) * dp(1)
+        fc2d(i,-1,k) = fi3d(i,2,k) - fbc(1) * dp(3)
+      else
+        fc2d(i,0 ,k) = MAXP
+        fc2d(i,-1,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(i,1,k) = fbc(2)
+        fc2d(i,2,k) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(i,1,k) = fi3d(i,1,k)
+        fc2d(i,2,k) = fi3d(i,2,k)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(i,1,k) = fi3d(i,nfi  ,k)
+        fc2d(i,2,k) = fi3d(i,nfi-1,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(i,1,k) = -fi3d(i,nfi  ,k)
+        fc2d(i,2,k) = -fi3d(i,nfi-1,k)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(i,1,k) = TWO * fbc(2) - fi3d(i,nfi  ,k)
+        fc2d(i,2,k) = TWO * fbc(2) - fi3d(i,nfi-1,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(i,1,k) = fi3d(i,nfi  ,k) + fbc(2) * dp(2)
+        fc2d(i,2,k) = fi3d(i,nfi-1,k) + fbc(2) * dp(4)
+      else
+        fc2d(i,1,k) = MAXP
+        fc2d(i,2,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc1 = (is_bc1 .or. &
+                ibc(1) == IBC_DIRICHLET)
+      end if
+      is_bc2 = is_bc1
+      if(bc_ghost_cd) then
+          is_bc2 = (is_bc2 .or. &
+              ibc(1) == IBC_DIRICHLET .or. &
+              ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc5 = (is_bc5 .or. &
+                ibc(2) == IBC_DIRICHLET)
+      end if
+      is_bc4 = is_bc5
+      if(bc_ghost_cd) then
+        is_bc4 = (is_bc4 .or. &
+              ibc(1) == IBC_DIRICHLET .or. &
+              ibc(1) == IBC_NEUMANN)
+      end if
+
+      if(j == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j  ,k) - fc2d(i,0 ,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i,j+1,k) - fc2d(i,-1,k) )
+        else if(ibc(1) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(1)/dd
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j+2,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j+3,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j+4,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j+5,k)
+        end if
+
+      else if(j == 2) then
+        if(is_bc2) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1) ) * ( fi3d(i,j  ,k) - fi3d(i,j-1,k) ) + &
+                        coeff( 2, 2, ibc(1) ) * ( fi3d(i,j+1,k) - fc2d(i,0  ,k) )
+        else
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i,j+2,k) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i,j+3,k) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i,j+4,k)
+        end if
+
+      else if(j == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(i,1,k) - fi3d(i,j-1,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(i,2,k) - fi3d(i,j-2,k) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k) - fi3d(i,j-1,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fc2d(i,1,k) - fi3d(i,j-2,k) )
+        else if(ibc(2) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(2)/dd
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i,j-2,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i,j-3,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i,j-4,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i,j-5,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i,j-6,k)
+        end if
+
+      else if (j == nfo-1) then
+        if(is_bc4) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k) - fi3d(i,j-1,k) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(i,1,k) - fi3d(i,j-2,k) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j  ,k) - fi3d(i,j-1,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j+1,k) - fi3d(i,j-2,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i,j-2,k) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i,j-3,k) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i,j-4,k) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i,j-5,k)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff(3, 1, IBC_PERIODIC) * (fi3d(i,j  ,k) - fi3d(i,j-1,k)) + &
+                      coeff(3, 2, IBC_PERIODIC) * (fi3d(i,j+1,k) - fi3d(i,j-2,k))
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+      if(iacc == IACCU_CD2 .or. iacc == IACCU_CD4) then
+        if(dm%is_stretching(2)) fo3d(i,j,k) = fo3d(i,j,k) * dm%yMappingpt(j, 1)
+        if(ibc(1) == IBC_NEUMANN .and. present(fbc2d)) fo3d(i,1  ,k) = fbc(1)
+        if(ibc(2) == IBC_NEUMANN .and. present(fbc2d)) fo3d(i,nfo,k) = fbc(2)
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do i = 1, nfi3d1
+        !$acc loop seq
+        do j = 1, nfo
+          fo(j) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+              ad1y_C2P(:, ibc(1), ibc(2), iacc), &
+              bd1y_C2P(:, ibc(1), ibc(2), iacc), &
+              cd1y_C2P(:, ibc(1), ibc(2), iacc), &
+              dd1y_C2P(:, ibc(1), ibc(2), iacc), &
+              nfo)
+      end do; end do
+      !$acc end parallel loop
+
+      !$acc parallel loop collapse(3) present(fbc2d, fo3d, fo) private(fbc)
+      do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+        if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+        if(dm%is_stretching(2)) fo3d(i,j,k) = fo(j) * dm%yMappingpt(j, 1)
+        if(ibc(1) == IBC_NEUMANN .and. present(fbc2d)) fo3d(i,1  ,k) = fbc(1)
+        if(ibc(2) == IBC_NEUMANN .and. present(fbc2d)) fo3d(i,nfo,k) = fbc(2)
+      end do; end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+!!!  Option 2: copy data from 3d to 1d slightly reduces efficiency
+!!!            if possible, collapse(3) seems always beneficial
+!    !$acc data create(fi, fo)
+!    !$acc parallel loop collapse(3) present(fbc2d, fi3d, fo3d) &
+!    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+!    do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+
+!      fi(j) = fi3d(i,j,k)
+!      fo(j) = fo3d(i,j,k)
+!!      if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+
+!!      do ii = 1, 2
+!!        if (.not. present(fbc2d)) then
+!!          select case (ibc(ii))
+!!            case (IBC_INTERIOR)
+!!              call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_c2p_interior(ii), 'IBC_INTERIOR', 'Get_y_1der_C2P_1D')
+!!            case (IBC_DIRICHLET)
+!!              call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_y_1der_C2P_1D')
+!!            case (IBC_NEUMANN)
+!!              call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_y_1der_C2P_1D')
+!!          end select
+!!        end if
+!!      end do
+
+!      call buildup_ghost_cells_C(fi(:), ibc(:), fc(-1:2), fbc(:), dp(:))
+
+!      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+!                ibc(1) == IBC_PERIODIC   .or. &
+!                ibc(1) == IBC_SYMMETRIC  .or. &
+!                ibc(1) == IBC_ASYMMETRIC)
+!      if(bc_ghost_cd) then
+!        is_bc1 = (is_bc1 .or. &
+!                ibc(1) == IBC_DIRICHLET)
+!      end if
+!      is_bc2 = is_bc1
+!      if(bc_ghost_cd) then
+!          is_bc2 = (is_bc2 .or. &
+!              ibc(1) == IBC_DIRICHLET .or. &
+!              ibc(1) == IBC_NEUMANN)
+!      end if
+!      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+!                ibc(2) == IBC_SYMMETRIC  .or. &
+!                ibc(2) == IBC_ASYMMETRIC)
+!      if(bc_ghost_cd) then
+!        is_bc5 = (is_bc5 .or. &
+!                ibc(2) == IBC_DIRICHLET)
+!      end if
+!      is_bc4 = is_bc5
+!      if(bc_ghost_cd) then
+!        is_bc4 = (is_bc4 .or. &
+!              ibc(1) == IBC_DIRICHLET .or. &
+!              ibc(1) == IBC_NEUMANN)
+!      end if
+
+!      if(j == 1) then
+!        if(is_bc1) then
+!          fo(j) = coeff( 1, 1, ibc(1) ) * ( fi(j    ) - fc( 0) ) + &
+!                  coeff( 1, 2, ibc(1) ) * ( fi(j + 1) - fc(-1) )
+!        else if(ibc(1) == IBC_NEUMANN) then
+!          fo(j) = fbc(1)/dd
+!        else
+!          fo(j) = coeff( 1, 1, IBC_INTRPL) * fi(j    ) + &
+!                  coeff( 1, 2, IBC_INTRPL) * fi(j + 1) + &
+!                  coeff( 1, 3, IBC_INTRPL) * fi(j + 2) + &
+!                  coeff( 1, 4, IBC_INTRPL) * fi(j + 3) + &
+!                  coeff( 1, 5, IBC_INTRPL) * fi(j + 4) + &
+!                  coeff( 1, 6, IBC_INTRPL) * fi(j + 5)
+!        end if
+
+!      else if(j == 2) then
+!        if(is_bc2) then
+!          fo(j) = coeff( 2, 1, ibc(1) ) * ( fi(j    ) - fi(j - 1) ) + &
+!                  coeff( 2, 2, ibc(1) ) * ( fi(j + 1) - fc(0)     )
+!        else
+!          fo(j) = coeff( 2, 1, IBC_INTRPL) * fi(j - 1) + &
+!                  coeff( 2, 2, IBC_INTRPL) * fi(j    ) + &
+!                  coeff( 2, 3, IBC_INTRPL) * fi(j + 1) + &
+!                  coeff( 2, 4, IBC_INTRPL) * fi(j + 2) + &
+!                  coeff( 2, 5, IBC_INTRPL) * fi(j + 3) + &
+!                  coeff( 2, 6, IBC_INTRPL) * fi(j + 4)
+!        end if
+
+!      else if(j == nfo) then
+!        if(is_bc5) then
+!          fo(j) = coeff( 5, 1, ibc(2) ) * ( fc(1) - fi(j - 1) ) + &
+!                  coeff( 5, 2, ibc(2) ) * ( fc(2) - fi(j - 2) )
+!        else if(ibc(2) == IBC_PERIODIC) then
+!          fo(j) = coeff( 5, 1, IBC_PERIODIC ) * ( fi(j) - fi(j - 1) ) + &
+!                  coeff( 5, 2, IBC_PERIODIC ) * ( fc(1) - fi(j - 2) )
+!        else if(ibc(2) == IBC_NEUMANN) then
+!          fo(j) = fbc(2)/dd
+!        else
+!          fo(j) = coeff( 5, 1, IBC_INTRPL) * fi(j - 1) + &
+!                  coeff( 5, 2, IBC_INTRPL) * fi(j - 2) + &
+!                  coeff( 5, 3, IBC_INTRPL) * fi(j - 3) + &
+!                  coeff( 5, 4, IBC_INTRPL) * fi(j - 4) + &
+!                  coeff( 5, 5, IBC_INTRPL) * fi(j - 5) + &
+!                  coeff( 5, 6, IBC_INTRPL) * fi(j - 6)
+!        end if
+
+!      else if (j == nfo-1) then
+!        if(is_bc4) then
+!          fo(j) = coeff( 4, 1, ibc(2) ) * ( fi(j) - fi(j - 1) ) + &
+!                  coeff( 4, 2, ibc(2) ) * ( fc(1) - fi(j - 2) )
+!        else if(ibc(2) == IBC_PERIODIC) then
+!          fo(j) = coeff( 4, 1, IBC_PERIODIC ) * ( fi(j)   - fi(j - 1) ) + &
+!                  coeff( 4, 2, IBC_PERIODIC ) * ( fi(j+1) - fi(j - 2) )
+!        else
+!          fo(j) = coeff( 4, 1, IBC_INTRPL) * fi(j    ) + &
+!                  coeff( 4, 2, IBC_INTRPL) * fi(j - 1) + &
+!                  coeff( 4, 3, IBC_INTRPL) * fi(j - 2) + &
+!                  coeff( 4, 4, IBC_INTRPL) * fi(j - 3) + &
+!                  coeff( 4, 5, IBC_INTRPL) * fi(j - 4) + &
+!                  coeff( 4, 6, IBC_INTRPL) * fi(j - 5)
+!        end if
+
+!      else
+!        fo(j) = coeff(3, 1, IBC_PERIODIC) * (fi(j  ) - fi(j-1)) + &
+!                coeff(3, 2, IBC_PERIODIC) * (fi(j+1) - fi(j-2))
+!      end if
+
+!      fo(j) = fo(j) * dd
+
+!      if(dm%is_stretching(2)) fo(j) = fo(j) * dm%yMappingpt(j, 1)
+!      if(ibc(1) == IBC_NEUMANN .and. present(fbc2d)) fo(1  ) = fbc(1)
+!      if(ibc(2) == IBC_NEUMANN .and. present(fbc2d)) fo(nfo) = fbc(2)
+
+!      fo3d(i,j,k) = fo(j)
+
+!    end do; end do; end do
+!    !$acc end parallel loop
+!    !$acc end data
+
+!!!   Option 3: using collapse(2) in most cases is less efficient than collapse(3)
+!    !$acc data create(fi, fo)
+!    !$acc parallel loop collapse(2) present(fi3d, fo3d, fbc2d) &
+!!    !$acc parallel loop collapse(2) gang vector_length(128) present(fi3d, fo3d, fbc2d) &
+!    !$acc& private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+!    do k = 1, nfi3d3
+!      do i = 1, nfi3d1
+
+!        ! Preload input into scratch
+!        do j = 1, nfo
+!          fi(j) = fi3d(i, j, k)
+!        end do
+
+!        ! Precompute boundary condition flags
+!        is_bc1 = ibc(1) == IBC_INTERIOR  .or. ibc(1) == IBC_PERIODIC .or. &
+!                 ibc(1) == IBC_SYMMETRIC .or. ibc(1) == IBC_ASYMMETRIC
+!        if (bc_ghost_cd) is_bc1 = is_bc1 .or. ibc(1) == IBC_DIRICHLET
+
+!        is_bc2 = is_bc1
+!        if (bc_ghost_cd) is_bc2 = is_bc2 .or. ibc(1) == IBC_DIRICHLET .or. ibc(1) == IBC_NEUMANN
+
+!        is_bc5 = ibc(2) == IBC_INTERIOR .or. ibc(2) == IBC_SYMMETRIC .or. ibc(2) == IBC_ASYMMETRIC
+!        if (bc_ghost_cd) is_bc5 = is_bc5 .or. ibc(2) == IBC_DIRICHLET
+
+!        is_bc4 = is_bc5
+!        if (bc_ghost_cd) is_bc4 = is_bc4 .or. ibc(2) == IBC_DIRICHLET .or. ibc(2) == IBC_NEUMANN
+
+!        ! Optional: load boundary coefficients if present
+!        if (present(fbc2d)) then
+!          fbc(1:4) = fbc2d(i, 1:4, k)
+!        else
+!          fbc(1:4) = 0.0_WP
+!        end if
+
+!        ! -------------------------
+!        ! j = 1 (leftmost boundary)
+!        if (is_bc1) then
+!          fo(1) = coeff(1,1,ibc(1)) * (fi(1) - fc(0)) + &
+!                  coeff(1,2,ibc(1)) * (fi(2) - fc(-1))
+!        else if (ibc(1) == IBC_NEUMANN) then
+!          fo(1) = fbc(1)/dd
+!        else
+!          fo(1) = coeff(1,1,IBC_INTRPL) * fi(1) + &
+!                  coeff(1,2,IBC_INTRPL) * fi(2) + &
+!                  coeff(1,3,IBC_INTRPL) * fi(3) + &
+!                  coeff(1,4,IBC_INTRPL) * fi(4) + &
+!                  coeff(1,5,IBC_INTRPL) * fi(5) + &
+!                  coeff(1,6,IBC_INTRPL) * fi(6)
+!        end if
+!        fo(1) = fo(1) * dd
+
+!        ! -------------------------
+!        ! j = 2 (near-left boundary)
+!        if (is_bc2) then
+!          fo(2) = coeff(2,1,ibc(1)) * (fi(2) - fi(1)) + &
+!                  coeff(2,2,ibc(1)) * (fi(3) - fc(0))
+!        else
+!          fo(2) = coeff(2,1,IBC_INTRPL) * fi(1) + &
+!                  coeff(2,2,IBC_INTRPL) * fi(2) + &
+!                  coeff(2,3,IBC_INTRPL) * fi(3) + &
+!                  coeff(2,4,IBC_INTRPL) * fi(4) + &
+!                  coeff(2,5,IBC_INTRPL) * fi(5) + &
+!                  coeff(2,6,IBC_INTRPL) * fi(6)
+!        end if
+!        fo(2) = fo(2) * dd
+
+!        ! -------------------------
+!        ! j = nfo-1 (near-right boundary)
+!        if (is_bc4) then
+!          fo(nfo-1) = coeff(4,1,ibc(2)) * (fi(nfo-1) - fi(nfo-2)) + &
+!                      coeff(4,2,ibc(2)) * (fc(1) - fi(nfo-3))
+!        else if (ibc(2) == IBC_PERIODIC) then
+!          fo(nfo-1) = coeff(4,1,IBC_PERIODIC) * (fi(nfo-1) - fi(nfo-2)) + &
+!                      coeff(4,2,IBC_PERIODIC) * (fi(nfo) - fi(nfo-3))
+!        else
+!          fo(nfo-1) = coeff(4,1,IBC_INTRPL) * fi(nfo-1) + &
+!                      coeff(4,2,IBC_INTRPL) * fi(nfo-2) + &
+!                      coeff(4,3,IBC_INTRPL) * fi(nfo-3) + &
+!                      coeff(4,4,IBC_INTRPL) * fi(nfo-4) + &
+!                      coeff(4,5,IBC_INTRPL) * fi(nfo-5) + &
+!                      coeff(4,6,IBC_INTRPL) * fi(nfo-6)
+!        end if
+!        fo(nfo-1) = fo(nfo-1) * dd
+
+!        ! -------------------------
+!        ! j = nfo (rightmost boundary)
+!        if (is_bc5) then
+!          fo(nfo) = coeff(5,1,ibc(2)) * (fc(1) - fi(nfo-1)) + &
+!                    coeff(5,2,ibc(2)) * (fc(2) - fi(nfo-2))
+!        else if (ibc(2) == IBC_PERIODIC) then
+!          fo(nfo) = coeff(5,1,IBC_PERIODIC) * (fi(nfo) - fi(nfo-1)) + &
+!                    coeff(5,2,IBC_PERIODIC) * (fc(1) - fi(nfo-2))
+!        else if (ibc(2) == IBC_NEUMANN) then
+!          fo(nfo) = fbc(2)/dd
+!        else
+!          fo(nfo) = coeff(5,1,IBC_INTRPL) * fi(nfo-1) + &
+!                    coeff(5,2,IBC_INTRPL) * fi(nfo-2) + &
+!                    coeff(5,3,IBC_INTRPL) * fi(nfo-3) + &
+!                    coeff(5,4,IBC_INTRPL) * fi(nfo-4) + &
+!                    coeff(5,5,IBC_INTRPL) * fi(nfo-5) + &
+!                    coeff(5,6,IBC_INTRPL) * fi(nfo-6)
+!        end if
+!        fo(nfo) = fo(nfo) * dd
+
+!        ! -------------------------
+!        ! Main bulk stencil: j = 3 to nfo-2
+!!        !$acc cache(fi, coeff)
+!        !$acc loop vector
+!        do j = 3, nfo - 2
+!          fo(j) = (coeff(3,1,IBC_PERIODIC) * (fi(j  ) - fi(j-1)) + &
+!                   coeff(3,2,IBC_PERIODIC) * (fi(j+1) - fi(j-2))) * dd
+!        end do
+
+!        ! Apply stretching mapping if needed
+!        !$acc loop vector
+!        do j = 1, nfo
+!          if (dm%is_stretching(2)) fo(j) = fo(j) * dm%yMappingpt(j, 1)
+!        end do
+
+!        ! Store result back to fo3d
+!        do j = 1, nfo
+!          fo3d(i,j,k) = fo(j)
+!        end do
+
+!      end do
+!    end do
+!    !$acc end parallel loop
+!    !$acc end data
+
+!!! performance experiments
+!!! test 1: 1.853ms
+!    !$acc parallel default(present)
+!    !$acc loop gang vector collapse(3)
+!    do k = 1, nfi3d3
+!      do j = 1, nfo
+!        do i = 1, nfi3d1
+!          if(j>=3 .and. j<=nfo-2)then
+!            fo3d(i,j,k) = ((d1rC2P(3, 1, IBC_PERIODIC, iacc) * (fi3d(i,j,k) - fi3d(i,j-1,k))) + &
+!                            d1rC2P(3, 2, IBC_PERIODIC, iacc) * (fi3d(i,j+1,k) - fi3d(i,j-2,k))) * dm%h1r(1)
+!          else
+!            fo3d(i,j,k) = ZERO
+!          end if
+!        end do
+!      end do
+!    end do
+!    !$acc end parallel
+
+!!! test 2: 6.04 ms
+!    nfo = size(fo3d,2)
+!    !$acc parallel default(present)
+!    !$acc loop gang collapse(2)
+!    do k = 1, nfi3d3
+!      do i = 1, nfi3d1
+!        !$acc loop vector
+!        do j = 1, nfo
+!          if(j>=3 .and. j<=nfo-2)then
+!            fo3d(i,j,k) = ((d1rC2P(3, 1, IBC_PERIODIC, iacc) * (fi3d(i,j,k) - fi3d(i,j-1,k))) + &
+!                            d1rC2P(3, 2, IBC_PERIODIC, iacc) * (fi3d(i,j+1,k) - fi3d(i,j-2,k))) * dm%h1r(1)
+!          else
+!            fo3d(i,j,k) = ZERO
+!          end if
+!        end do
+!      end do
+!    end do
+!    !$acc end parallel
+
+!!! test 3: 9ms
+!    !$acc parallel default(present)
+!    !$acc loop gang collapse(2) private(fi, fo)
+!    do k = 1, nfi3d3
+!      do i = 1, nfi3d1
+!        fi(:) = fi3d(i,1:nfi,k)
+!        call performance_test(fi(:), fo(:), nfo, d1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc), dm%h1r(1))
+!        fo3d(i,1:nfo,k) = fo(:)
+!      end do
+!    end do
+!    !$acc end parallel
+
+    return
+  end subroutine Get_y_1der_C2P_3D_gpu
+
+!  subroutine performance_test(fi, fo, np, coeff, dd)
+!    !$acc routine vector
+!    use parameters_constant_mod
+!    implicit none
+!    real(WP),           intent(in ) :: fi(:)
+!    integer,            intent(in ) :: np
+!    real(WP),           intent(out) :: fo(np)
+!    real(WP),           intent(in ) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+!    real(WP),           intent(in ) :: dd
+
+!    integer ::  i
+
+!    !$acc loop vector
+!    do i = 3, np - 2
+!      if(i>=3 .and. i<=np-2)then
+!        fo(i) = (coeff(3, 1, IBC_PERIODIC) * (fi(i) - fi(i - 1)) + &
+!                 coeff(3, 2, IBC_PERIODIC) * (fi(i + 1) - fi(i - 2))) * dd
+!      else
+!        fo(i) = ZERO
+!      end if
+!    end do
+
+!    return
+!  end subroutine performance_test
 !==========================================================================================================
   subroutine Get_y_1der_P2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_y_1der_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_y_1der_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_y_1der_P2C_3D
+
+  subroutine Get_y_1der_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
     use udf_type_mod
     use tridiagonal_matrix_algorithm
@@ -4570,7 +8252,7 @@ contains
     real(WP)   :: fi( size(fi3d, 2) )
     real(WP)   :: fo( size(fo3d, 2) )
     real(WP)   :: fbc(4)
-    integer :: k, i
+    integer    :: k, i
 !----------------------------------------------------------------------------------------------------------
 !  default : y-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4599,8 +8281,265 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_y_1der_P2C_3D
+    return
+  end subroutine Get_y_1der_P2C_3D_cpu
+
+  subroutine Get_y_1der_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 2) )
+    real(WP) :: fo( size(fo3d, 2) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(size(fi3d,1), -1:2, size(fi3d,3))
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d3, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : y-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_y_1der_P2C_3D")
+    call check_size("fo/fi", 3, size(fo3d,3), size(fi3d,3), "nz mismatch in Get_y_1der_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_y_1der_P2C_3D")
+      call check_size("fbc/fi", 3, size(fbc2d,3), size(fi3d,3), "nz mismatch in Get_y_1der_P2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d3 = size(fi3d, 3)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = ( dm%yp(2) - dm%yp(1) ) * TWO
+    dp(3) = ( dm%yp(3) - dm%yp(1) ) * TWO
+    dp(2) = ( dm%yp(dm%np(2)) - dm%yp(dm%np(2)-1) ) * TWO
+    dp(4) = ( dm%yp(dm%np(2)) - dm%yp(dm%np(2)-2) ) * TWO
+    dd    = dm%h1r(2)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rP2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_p2c_interior(ii), 'IBC_INTERIOR', 'Get_y_1der_P2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_y1der_p2c_neumann(ii), 'IBC_NEUMANN', 'Get_y_1der_P2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do k = 1, nfi3d3; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i, 1:4, k)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d(i, 0,k) = fbc(1)
+        fp2d(i,-1,k) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d(i, 0,k) = fi3d(i,nfi  ,k)
+        fp2d(i,-1,k) = fi3d(i,nfi-1,k)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d(i, 0,k) = fi3d(i,2,k)
+        fp2d(i,-1,k) = fi3d(i,3,k)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d(i, 0,k) = -fi3d(i,2,k)
+        fp2d(i,-1,k) = -fi3d(i,3,k)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i, 0,k) = TWO * fbc(1) - fi3d(i,2,k)
+          fp2d(i,-1,k) = TWO * fbc(1) - fi3d(i,3,k)
+        else
+          fp2d(i, 0,k) = TWO * fi3d(i,1,k) - fi3d(i,2,k)
+          fp2d(i,-1,k) = TWO * fi3d(i,1,k) - fi3d(i,3,k)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d(i, 0,k) = fi3d(i,2,k) - fbc(1) * dp(1)
+        fp2d(i,-1,k) = fi3d(i,3,k) - fbc(1) * dp(3)
+      else
+        fp2d(i, 0,k) = MAXP
+        fp2d(i,-1,k) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(i,1,k) = fbc(2)
+        fp2d(i,2,k) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(i,1,k) = fi3d(i,1,k)
+        fp2d(i,2,k) = fi3d(i,2,k)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(i,1,k) = fi3d(i,nfi-1,k)
+        fp2d(i,2,k) = fi3d(i,nfi-2,k)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(i,1,k) = - fi3d(i,nfi-1,k)
+        fp2d(i,2,k) = - fi3d(i,nfi-2,k)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(i,1,k) = fi3d(i,nfi-1,k) + fbc(2) * dp(2)
+        fp2d(i,2,k) = fi3d(i,nfi-2,k) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i,1,k) = TWO * fbc(2) - fi3d(i,nfi-1,k)
+          fp2d(i,2,k) = TWO * fbc(2) - fi3d(i,nfi-2,k)
+        else
+          fp2d(i,1,k) = TWO * fi3d(i,nfi,k) - fi3d(i,nfi-1,k)
+          fp2d(i,2,k) = TWO * fi3d(i,nfi,k) - fi3d(i,nfi-2,k)
+        end if
+      else
+        fp2d(i,1,k) = MAXP
+        fp2d(i,2,k) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc5)
+    do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc1 =(is_bc1 .or. &
+                 ibc(1) == IBC_DIRICHLET .or. &
+                 ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc5 =(is_bc5 .or. &
+                 ibc(2) == IBC_DIRICHLET .or. &
+                 ibc(2) == IBC_NEUMANN)
+      end if
+
+      if(j == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j+1,k) - fi3d(i,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i,j+2,k) - fp2d(i,0,k) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j+2,k) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j+3,k) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j+4,k) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j+5,k)
+        end if
+
+      else if(j == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fi3d(i,j+1,k) - fi3d(i,j  ,k) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fp2d(i,1  ,k) - fi3d(i,j-1,k) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fp2d(i,1,k) - fi3d(i,j  ,k) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fp2d(i,2,k) - fi3d(i,j-1,k) )
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j+1,k) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i,j  ,k) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i,j-1,k) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i,j-2,k) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i,j-3,k) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i,j-4,k)
+        end if
+
+      else if(j == nfo-1) then
+        if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j+1,k) - fi3d(i,j  ,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fp2d(i,1  ,k) - fi3d(i,j-1,k) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j+1,k) - fi3d(i,j  ,k) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j+2,k) - fi3d(i,j-1,k) )
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i,j+1,k) - fi3d(i,j  ,k) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i,j+2,k) - fi3d(i,j-1,k) )
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+      if(iacc == IACCU_CD2 .or. iacc == IACCU_CD4) then
+        if(dm%is_stretching(2)) fo3d(i,j,k) = fo3d(i,j,k) * dm%yMappingcc(j, 1)
+      end if
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then 
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do k = 1, nfi3d3; do i = 1, nfi3d1
+        !$acc loop seq
+        do j = 1, nfo
+          fo(j) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+            ad1y_P2C(:, ibc(1), ibc(2), iacc), &
+            bd1y_P2C(:, ibc(1), ibc(2), iacc), &
+            cd1y_P2C(:, ibc(1), ibc(2), iacc), &
+            dd1y_P2C(:, ibc(1), ibc(2), iacc), &
+            nfo)
+      end do; end do
+      !$acc end parallel loop
+
+      !$acc parallel loop collapse(3) present(fbc2d, fo3d, fo) private(fbc)
+      do k = 1, nfi3d3; do j = 1, nfo; do i = 1, nfi3d1
+        if(present(fbc2d)) fbc(1:4) = fbc2d(i, 1:4, k)
+        if(dm%is_stretching(2)) fo3d(i,j,k) = fo(j) * dm%yMappingpt(j, 1)
+      end do; end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_y_1der_P2C_3D_gpu
 !==========================================================================================================
   subroutine Get_z_1der_C2C_3D (fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
@@ -4707,10 +8646,32 @@ contains
     integer,            intent(in) :: iacc
     integer,            intent(in) :: ibc(2)
     real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_z_1der_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_z_1der_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_z_1der_C2P_3D
+
+  subroutine Get_z_1der_C2P_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
     real(WP)   :: fi( size(fi3d, 3) )
     real(WP)   :: fo( size(fo3d, 3) )
     real(WP)   :: fbc(4)
-    integer :: j, i
+    integer    :: j, i
 
 !----------------------------------------------------------------------------------------------------------
 !  default : z-pencil calculation
@@ -4740,10 +8701,355 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_z_1der_C2P_3D
+    return
+  end subroutine Get_z_1der_C2P_3D_cpu
+
+  subroutine Get_z_1der_C2P_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 3) )
+    real(WP) :: fo( size(fo3d, 3) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fc2d(size(fi3d,1), size(fi3d,2), -1:2)
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d2, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc2, is_bc4, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : z-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_z_1der_C2P_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_z_1der_C2P_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_z_1der_C2P_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_z_1der_C2P_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d2 = size(fi3d, 2)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = dm%h(3)
+    dp(3) = dm%h(3) * TWO
+    dp(2) = dm%h(3)
+    dp(4) = dm%h(3) * TWO
+    dd    = dm%h1r(3)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_z1der_c2p_interior(ii), 'IBC_INTERIOR', 'Get_z_1der_C2P_1D')
+          case (IBC_DIRICHLET)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_z1der_c2p_dirichlet(ii), 'IBC_DIRICHLET', 'Get_z_1der_C2P_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_z1der_c2p_neumann(ii), 'IBC_NEUMANN', 'Get_z_1der_C2P_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fc2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i,j,1:4)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fc2d(i,j,0 ) = fbc(1)
+        fc2d(i,j,-1) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fc2d(i,j,0 ) = fi3d(i,j,nfi  )
+        fc2d(i,j,-1) = fi3d(i,j,nfi-1)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fc2d(i,j,0 ) = fi3d(i,j,1)
+        fc2d(i,j,-1) = fi3d(i,j,2)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fc2d(i,j,0 ) = -fi3d(i,j,1)
+        fc2d(i,j,-1) = -fi3d(i,j,2)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        fc2d(i,j,0 ) = TWO * fbc(1) - fi3d(i,j,1)
+        fc2d(i,j,-1) = TWO * fbc(1) - fi3d(i,j,2)
+      else if (ibc(1) == IBC_NEUMANN) then
+        fc2d(i,j,0 ) = fi3d(i,j,1) - fbc(1) * dp(1)
+        fc2d(i,j,-1) = fi3d(i,j,2) - fbc(1) * dp(3)
+      else
+        fc2d(i,j,0 ) = MAXP
+        fc2d(i,j,-1) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fc2d(i,j,1) = fbc(2)
+        fc2d(i,j,2) = fbc(4)
+      else if ( ibc(2) == IBC_PERIODIC) then
+        fc2d(i,j,1) = fi3d(i,j,1)
+        fc2d(i,j,2) = fi3d(i,j,2)
+      else if (ibc(2) == IBC_SYMMETRIC) then
+        fc2d(i,j,1) = fi3d(i,j,nfi  )
+        fc2d(i,j,2) = fi3d(i,j,nfi-1)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fc2d(i,j,1) = -fi3d(i,j,nfi  )
+        fc2d(i,j,2) = -fi3d(i,j,nfi-1)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        fc2d(i,j,1) = TWO * fbc(2) - fi3d(i,j,nfi  )
+        fc2d(i,j,2) = TWO * fbc(2) - fi3d(i,j,nfi-1)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fc2d(i,j,1) = fi3d(i,j,nfi  ) + fbc(2) * dp(2)
+        fc2d(i,j,2) = fi3d(i,j,nfi-1) + fbc(2) * dp(4)
+      else
+        fc2d(i,j,1) = MAXP
+        fc2d(i,j,2) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_DIRICHLET) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(1) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_DIRICHLET) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_DIRICHLET @ buildup_ghost_cells_C')
+    else if(ibc(2) == IBC_NEUMANN) then
+      !if(.not. present(fbc2d)) call Print_warning_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_C')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fc2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc2, is_bc4, is_bc5)
+    do k = 1, nfo; do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i,j,1:4)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc1 = (is_bc1 .or. &
+                ibc(1) == IBC_DIRICHLET)
+      end if
+      is_bc2 = is_bc1
+      if(bc_ghost_cd) then
+          is_bc2 = (is_bc2 .or. &
+              ibc(1) == IBC_DIRICHLET .or. &
+              ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC)
+      if(bc_ghost_cd) then
+        is_bc5 = (is_bc5 .or. &
+                ibc(2) == IBC_DIRICHLET)
+      end if
+      is_bc4 = is_bc5
+      if(bc_ghost_cd) then
+        is_bc4 = (is_bc4 .or. &
+              ibc(1) == IBC_DIRICHLET .or. &
+              ibc(1) == IBC_NEUMANN)
+      end if
+
+      if(k == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j,k  ) - fc2d(i,j,0 ) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i,j,k+1) - fc2d(i,j,-1) )
+        else if(ibc(1) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(1)/dd
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j,k+2) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j,k+3) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j,k+4) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j,k+5)
+        end if
+
+      else if(k == 2) then
+        if(is_bc2) then
+          fo3d(i,j,k) = coeff( 2, 1, ibc(1) ) * ( fi3d(i,j,k  ) - fi3d(i,j,k-1) ) + &
+                        coeff( 2, 2, ibc(1) ) * ( fi3d(i,j,k+1) - fc2d(i,j,0  ) )
+        else
+          fo3d(i,j,k) = coeff( 2, 1, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 2, 2, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 2, 3, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 2, 4, IBC_INTRPL) * fi3d(i,j,k+2) + &
+                        coeff( 2, 5, IBC_INTRPL) * fi3d(i,j,k+3) + &
+                        coeff( 2, 6, IBC_INTRPL) * fi3d(i,j,k+4)
+        end if
+
+      else if(k == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fc2d(i,j,1) - fi3d(i,j,k-1) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fc2d(i,j,2) - fi3d(i,j,k-2) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fi3d(i,j,k) - fi3d(i,j,k-1) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fc2d(i,j,1) - fi3d(i,j,k-2) )
+        else if(ibc(2) == IBC_NEUMANN) then
+          fo3d(i,j,k) = fbc(2)/dd
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i,j,k-2) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i,j,k-3) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i,j,k-4) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i,j,k-5) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i,j,k-6)
+        end if
+
+      else if (k == nfo-1) then
+        if(is_bc4) then
+          fo3d(i,j,k) = coeff( 4, 1, ibc(2) ) * ( fi3d(i,j,k) - fi3d(i,j,k-1) ) + &
+                        coeff( 4, 2, ibc(2) ) * ( fc2d(i,j,1) - fi3d(i,j,k-2) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j,k  ) - fi3d(i,j,k-1) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j,k+1) - fi3d(i,j,k-2) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 4, 2, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 4, 3, IBC_INTRPL) * fi3d(i,j,k-2) + &
+                        coeff( 4, 4, IBC_INTRPL) * fi3d(i,j,k-3) + &
+                        coeff( 4, 5, IBC_INTRPL) * fi3d(i,j,k-4) + &
+                        coeff( 4, 6, IBC_INTRPL) * fi3d(i,j,k-5)
+        end if
+
+      else
+        fo3d(i,j,k) = coeff(3, 1, IBC_PERIODIC) * (fi3d(i,j,k  ) - fi3d(i,j,k-1)) + &
+                      coeff(3, 2, IBC_PERIODIC) * (fi3d(i,j,k+1) - fi3d(i,j,k-2))
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do j = 1, nfi3d2; do i = 1, nfi3d1
+        !$acc loop seq
+        do k = 1, nfo
+          fo(k) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+            ad1z_C2P(:, ibc(1), ibc(2), iacc), &
+            bd1z_C2P(:, ibc(1), ibc(2), iacc), &
+            cd1z_C2P(:, ibc(1), ibc(2), iacc), &
+            dd1z_C2P(:, ibc(1), ibc(2), iacc), &
+            nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_z_1der_C2P_3D_gpu
+
+  subroutine Get_z_1der_C2P_3D_halo(fi3d, fo3d, dm, iacc, ibcin)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    use decomp_2d
+    use cudafor
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP)   :: fi( size(fi3d, 3) )
+    real(WP)   :: fo( size(fo3d, 3) )
+    integer :: i, j, k
+
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d2, nfi, nfo
+
+    real(WP), allocatable, dimension(:, :, :) :: fi3dh
+    attributes(device) :: fi3dh
+
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d2 = size(fi3d, 2)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dd    = dm%h1r(3)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rC2P(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+!    call update_halo(fi3d, fi3dh, 2, opt_pencil=1)
+
+    !$acc parallel loop collapse(3) present(fi3d, fi3dh, fo3d)
+    do k = 1, nfo; do j = 1, nfi3d2; do i = 1, nfi3d1
+      fo3d(i,j,k) = coeff(3, 1, IBC_PERIODIC) * (fi3dh(i,j,k  ) - fi3dh(i,j,k-1)) + &
+                    coeff(3, 2, IBC_PERIODIC) * (fi3dh(i,j,k+1) - fi3dh(i,j,k-2))
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+    end do; end do; end do
+    !$acc end parallel loop
+
+    return
+  end subroutine Get_z_1der_C2P_3D_halo
   !==========================================================================================================
   subroutine Get_z_1der_P2C_3D(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibc(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+#ifdef USE_GPU
+    call Get_z_1der_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#else
+    call Get_z_1der_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
+#endif
+
+    return
+  end subroutine Get_z_1der_P2C_3D
+
+  subroutine Get_z_1der_P2C_3D_cpu(fi3d, fo3d, dm, iacc, ibc, fbc2d)
     use parameters_constant_mod
     use udf_type_mod
     use tridiagonal_matrix_algorithm
@@ -4758,7 +9064,7 @@ contains
     real(WP)   :: fi( size(fi3d, 3) )
     real(WP)   :: fo( size(fo3d, 3) )
     real(WP)   :: fbc(4)
-    integer :: j, i
+    integer    :: j, i
 !----------------------------------------------------------------------------------------------------------
 !  default : z-pencil calculation
 !----------------------------------------------------------------------------------------------------------
@@ -4786,9 +9092,254 @@ contains
       end do
     end do
 
-    return 
-  end subroutine Get_z_1der_P2C_3D
+    return
+  end subroutine Get_z_1der_P2C_3D_cpu
 
+  subroutine Get_z_1der_P2C_3D_gpu(fi3d, fo3d, dm, iacc, ibcin, fbc2d)
+    use parameters_constant_mod
+    use udf_type_mod
+    use tridiagonal_matrix_algorithm
+    implicit none
+    real(WP),           intent(in) :: fi3d(:, :, :)
+    real(WP),           intent(out):: fo3d(:, :, :)
+    type(t_domain),     intent(in) :: dm
+    integer,            intent(in) :: iacc
+    integer,            intent(in) :: ibcin(2)
+    real(WP), optional, intent(in) :: fbc2d(:, :, :)
+
+    real(WP) :: fi( size(fi3d, 3) )
+    real(WP) :: fo( size(fo3d, 3) )
+    real(WP) :: fbc(4)
+    integer  :: i, ii, j, k
+    real(WP) :: dd
+    real(WP) :: dp(4)
+    real(WP) :: fp2d(size(fi3d,1), size(fi3d,2), -1:2)
+    real(WP) :: coeff(1:NL, 1:2*NS, NBCS:NBCE)
+    integer  :: ibc(2)
+    integer  :: nfi3d1, nfi3d2, nfi, nfo
+    logical  :: is_periodic
+    logical  :: is_bc1, is_bc5
+
+!----------------------------------------------------------------------------------------------------------
+!  default : z-pencil calculation
+!----------------------------------------------------------------------------------------------------------
+    ! Check sizes for fo3d and fi3d
+    call check_size("fo/fi", 1, size(fo3d,1), size(fi3d,1), "nx mismatch in Get_z_1der_P2C_3D")
+    call check_size("fo/fi", 2, size(fo3d,2), size(fi3d,2), "ny mismatch in Get_z_1der_P2C_3D")
+
+    ! Check sizes for fbc2d if present
+    if (present(fbc2d)) then
+      call check_size("fbc/fi", 1, size(fbc2d,1), size(fi3d,1), "nx mismatch in Get_z_1der_P2C_3D")
+      call check_size("fbc/fi", 2, size(fbc2d,2), size(fi3d,2), "ny mismatch in Get_z_1der_P2C_3D")
+    end if
+!----------------------------------------------------------------------------------------------------------
+    ibc(:) = ibcin(:)
+    nfi3d1 = size(fi3d, 1)
+    nfi3d2 = size(fi3d, 2)
+    nfi    = size(fi)
+    nfo    = size(fo)
+
+    dp(1) = dm%h(3) * TWO
+    dp(3) = dm%h(3) * FOUR
+    dp(2) = dm%h(3) * TWO
+    dp(4) = dm%h(3) * FOUR
+    dd    = dm%h1r(3)
+    coeff(1:NL, 1:2*NS, NBCS:NBCE) = d1rP2C(1:NL, 1:2*NS, NBCS:NBCE, iacc)
+
+    do ii = 1, 2
+      if (.not. present(fbc2d)) then
+        select case (ibc(ii))
+          case (IBC_INTERIOR)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_z1der_p2c_interior(ii), 'IBC_INTERIOR', 'Get_z_1der_P2C_1D')
+          case (IBC_NEUMANN)
+            call reduce_bc_to_interp(ibc(ii), flg_wrn_z1der_p2c_neumann(ii), 'IBC_NEUMANN', 'Get_z_1der_P2C_1D')
+        end select
+      end if
+    end do
+
+!!  3D vectorization (only for non-compact schemes) inline code
+    !$acc data create(fp2d)
+    !$acc parallel loop collapse(2) present(fbc2d, fi3d) private(fbc)
+    do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) then
+        fbc(1:4) = fbc2d(i, j, 1:4)
+      else
+        fbc(1:4) = ZERO
+      end if
+
+      if (ibc(1) == IBC_INTERIOR) then
+        fp2d(i,j, 0) = fbc(1)
+        fp2d(i,j,-1) = fbc(3)
+      else if (ibc(1) == IBC_PERIODIC) then
+        fp2d(i,j, 0) = fi3d(i,j,nfi  )
+        fp2d(i,j,-1) = fi3d(i,j,nfi-1)
+      else if (ibc(1) == IBC_SYMMETRIC ) then
+        fp2d(i,j, 0) = fi3d(i,j,2)
+        fp2d(i,j,-1) = fi3d(i,j,3)
+      else if (ibc(1) == IBC_ASYMMETRIC) then
+        fp2d(i,j, 0) = -fi3d(i,j,2)
+        fp2d(i,j,-1) = -fi3d(i,j,3)
+      else if (ibc(1) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i,j, 0) = TWO * fbc(1) - fi3d(i,j,2)
+          fp2d(i,j,-1) = TWO * fbc(1) - fi3d(i,j,3)
+        else
+          fp2d(i,j, 0) = TWO * fi3d(i,j,1) - fi3d(i,j,2)
+          fp2d(i,j,-1) = TWO * fi3d(i,j,1) - fi3d(i,j,3)
+        end if
+      else if (ibc(1) == IBC_NEUMANN) then
+        fp2d(i,j, 0) = fi3d(i,j,2) - fbc(1) * dp(1)
+        fp2d(i,j,-1) = fi3d(i,j,3) - fbc(1) * dp(3)
+      else
+        fp2d(i,j, 0) = MAXP
+        fp2d(i,j,-1) = MAXP
+      end if
+
+      if (ibc(2) == IBC_INTERIOR) then
+        fp2d(i,j,1) = fbc(2)
+        fp2d(i,j,2) = fbc(4)
+      else if (ibc(2) == IBC_PERIODIC) then
+        fp2d(i,j,1) = fi3d(i,j,1)
+        fp2d(i,j,2) = fi3d(i,j,2)
+      else if (ibc(2) == IBC_SYMMETRIC ) then
+        fp2d(i,j,1) = fi3d(i,j,nfi-1)
+        fp2d(i,j,2) = fi3d(i,j,nfi-2)
+      else if (ibc(2) == IBC_ASYMMETRIC) then
+        fp2d(i,j,1) = - fi3d(i,j,nfi-1)
+        fp2d(i,j,2) = - fi3d(i,j,nfi-2)
+      else if (ibc(2) == IBC_NEUMANN) then
+        fp2d(i,j,1) = fi3d(i,j,nfi-1) + fbc(2) * dp(2)
+        fp2d(i,j,2) = fi3d(i,j,nfi-2) + fbc(2) * dp(4)
+      else if (ibc(2) == IBC_DIRICHLET) then
+        if(present(fbc2d)) then
+          fp2d(i,j,1) = TWO * fbc(2) - fi3d(i,j,nfi-1)
+          fp2d(i,j,2) = TWO * fbc(2) - fi3d(i,j,nfi-2)
+        else
+          fp2d(i,j,1) = TWO * fi3d(i,j,nfi) - fi3d(i,j,nfi-1)
+          fp2d(i,j,2) = TWO * fi3d(i,j,nfi) - fi3d(i,j,nfi-2)
+        end if
+      else
+        fp2d(i,j,1) = MAXP
+        fp2d(i,j,2) = MAXP
+      end if
+
+    end do; end do
+    !$acc end parallel loop
+
+    if (ibc(1) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(1) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    if (ibc(2) == IBC_INTERIOR) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_INTERIOR @ buildup_ghost_cells_P')
+    else if (ibc(2) == IBC_NEUMANN) then
+      if(.not. present(fbc2d)) call Print_error_msg('Lack of fbc info for IBC_NEUMANN @ buildup_ghost_cells_P')
+    end if
+
+    !$acc parallel loop collapse(3) present(fbc2d, fp2d, fi3d, fo3d) &
+    !$acc&                          private(fbc, is_bc1, is_bc5)
+    do k = 1, nfo; do j = 1, nfi3d2; do i = 1, nfi3d1
+
+      if(present(fbc2d)) fbc(1:4) = fbc2d(i, j, 1:4)
+
+      is_bc1 = (ibc(1) == IBC_INTERIOR   .or. &
+                ibc(1) == IBC_PERIODIC   .or. &
+                ibc(1) == IBC_SYMMETRIC  .or. &
+                ibc(1) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc1 =(is_bc1 .or. &
+                 ibc(1) == IBC_DIRICHLET .or. &
+                 ibc(1) == IBC_NEUMANN)
+      end if
+      is_bc5 = (ibc(2) == IBC_INTERIOR   .or. &
+                ibc(2) == IBC_SYMMETRIC  .or. &
+                ibc(2) == IBC_ASYMMETRIC )
+      if(bc_ghost_cd) then
+        is_bc5 =(is_bc5 .or. &
+                 ibc(2) == IBC_DIRICHLET .or. &
+                 ibc(2) == IBC_NEUMANN)
+      end if
+
+      if(k == 1) then
+        if(is_bc1) then
+          fo3d(i,j,k) = coeff( 1, 1, ibc(1) ) * ( fi3d(i,j,k+1) - fi3d(i,j,k) ) + &
+                        coeff( 1, 2, ibc(1) ) * ( fi3d(i,j,k+2) - fp2d(i,j,0) )
+        else
+          fo3d(i,j,k) = coeff( 1, 1, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 1, 2, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 1, 3, IBC_INTRPL) * fi3d(i,j,k+2) + &
+                        coeff( 1, 4, IBC_INTRPL) * fi3d(i,j,k+3) + &
+                        coeff( 1, 5, IBC_INTRPL) * fi3d(i,j,k+4) + &
+                        coeff( 1, 6, IBC_INTRPL) * fi3d(i,j,k+5)
+        end if
+
+      else if(k == nfo) then
+        if(is_bc5) then
+          fo3d(i,j,k) = coeff( 5, 1, ibc(2) ) * ( fi3d(i,j,k+1) - fi3d(i,j,k  ) ) + &
+                        coeff( 5, 2, ibc(2) ) * ( fp2d(i,j,1  ) - fi3d(i,j,k-1) )
+        else if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 5, 1, IBC_PERIODIC ) * ( fp2d(i,j,1) - fi3d(i,j,k  ) ) + &
+                        coeff( 5, 2, IBC_PERIODIC ) * ( fp2d(i,j,2) - fi3d(i,j,k-1) )
+        else
+          fo3d(i,j,k) = coeff( 5, 1, IBC_INTRPL) * fi3d(i,j,k+1) + &
+                        coeff( 5, 2, IBC_INTRPL) * fi3d(i,j,k  ) + &
+                        coeff( 5, 3, IBC_INTRPL) * fi3d(i,j,k-1) + &
+                        coeff( 5, 4, IBC_INTRPL) * fi3d(i,j,k-2) + &
+                        coeff( 5, 5, IBC_INTRPL) * fi3d(i,j,k-3) + &
+                        coeff( 5, 6, IBC_INTRPL) * fi3d(i,j,k-4)
+        end if
+
+      else if(k == nfo-1) then
+        if(ibc(2) == IBC_PERIODIC) then
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j,k+1) - fi3d(i,j,k  ) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fp2d(i,j,1  ) - fi3d(i,j,k-1) )
+        else
+          fo3d(i,j,k) = coeff( 4, 1, IBC_PERIODIC ) * ( fi3d(i,j,k+1) - fi3d(i,j,k  ) ) + &
+                        coeff( 4, 2, IBC_PERIODIC ) * ( fi3d(i,j,k+2) - fi3d(i,j,k-1) )
+        end if
+
+      else
+        fo3d(i,j,k) = coeff( 3, 1, IBC_PERIODIC ) * ( fi3d(i,j,k+1) - fi3d(i,j,k  ) ) + &
+                      coeff( 3, 2, IBC_PERIODIC ) * ( fi3d(i,j,k+2) - fi3d(i,j,k-1) )
+      end if
+
+      fo3d(i,j,k) = fo3d(i,j,k) * dd
+
+    end do; end do; end do
+    !$acc end parallel loop
+    !$acc end data
+
+    ! TODO: TDMA algorithm refactoring needed for GPU
+    if (iacc == IACCU_CP4 .or. iacc == IACCU_CP6) then 
+      if(ibc(1) == IBC_PERIODIC) then
+        is_periodic = .true.
+      else
+        is_periodic = .false.
+      end if
+      !$acc data create(fo)
+      !$acc parallel loop collapse(2) present(fo, fo3d)
+      do j = 1, nfi3d2; do i = 1, nfi3d1
+        !$acc loop seq
+        do k = 1, nfo
+          fo(k) = fo3d(i,j,k)
+        end do
+        call Solve_TDMA(is_periodic, fo(:), &
+            ad1z_P2C(:, ibc(1), ibc(2), iacc), &
+            bd1z_P2C(:, ibc(1), ibc(2), iacc), &
+            cd1z_P2C(:, ibc(1), ibc(2), iacc), &
+            dd1z_P2C(:, ibc(1), ibc(2), iacc), &
+            nfo)
+      end do; end do
+      !$acc end parallel loop
+      !$acc end data
+
+    end if
+
+    return
+  end subroutine Get_z_1der_P2C_3D_gpu
 !==========================================================================================================
 !==========================================================================================================
 !> \brief To test this subroutine for mid-point interpolation.
@@ -5351,6 +9902,43 @@ contains
       end do
     end do 
     
+    return 
+  end subroutine
+
+  subroutine cleanup_device_mem_operation()
+    use mpi_mod
+
+    implicit none
+
+    integer :: i
+
+    !$acc exit data delete(ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
+    !$acc exit data delete(ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
+    !$acc exit data delete(am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
+    !$acc exit data delete(ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
+    !$acc exit data delete(ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P)
+    !$acc exit data delete(am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
+    !$acc exit data delete(ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
+    !$acc exit data delete(ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
+    !$acc exit data delete(am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
+    !$acc exit data delete(ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
+    !$acc exit data delete(ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
+    !$acc exit data delete(am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
+    do i = 1, nxdomain
+      !$acc exit data delete(xtdma_lhs(i)%ad1x_C2C, xtdma_lhs(i)%bd1x_C2C, &
+      !$acc&                 xtdma_lhs(i)%cd1x_C2C, xtdma_lhs(i)%dd1x_C2C)
+      !$acc exit data delete(xtdma_lhs(i)%ad1x_P2C, xtdma_lhs(i)%bd1x_P2C, &
+      !$acc&                 xtdma_lhs(i)%cd1x_P2C, xtdma_lhs(i)%dd1x_P2C)
+      !$acc exit data delete(xtdma_lhs(i)%am1x_P2C, xtdma_lhs(i)%bm1x_P2C, &
+      !$acc&                 xtdma_lhs(i)%cm1x_P2C, xtdma_lhs(i)%dm2x_P2C)
+      !$acc exit data delete(xtdma_lhs(i)%ad1x_P2P, xtdma_lhs(i)%bd1x_P2P, &
+      !$acc&                 xtdma_lhs(i)%cd1x_P2P, xtdma_lhs(i)%dd1x_P2P)
+      !$acc exit data delete(xtdma_lhs(i)%ad1x_C2P, xtdma_lhs(i)%bd1x_C2P, &
+      !$acc&                 xtdma_lhs(i)%cd1x_C2P, xtdma_lhs(i)%dd1x_C2P)
+      !$acc exit data delete(xtdma_lhs(i)%am1x_C2P, xtdma_lhs(i)%bm1x_C2P, &
+      !$acc&                 xtdma_lhs(i)%cm1x_C2P, xtdma_lhs(i)%dm2x_C2P)
+    end do
+
     return 
   end subroutine
 

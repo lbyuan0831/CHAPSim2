@@ -12,6 +12,7 @@ module tridiagonal_matrix_algorithm
 
 contains
  SUBROUTINE Solve_TDMA_standard(NG, T, A, BB, C)
+    !$acc routine seq
     use precision_mod
     IMPLICIT NONE
 
@@ -51,6 +52,7 @@ contains
   END SUBROUTINE
 !==========================================================================================================
   subroutine Preprocess_TDMA_coeffs(a, b, c, d, n)
+    !$acc routine seq
     use math_mod
     use parameters_constant_mod, only : ONE
     use precision_mod
@@ -63,7 +65,8 @@ contains
 
     ! prepare coefficients
     c(1) = c(1) / b(1)
-    
+
+    !$acc loop
     do i = 2, n
       d(i) = ONE / ( b(i) - a(i) * c(i - 1) )
       if (i < n) c(i) = c(i) * d(i)
@@ -80,6 +83,7 @@ contains
 !  a(1) and c(n) are not used. 
 !  The solution x(i) is restored in R(i).
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !$acc routine seq
     use precision_mod
     implicit none
 !==========================================================================================================
@@ -92,20 +96,22 @@ contains
     x(1) = x(1) / b(1)
     
     ! forward substitution
+    !$acc loop
     do i = 2, n
       x(i) = ( x(i) - a(i) * x(i-1) ) * d(i)
     end do
 
     ! backward substitution
+    !$acc loop
     do i = n-1, 1, -1
-      x(i) = x(i) - c(i) * x(i+1)  
+      x(i) = x(i) - c(i) * x(i+1)
     end do
 
     return
   end subroutine Solve_TDMA_prediag
 !==========================================================================================================
   subroutine Solve_TDMA_cyclic(x, a, b, c, d, n)
-
+    !$acc routine seq
     use precision_mod
     implicit none
     
@@ -129,6 +135,7 @@ contains
   end subroutine Solve_TDMA_cyclic
 !==========================================================================================================
   subroutine Solve_TDMA(peri, x, a, b, c, d, n)
+    !$acc routine seq
     use input_general_mod
     use precision_mod
     implicit none

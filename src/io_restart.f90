@@ -40,6 +40,7 @@ contains
 
     if(nrank == 0) call Print_debug_inline_msg("writing out instantaneous 3d flow data ...")
 
+    !$acc update self(fl%qx, fl%qy, fl%qz, fl%pres)
     call write_one_3d_array(fl%qx, 'qx', dm%idom, fl%iteration, dm%dpcc)
     call write_one_3d_array(fl%qy, 'qy', dm%idom, fl%iteration, dm%dcpc)
     call write_one_3d_array(fl%qz, 'qz', dm%idom, fl%iteration, dm%dccp)
@@ -62,6 +63,7 @@ contains
 
     if(nrank == 0) call Print_debug_inline_msg("writing out instantaneous 3d thermo data ...")
 
+    !$acc update self(tm%rhoh, tm%tTemp)
     call write_one_3d_array(tm%rhoh,  'rhoh', dm%idom, tm%iteration, dm%dccc)
     call write_one_3d_array(tm%tTemp, 'temp', dm%idom, tm%iteration, dm%dccc)
 
@@ -82,13 +84,14 @@ contains
 
     if(nrank == 0) call Print_debug_inline_msg("read instantaneous flow data ...")
     fl%iteration = fl%iterfrom
-    fl%time = real(fl%iterfrom, WP) * dm%dt 
+    fl%time = real(fl%iterfrom, WP) * dm%dt
 
     call read_one_3d_array(fl%qx,   'qx', dm%idom, fl%iterfrom, dm%dpcc)
     call read_one_3d_array(fl%qy,   'qy', dm%idom, fl%iterfrom, dm%dcpc)
     call read_one_3d_array(fl%qz,   'qz', dm%idom, fl%iterfrom, dm%dccp)
     call read_one_3d_array(fl%pres, 'pr', dm%idom, fl%iterfrom, dm%dccc)
-    
+    !$acc update device(fl%qx, fl%qy, fl%qz, fl%pres)
+
     if(nrank == 0) call Print_debug_end_msg()
     return
   end subroutine
@@ -121,8 +124,10 @@ contains
     !----------------------------------------------------------------------------------------------------------
     ! to set up other parameters for flow only, which will be updated in thermo flow.
     !----------------------------------------------------------------------------------------------------------
+    !$acc kernels default(present)
     fl%pcor(:, :, :) = ZERO
     fl%pcor_zpencil_ggg(:, :, :) = ZERO
+    !$acc end kernels
 
     return
   end subroutine
@@ -142,11 +147,11 @@ contains
     if(nrank == 0) call Print_debug_inline_msg("read instantaneous thermo data ...")
 
     tm%iteration = tm%iterfrom
-    tm%time = real(tm%iterfrom, WP) * dm%dt 
+    tm%time = real(tm%iterfrom, WP) * dm%dt
 
     call read_one_3d_array(tm%rhoh,  'rhoh', dm%idom, tm%iteration, dm%dccc)
     call read_one_3d_array(tm%tTemp, 'temp', dm%idom, tm%iteration, dm%dccc)
-
+    !$acc update device(tm%rhoh, tm%tTemp)
 
     if(nrank == 0) call Print_debug_end_msg()
     return
@@ -164,10 +169,12 @@ contains
 
     if (.not. dm%is_thermo) return
 
-    call Update_thermal_properties(fl%dDens, fl%mVisc, tm, dm)
-    call convert_primary_conservative (dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+    call Update_thermal_properties(fl%dDens, fl%mVisc, tm, fl, dm)
+    call convert_primary_conservative (fl, dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
 
+    !$acc kernels default(present)
     fl%dDens0(:, :, :) = fl%dDens(:, :, :)
+    !$acc end kernels
 
     return
   end subroutine
@@ -181,6 +188,7 @@ contains
     integer, intent(out) :: niter
 
     integer :: j, k
+    integer :: nx, ny, nz
     type(DECOMP_INFO) :: dtmp
 
     ! based on x pencil
@@ -210,12 +218,15 @@ contains
     end if
 
     dtmp = dm%dpcc
-    do j = 1, dtmp%xsz(2)
-      do k = 1, dtmp%xsz(3)
-        dm%fbcx_qx_outl1(niter, j, k) = fl%qx(dtmp%xsz(1),   j, k)
-        dm%fbcx_qx_outl2(niter, j, k) = fl%qx(dtmp%xsz(1)-1, j, k)
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(2) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        dm%fbcx_qx_outl1(niter, j, k) = fl%qx(nx,   j, k)
+        dm%fbcx_qx_outl2(niter, j, k) = fl%qx(nx-1, j, k)
       end do
     end do
+    !$acc end parallel loop
 
     !write(*, *) 'j, fl%qx(1, j, 1), dm%fbcx_qx_outl1(niter, j, 1)'
     ! do j = 1, dm%dpcc%xsz(2)
@@ -223,28 +234,37 @@ contains
     ! end do
 
     dtmp = dm%dcpc
-    do j = 1, dtmp%xsz(2)
-      do k = 1, dtmp%xsz(3)
-        dm%fbcx_qy_outl1(niter, j, k) = fl%qy(dtmp%xsz(1),   j, k)
-        dm%fbcx_qy_outl2(niter, j, k) = fl%qy(dtmp%xsz(1)-1, j, k)
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(2) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        dm%fbcx_qy_outl1(niter, j, k) = fl%qy(nx,   j, k)
+        dm%fbcx_qy_outl2(niter, j, k) = fl%qy(nx-1, j, k)
       end do
     end do
+    !$acc end parallel loop
 
     dtmp = dm%dccp
-    do j = 1, dtmp%xsz(2)
-      do k = 1, dtmp%xsz(3)
-        dm%fbcx_qz_outl1(niter, j, k) = fl%qz(dtmp%xsz(1),   j, k)
-        dm%fbcx_qz_outl2(niter, j, k) = fl%qz(dtmp%xsz(1)-1, j, k)
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(2) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        dm%fbcx_qz_outl1(niter, j, k) = fl%qz(nx,   j, k)
+        dm%fbcx_qz_outl2(niter, j, k) = fl%qz(nx-1, j, k)
       end do
     end do
+    !$acc end parallel loop
 
     dtmp = dm%dccc
-    do j = 1, dtmp%xsz(2)
-      do k = 1, dtmp%xsz(3)
-        dm%fbcx_pr_outl1(niter, j, k) = fl%pres(dtmp%xsz(1),   j, k)
-        dm%fbcx_pr_outl2(niter, j, k) = fl%pres(dtmp%xsz(1)-1, j, k)
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(2) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        dm%fbcx_pr_outl1(niter, j, k) = fl%pres(nx,   j, k)
+        dm%fbcx_pr_outl2(niter, j, k) = fl%pres(nx-1, j, k)
       end do
     end do
+    !$acc end parallel loop
 
     return
   end subroutine
@@ -302,14 +322,19 @@ contains
       if( mod(fl%iteration - dm%ndbstart + 1, dm%ndbfre) /= 0 .and. nrank == 0) &
       call Print_warning_msg("niter /= dm%ndbfre, something wrong in writing outlet data")
       iter = (fl%iteration - dm%ndbstart + 1 )/dm%ndbfre * dm%ndbfre
+      ! TODO: consider using acc streams for delayed data writing
+      !$acc update self(dm%fbcx_qx_outl1, dm%fbcx_qx_outl2)
+      !$acc update self(dm%fbcx_qy_outl1, dm%fbcx_qy_outl2)
+      !$acc update self(dm%fbcx_qz_outl1, dm%fbcx_qz_outl2)
+!      !$acc update self(dm%fbcx_pr_outl1, dm%fbcx_pr_outl2)
       call write_one_3d_array(dm%fbcx_qx_outl1, 'outlet1_qx', dm%idom, iter, dm%dxcc)
       call write_one_3d_array(dm%fbcx_qx_outl2, 'outlet2_qx', dm%idom, iter, dm%dxcc)
       call write_one_3d_array(dm%fbcx_qy_outl1, 'outlet1_qy', dm%idom, iter, dm%dxpc)
       call write_one_3d_array(dm%fbcx_qy_outl2, 'outlet2_qy', dm%idom, iter, dm%dxpc)
       call write_one_3d_array(dm%fbcx_qz_outl1, 'outlet1_qz', dm%idom, iter, dm%dxcp)
       call write_one_3d_array(dm%fbcx_qz_outl2, 'outlet2_qz', dm%idom, iter, dm%dxcp)
-      call write_one_3d_array(dm%fbcx_pr_outl1, 'outlet1_pr', dm%idom, iter, dm%dxcc)
-      call write_one_3d_array(dm%fbcx_pr_outl2, 'outlet2_pr', dm%idom, iter, dm%dxcc)
+!      call write_one_3d_array(dm%fbcx_pr_outl1, 'outlet1_pr', dm%idom, iter, dm%dxcc)
+!      call write_one_3d_array(dm%fbcx_pr_outl2, 'outlet2_pr', dm%idom, iter, dm%dxcc)
       !if(nrank == 0) write (*,*) " writing outlet database at ", fl%iteration, 'for iter =', iter -  dm%ndbfre, 'to ', iter
     end if
 ! #ifdef DEBUG_STEPS
@@ -335,6 +360,7 @@ contains
     type(t_domain), intent(inout) :: dm
 
     integer :: iter, j, k
+    integer :: ny, nz
     type(DECOMP_INFO) :: dtmp
 
     ! based on x pencil
@@ -348,56 +374,67 @@ contains
 
     if(dm%ibcx_nominal(1, 1) == IBC_DATABASE) then
       dtmp = dm%dpcc
-      do j = 1, dtmp%xsz(2)
-        do k = 1, dtmp%xsz(3)
+      ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+      !$acc parallel loop collapse(2) default(present)
+      do k = 1, nz
+        do j = 1, ny
           dm%fbcx_qx(1, j, k) = dm%fbcx_qx_inl1(iter, j, k)
           dm%fbcx_qx(3, j, k) = dm%fbcx_qx_inl2(iter, j, k)
           ! check, below 
           !fl%qx(1, j, k) = dm%fbcx_qx(1, j, k)
         end do
       end do
+      !$acc end parallel loop
       !if(nrank == 0) write(*,*) 'fbcx_in1 = ', iter, dm%fbcx_qx_inl1(iter, :, 1)
       !if(nrank == 0) write(*,*) 'fbcx_in2 = ', iter, dm%fbcx_qx_inl1(iter, :, 32)
       !if(nrank == 0) write(*,*) 'fbcx_qx1 = ', iter, dm%fbcx_qx(1, :, 1)
       !if(nrank == 0) write(*,*) 'fbcx_qx2 = ', iter, dm%fbcx_qx(1, :, 32)
     end if
 
-
     if(dm%ibcx_nominal(1, 2) == IBC_DATABASE) then
       dtmp = dm%dcpc
-      do j = 1, dtmp%xsz(2)
-        do k = 1, dtmp%xsz(3)
+      ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+      !$acc parallel loop collapse(2) default(present)
+      do k = 1, nz
+        do j = 1, ny
           dm%fbcx_qy(1, j, k) = dm%fbcx_qy_inl1(iter, j, k)
           dm%fbcx_qy(3, j, k) = dm%fbcx_qy_inl2(iter, j, k)
         end do
       end do
+      !$acc end parallel loop
       !if(nrank == 0) write(*,*) 'fbcx_qy = ', iter, dm%fbcx_qy(1, :, :)
     end if
 
     if(dm%ibcx_nominal(1, 3) == IBC_DATABASE) then
       dtmp = dm%dccp
-      do j = 1, dtmp%xsz(2)
-        do k = 1, dtmp%xsz(3)
+      ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+      !$acc parallel loop collapse(2) default(present)
+      do k = 1, nz
+        do j = 1, ny
           dm%fbcx_qz(1, j, k) = dm%fbcx_qz_inl1(iter, j, k)
           dm%fbcx_qz(3, j, k) = dm%fbcx_qz_inl2(iter, j, k)
         end do
       end do
+      !$acc end parallel loop
       !if(nrank == 0) write(*,*) 'fbcx_qz = ', iter, dm%fbcx_qz(1, :, :)
     end if
 
     if(dm%ibcx_nominal(1, 4) == IBC_DATABASE) then
       dtmp = dm%dccc
-      do j = 1, dtmp%xsz(2)
-        do k = 1, dtmp%xsz(3)
+      ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+      !$acc parallel loop collapse(2) default(present)
+      do k = 1, nz
+        do j = 1, ny
           dm%fbcx_pr(1, j, k) = dm%fbcx_pr_inl1(iter, j, k)
           dm%fbcx_pr(3, j, k) = dm%fbcx_pr_inl2(iter, j, k)
         end do
       end do
+      !$acc end parallel loop
       !if(nrank == 0) write(*,*) 'fbcx_pr = ', iter, dm%fbcx_pr(1, :, :)
     end if
 
     if(dm%is_thermo) then
-      call convert_primary_conservative(dm, fl%dDens, IQ2G, IBND)
+      call convert_primary_conservative(fl, dm, fl%dDens, IQ2G, IBND)
     end if
 
     return
@@ -489,6 +526,10 @@ contains
       call read_one_3d_array(dm%fbcx_qz_inl2, 'outlet2_qz', dm%idom, niter, dm%dxcp)
       !call read_one_3d_array(dm%fbcx_pr_inl1, 'outlet1_pr', dm%idom, niter, dm%dxcc)
       !call read_one_3d_array(dm%fbcx_pr_inl2, 'outlet2_pr', dm%idom, niter, dm%dxcc)
+      ! TODO: consider using acc streams to do the following early before data assigning loops
+      !$acc update device(dm%fbcx_qx_inl1, dm%fbcx_qx_inl2)
+      !$acc update device(dm%fbcx_qy_inl1, dm%fbcx_qy_inl2)
+      !$acc update device(dm%fbcx_qz_inl1, dm%fbcx_qz_inl2)
     end if
 
     ! ----------------------------------------------------------------------------
@@ -519,14 +560,12 @@ module io_field_interpolation_mod
 
   contains 
 !==========================================================================================================
-  subroutine Read_input_parameters_tgt(dm, fl, tm, flinput)
+  subroutine Read_input_parameters_tgt(dm, flinput)
     use parameters_constant_mod
     use print_msg_mod
     implicit none
     character(len = *), intent(in) :: flinput 
     type(t_domain), intent(inout) :: dm
-    type(t_flow)  , intent(inout) :: fl
-    type(t_thermo), intent(inout) :: tm
 
     integer, parameter :: IOMSG_LEN = 200
     character(len = IOMSG_LEN) :: iotxt
@@ -840,6 +879,7 @@ module io_field_interpolation_mod
     return
   end subroutine
 !==========================================================================================================
+! TODO: Since only serial mode is supported currently, no need to do this on GPU
   subroutine output_interp_target_field(dm_src, fl_src, tm_src)
     use parameters_constant_mod
     use udf_type_mod
@@ -849,7 +889,6 @@ module io_field_interpolation_mod
     use geometry_mod
     use domain_decomposition_mod
     use io_restart_mod
-    use io_visualisation_mod
     implicit none 
     type(t_domain), intent(in) :: dm_src
     type(t_flow)  , intent(in) :: fl_src
@@ -862,7 +901,7 @@ module io_field_interpolation_mod
     
     if(nproc > 1) call Print_error_msg('Field interpolation and io are in serial mode only.')
     ! geo/domain
-    call Read_input_parameters_tgt(domain_tgt,flow_tgt, thermo_tgt, input_tgt)
+    call Read_input_parameters_tgt(domain_tgt, input_tgt)
     domain_tgt%is_periodic(:) = dm_src%is_periodic(:)
     domain_tgt%ibcx_qx = dm_src%ibcx_qx
     domain_tgt%ibcy_qy = dm_src%ibcy_qy

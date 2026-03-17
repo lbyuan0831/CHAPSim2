@@ -37,7 +37,9 @@ module flow_thermo_initialiasation
   public  :: Validate_TGV2D_error
   public  :: initialise_flow_fields
   public  :: initialise_thermo_fields
-  
+
+  public  :: cleanup_device_mem_flow_var
+  public  :: cleanup_device_mem_thermo_var
 
 contains
 !==========================================================================================================
@@ -61,6 +63,8 @@ contains
     type(t_domain), intent(in)    :: dm
     type(t_flow),   intent(inout) :: fl
 
+    integer :: buffer_size
+
     if(nrank == 0) call Print_debug_start_msg("Allocating flow variables ...")
     !----------------------------------------------------------------------------------------------------------
     ! default : x pencil. 
@@ -83,15 +87,35 @@ contains
     call alloc_x(fl%mz_rhs0, dm%dccp) ; fl%mz_rhs0 = ZERO
     call alloc_x(fl%drhodt,  dm%dccc) ; fl%drhodt  = ZERO
 
+    !$acc enter data create(fl%qx, fl%qy, fl%qz, fl%pres, fl%pcor, fl%pcor_zpencil_ggg, &
+    !$acc&                  fl%mx_rhs, fl%my_rhs, fl%mz_rhs, fl%mx_rhs0, fl%my_rhs0, fl%mz_rhs0, fl%drhodt)
+    !$acc kernels default(present)
+    fl%mx_rhs0(:,:,:) = ZERO
+    fl%my_rhs0(:,:,:) = ZERO
+    fl%mz_rhs0(:,:,:) = ZERO
+    !$acc end kernels
+
     if(dm%is_conv_outlet(1)) then 
       allocate (fl%fbcx_a0cc_rhs0(dm%dpcc%xsz(2), dm%dpcc%xsz(3))); fl%fbcx_a0cc_rhs0 = ZERO
       allocate (fl%fbcx_a0pc_rhs0(dm%dcpc%xsz(2), dm%dcpc%xsz(3))); fl%fbcx_a0pc_rhs0 = ZERO
       allocate (fl%fbcx_a0cp_rhs0(dm%dccp%xsz(2), dm%dccp%xsz(3))); fl%fbcx_a0cp_rhs0 = ZERO
+      !$acc enter data create(fl%fbcx_a0cc_rhs0, fl%fbcx_a0pc_rhs0, fl%fbcx_a0cp_rhs0)
+      !$acc kernels default(present)
+      fl%fbcx_a0cc_rhs0(:,:) = ZERO
+      fl%fbcx_a0pc_rhs0(:,:) = ZERO
+      fl%fbcx_a0cp_rhs0(:,:) = ZERO
+      !$acc end kernels
     end if
     if(dm%is_conv_outlet(3)) then 
       allocate (fl%fbcz_apc0_rhs0(dm%dpcc%zsz(1), dm%dpcc%zsz(2))); fl%fbcz_apc0_rhs0 = ZERO
       allocate (fl%fbcz_acp0_rhs0(dm%dcpc%zsz(1), dm%dcpc%zsz(2))); fl%fbcz_acp0_rhs0 = ZERO
       allocate (fl%fbcz_acc0_rhs0(dm%dccp%zsz(1), dm%dccp%zsz(2))); fl%fbcz_acc0_rhs0 = ZERO
+      !$acc enter data create(fl%fbcz_apc0_rhs0, fl%fbcz_acp0_rhs0, fl%fbcz_acc0_rhs0)
+      !$acc kernels default(present)
+      fl%fbcz_apc0_rhs0(:,:) = ZERO
+      fl%fbcz_acp0_rhs0(:,:) = ZERO
+      fl%fbcz_acc0_rhs0(:,:) = ZERO
+      !$acc end kernels
     end if
 
     if(dm%is_thermo) then
@@ -101,12 +125,84 @@ contains
       call alloc_x(fl%dDens,   dm%dccc) ; fl%dDens = ONE
       call alloc_x(fl%mVisc,   dm%dccc) ; fl%mVisc = ONE
       call alloc_x(fl%dDens0, dm%dccc)  ; fl%dDens0 = ONE
+      !$acc enter data create(fl%gx, fl%gy, fl%gz, fl%dDens, fl%mVisc, fl%dDens0)
+      !$acc kernels default(present)
+      fl%dDens(:,:,:) = ONE
+      fl%mVisc(:,:,:) = ONE
+      fl%dDens0(:,:,:) = ONE
+      !$acc end kernels
     end if
 
-    if(nrank == 0) call Print_debug_end_msg()
-    return
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      allocate (fl%rre_sponge_c(dm%dccc%xsz(1))); fl%rre_sponge_c = ZERO
+      allocate (fl%rre_sponge_p(dm%dpcc%xsz(1))); fl%rre_sponge_p = ZERO
+      call Calculate_vis_sponge(fl, dm)
+      !$acc enter data copyin(fl%rre_sponge_c, fl%rre_sponge_p)
+    end if
 
+    ! slightly larger buffer_size to accommodate spectral space array sizes
+    buffer_size = max(dm%dppp%xsz(1) * dm%dppp%xsz(2) * (dm%dppp%xsz(3)+2), &
+                   max(dm%dppp%ysz(1) * dm%dppp%ysz(2) * (dm%dppp%ysz(3)+2), &
+                        dm%dppp%zsz(1) * dm%dppp%zsz(2) * (dm%dppp%zsz(3)+2)))
+    if(nrank==0) write(*,*) 'cell buffer size', buffer_size
+
+    allocate (fl%wk1(buffer_size)); fl%wk1 = ZERO
+    allocate (fl%wk2(buffer_size)); fl%wk2 = ZERO
+    allocate (fl%wk3(buffer_size)); fl%wk3 = ZERO
+    allocate (fl%wk4(buffer_size)); fl%wk4 = ZERO
+    allocate (fl%wk5(buffer_size)); fl%wk5 = ZERO
+
+    buffer_size = max(dm%dppp%xsz(2) * dm%dppp%xsz(3), &
+                   max(dm%dppp%ysz(1) * dm%dppp%ysz(3), &
+                        dm%dppp%zsz(1) * dm%dppp%zsz(2) )) * 4
+    if(nrank==0) write(*,*) 'boundary buffer size', buffer_size
+
+    allocate (fl%wkbc1(buffer_size)); fl%wkbc1 = ZERO
+    allocate (fl%wkbc2(buffer_size)); fl%wkbc2 = ZERO
+    allocate (fl%wkbc3(buffer_size)); fl%wkbc3 = ZERO
+    allocate (fl%wkbc4(buffer_size)); fl%wkbc4 = ZERO
+    allocate (fl%wkbc5(buffer_size)); fl%wkbc5 = ZERO
+
+    !$acc enter data create(fl%wk1, fl%wk2, fl%wk3, fl%wk4, fl%wk5)
+    !$acc enter data create(fl%wkbc1, fl%wkbc2, fl%wkbc3, fl%wkbc4, fl%wkbc5)
+
+    if(nrank == 0) call Print_debug_end_msg()
+
+    return
   end subroutine Allocate_flow_variables
+  !==========================================================================================================
+  subroutine cleanup_device_mem_flow_var(fl, dm)
+    use parameters_constant_mod
+
+    implicit none
+
+    type(t_domain), intent(in)    :: dm
+    type(t_flow),   intent(inout) :: fl
+
+    !$acc exit data delete(fl%qx, fl%qy, fl%qz, fl%pres, fl%pcor, fl%pcor_zpencil_ggg, &
+    !$acc&                 fl%mx_rhs, fl%my_rhs, fl%mz_rhs, fl%mx_rhs0, fl%my_rhs0, fl%mz_rhs0, fl%drhodt)
+
+    if(dm%is_conv_outlet(1)) then
+      !$acc exit data delete(fl%fbcx_a0cc_rhs0, fl%fbcx_a0pc_rhs0, fl%fbcx_a0cp_rhs0)
+    end if
+    if(dm%is_conv_outlet(3)) then
+      !$acc exit data delete(fl%fbcz_apc0_rhs0, fl%fbcz_acp0_rhs0, fl%fbcz_acc0_rhs0)
+    end if
+
+    if(dm%is_thermo) then
+      !$acc exit data delete(fl%gx, fl%gy, fl%gz)
+      !$acc exit data delete(fl%dDens, fl%mVisc, fl%dDens0)
+    end if
+
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      !$acc exit data delete(fl%rre_sponge_c, fl%rre_sponge_p)
+    end if
+
+    !$acc exit data delete(fl%wk1, fl%wk2, fl%wk3, fl%wk4, fl%wk5)
+    !$acc exit data delete(fl%wkbc1, fl%wkbc2, fl%wkbc3, fl%wkbc4, fl%wkbc5)
+
+    return
+  end subroutine
   !==========================================================================================================
   subroutine Allocate_thermo_variables (tm, dm)
     use parameters_constant_mod
@@ -131,17 +227,53 @@ contains
     call alloc_x(tm%ene_rhs,  dm%dccc) ; tm%ene_rhs = ZERO
     call alloc_x(tm%ene_rhs0, dm%dccc) ; tm%ene_rhs0 = ZERO
 
+    !$acc enter data create(tm%rhoh, tm%hEnth, tm%kCond, tm%tTemp, tm%ene_rhs, tm%ene_rhs0)
+    !$acc kernels default(present)
+    tm%rhoh(:,:,:)   = ZERO
+    tm%hEnth(:,:,:) = ZERO
+    tm%kCond(:,:,:) = ONE
+    tm%tTemp(:,:,:) = ONE
+    tm%ene_rhs(:,:,:) = ZERO
+    tm%ene_rhs0(:,:,:) = ZERO
+    !$acc end kernels
+
     if(dm%is_conv_outlet(1)) then 
       allocate (tm%fbcx_rhoh_rhs0(dm%dccc%xsz(2), dm%dccc%xsz(3))); tm%fbcx_rhoh_rhs0 = ZERO
+      !$acc enter data create(tm%fbcx_rhoh_rhs0)
+      !$acc kernels default(present)
+      tm%fbcx_rhoh_rhs0(:,:) = ZERO
+      !$acc end kernels
     end if
     if(dm%is_conv_outlet(2)) then 
       allocate (tm%fbcz_rhoh_rhs0(dm%dccc%zsz(1), dm%dccc%xsz(2))); tm%fbcz_rhoh_rhs0 = ZERO
+      !$acc enter data create(tm%fbcz_rhoh_rhs0)
+      !$acc kernels default(present)
+      tm%fbcz_rhoh_rhs0(:,:) = ZERO
+      !$acc end kernels
     end if
 
     if(nrank == 0) call Print_debug_end_msg()
-    return
 
+    return
   end subroutine Allocate_thermo_variables
+  !==========================================================================================================
+  subroutine cleanup_device_mem_thermo_var(tm, dm)
+
+    implicit none
+
+    type(t_thermo), intent(inout) :: tm
+    type(t_domain), intent(in)    :: dm
+
+    !$acc exit data delete(tm%rhoh, tm%hEnth, tm%kCond, tm%tTemp, tm%ene_rhs, tm%ene_rhs0)
+    if(dm%is_conv_outlet(1)) then
+      !$acc exit data delete(tm%fbcx_rhoh_rhs0)
+    end if
+    if(dm%is_conv_outlet(2)) then
+      !$acc exit data delete(tm%fbcz_rhoh_rhs0)
+    end if
+
+    return
+  end subroutine
   !==========================================================================================================
   !> \brief Generate a flow profile for Poiseuille flow in channel or pipe.     
   !---------------------------------------------------------------------------------------------------------- 
@@ -162,19 +294,32 @@ contains
     use math_mod
     use boundary_conditions_mod
     use flatten_index_mod
-    use io_visualisation_mod
     use wtformat_mod
     use find_max_min_ave_mod
     use wrt_debug_field_mod
+    use iso_fortran_env, only : int32, int64
     type(t_domain),  intent(in) :: dm
     type(t_flow), intent(inout) :: fl
-    
+
     integer :: seed
+    integer(int32) :: seed_lcg ! used only for the LCG random number generator
+    integer, parameter :: seed0 = 123456
     integer :: i, j, k! local id
-    integer :: n, nsz  
     integer :: ii, jj, kk ! global id
-    integer :: seed0 = 123456
-    real(WP) :: rd, lownoise
+    integer :: n, nsz  
+    integer :: xsz1, xsz2, xsz3, xst1, xst2, xst3, ysz1, ysz2, ysz3
+    integer(int64) :: seed64, x
+    integer(int64), parameter :: h1 = 73856093_int64
+    integer(int64), parameter :: h2 = 19349663_int64
+    integer(int64), parameter :: h3 = 83492791_int64
+    integer(int64), parameter :: h4 = 2654435761_int64
+    integer(int64), parameter :: lcg_m1 = 2147483646_int64
+    real(WP), parameter :: hash_a = 12.9898_wp
+    real(WP), parameter :: hash_b = 78.233_wp
+    real(WP), parameter :: hash_c = 37.719_wp
+    real(WP), parameter :: hash_d = 11.131_wp
+    real(WP), parameter :: hash_s = 43758.5453123_wp
+    real(WP) :: rd, lownoise, rnd
     type(DECOMP_INFO) :: dtmp
 
     if(nrank == 0) call Print_debug_inline_msg("Generating random field ...")
@@ -182,11 +327,15 @@ contains
     !   Initialisation in x pencil
     !----------------------------------------------------------------------------------------------------------
     seed = 0
+
+    !$acc kernels default(present)
     fl%pres(:, :, :) = ZERO
     fl%pcor(:, :, :) = ZERO
     fl%qx(:, :, :) = ZERO
     fl%qy(:, :, :) = ZERO
     fl%qz(:, :, :) = ZERO
+    !$acc end kernels
+
     nsz = dm%np(1) * dm%np(2) * dm%np(3)
 
     do n = 1, NDIM
@@ -200,37 +349,88 @@ contains
       else
       end if
 
-!     random field from 0 to 1
-      do k = 1, dtmp%xsz(3)
-        kk = dtmp%xst(3) + k - 1
-        do j = 1, dtmp%xsz(2)
-          jj = dtmp%xst(2) + j - 1 !local2global_yid(j, dtmp)
-          !if( ( ONE - abs_wp(dm%yp(jj)) ) .LT. QUARTER) then
-            !lownoise = fl%noiselevel * fl%noiselevel
-          !else
-            lownoise = fl%noiselevel
-          !end if
-          do i = 1, dtmp%xsz(1)
+      xsz1 = dtmp%xsz(1)
+      xsz2 = dtmp%xsz(2)
+      xsz3 = dtmp%xsz(3)
+      ysz1 = dtmp%ysz(1)
+      ysz2 = dtmp%ysz(2)
+      ysz3 = dtmp%ysz(3)
+      xst1 = dtmp%xst(1)
+      xst2 = dtmp%xst(2)
+      xst3 = dtmp%xst(3)
+      lownoise = fl%noiselevel
+
+      !$acc update device(dm%rp, dm%rc)
+      !$acc parallel loop collapse(3) private(ii, jj, kk, rd, rnd, seed, seed_lcg, seed64, x) default(present)
+      do k = 1, xsz3
+        do j = 1, xsz2
+          do i = 1, xsz1
+            ii = xst1 + i - 1
+            jj = xst2 + j - 1
+            kk = xst3 + k - 1
+#ifdef USE_GPU
+            ! Method 2: Stateless index hash for GPU: avoids seed-neighbor correlation striping.
+            ! sin_wp with scaling may be sensitive across platforms/compilers
+!            rnd = sin_wp( real(ii, WP) * hash_a + real(jj, WP) * hash_b + &
+!                          real(kk, WP) * hash_c + real(n, WP) * hash_d ) * hash_s
+!            rnd = rnd - real(floor(rnd), WP)
+!            rd = TWO * rnd - ONE
+
+            ! Method 3: Integer-only stateless hash (CPU/GPU consistent), then whiten via LCG.
+!            seed64 = int(ii,int64)*h1 + int(jj,int64)*h2 + &
+!                     int(kk,int64)*h3 + int(n,int64)*h4 + &
+!                     int(seed0,int64)
+!            seed_lcg = int(iand(seed64, z'7FFFFFFF'), int32)
+!            if (seed_lcg == 0_int32) seed_lcg = 1_int32
+!            call lcg_random(seed_lcg, rd)
+!            call lcg_random(seed_lcg, rd)
+!            call lcg_random(seed_lcg, rd)
+
+            ! Method 4: 64-bit XOR / Mix Hash (Stateless, CPU/GPU consistent)
+            x = int(ii, int64)
+            x = ieor(x, ishft(int(jj,int64), 21))
+            x = ieor(x, ishft(int(kk,int64), 42))
+            x = ieor(x, ishft(int(n ,int64), 10))
+
+            ! 64-bit mix (splitmix64 style)
+            x = x + int(z'9E3779B97F4A7C15', int64)
+            x = ieor(x, ishft(x, -30))
+            x = x * int(z'BF58476D1CE4E5B9', int64)
+            x = ieor(x, ishft(x, -27))
+            x = x * int(z'94D049BB133111EB', int64)
+            x = ieor(x, ishft(x, -31))
+
+            rnd = real(iand(x, z'7FFFFFFFFFFFFFFF'), wp) / &
+                  real(huge(1_int64), wp)
+
+            rd = TWO * rnd - ONE
+
+#else
+            ! Method 1: using fortran random number generator
+            ! This does not work for nvfortran
             ii = i
-            seed = flatten_index(ii, jj, kk, dtmp%xsz(1), dtmp%ysz(2)) + seed0 * n
+            seed = flatten_index(ii, jj, kk, xsz1, ysz2) + seed0 * n
             call initialise_random_number ( seed )
             call Generate_r_random( -ONE, ONE, rd)
+#endif
             if(n == 1) fl%qx(i, j, k) = lownoise * rd
             if(n == 2) fl%qy(i, j, k) = lownoise * HALF * rd * dm%rp(jj)
             if(n == 3) fl%qz(i, j, k) = lownoise * HALF * rd! * dm%rc(jj)
           end do
         end do
       end do
+      !$acc end parallel loop
 
     end do
 
-    !     for dirichelt, the perturbation velocity should be zero.
+    ! for dirichelt, the perturbation velocity should be zero.
     call enforce_velo_from_fbc(dm, fl%qx, fl%qy, fl%qz, dm%fbcx_qx, dm%fbcy_qy, dm%fbcz_qz)
 
     if(nrank == 0) call Print_debug_inline_msg("Max/min velocity for generated random velocities:")
     call Find_max_min_3d(fl%qx, opt_name="qx")
     call Find_max_min_3d(fl%qy, opt_name="qy")
     call Find_max_min_3d(fl%qz, opt_name="qz")
+
 ! to validate the random number generated is MPI processor independent.
 #ifdef DEBUG_STEPS
     call wrt_3d_pt_debug(fl%qx, dm%dpcc,   fl%iteration, 0, 'qx@af radm') ! debug_ww
@@ -238,7 +438,6 @@ contains
     call wrt_3d_pt_debug(fl%qz, dm%dccp,   fl%iteration, 0, 'qz@af radm') ! debug_ww
     call wrt_3d_pt_debug(fl%pres, dm%dccc, fl%iteration, 0, 'pr@af radm') ! debug_ww
 #endif
-
 
     return
   end subroutine
@@ -376,9 +575,9 @@ contains
     real(WP) :: u_xy(dm%nc(1), dm%nc(2))
     real(WP) :: ux(dm%dpcc%xsz(1), dm%dpcc%xsz(2), dm%dpcc%xsz(3))
     real(WP) :: uz(dm%dccp%xsz(1), dm%dccp%xsz(2), dm%dccp%xsz(3))
-    real(WP) :: ux_ypencil(dm%dpcc%ysz(1), dm%dpcc%ysz(2), dm%dpcc%ysz(3))
+    real(WP) :: ux_ypencil(dm%dpcc%ysz(1), dm%dpcc%ysz(2), dm%dpcc%ysz(3))  ! FIXME: not used
     character(2) :: str
-    
+    integer :: xsz1, xsz2, xsz3, xst2
 
     type(DECOMP_INFO) :: dtmp
 
@@ -388,68 +587,108 @@ contains
     !----------------------------------------------------------------------------------------------------------
     u_xy = ZERO
     call Generate_poiseuille_flow_profile (dm, u_xy)
+    !$acc data copyin(u_xy) create(ubulk, ux, uz)
     !----------------------------------------------------------------------------------------------------------
     !   x-pencil : to add profile to ux (default: x streamwise)
     !----------------------------------------------------------------------------------------------------------
     if(dm%icase == ICASE_DUCT) then
       dtmp = dm%dccp
-      do i = 1, dtmp%xsz(1)
-        do j = 1, dtmp%xsz(2)
-          jj = dtmp%xst(2) + j - 1
-          do k = 1, dtmp%xsz(3)
+      xsz1 = dtmp%xsz(1)
+      xsz2 = dtmp%xsz(2)
+      xsz3 = dtmp%xsz(3)
+      xst2 = dtmp%xst(2)
+      !$acc parallel loop collapse(3) private(jj) default(present)
+      do k = 1, xsz3
+        do j = 1, xsz2
+          do i = 1, xsz1
+            jj = xst2 + j - 1
             fl%qz(i, j, k) =  fl%qz(i, j, k) + u_xy(i, jj)
           end do
         end do
       end do
+      !$acc end parallel loop
+
       if(dm%is_thermo) then
-        call convert_primary_conservative (dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
-        uz = fl%gz
+        call convert_primary_conservative (fl, dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+        !$acc kernels default(present)
+        uz(:,:,:) = fl%gz(:,:,:)
+        !$acc end kernels
         str = 'gz'
       else
-        uz = fl%qz
+        !$acc kernels default(present)
+        uz(:,:,:) = fl%qz(:,:,:)
+        !$acc end kernels
         str = 'qz'
       end if
+
       call Get_volumetric_average_3d(dm, dm%dccp, uz, ubulk, SPACE_AVERAGE, str)
+      !$acc update device(ubulk)
       if(nrank == 0) &
       write(*, wrtfmt1e) "The initial, [original] bulk "//str//" = ", ubulk
-      uz = uz / ubulk
+      !$acc kernels default(present)
+      uz(:,:,:) = uz(:,:,:) / ubulk
+      !$acc end kernels
       if(dm%is_thermo) then
-        fl%gz = uz
-        call convert_primary_conservative(dm, fl%dDens, IG2Q, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+        !$acc kernels default(present)
+        fl%gz(:,:,:) = uz(:,:,:)
+        !$acc end kernels
+        call convert_primary_conservative(fl, dm, fl%dDens, IG2Q, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
       else
-        fl%qz = uz
+        !$acc kernels default(present)
+        fl%qz(:,:,:) = uz(:,:,:)
+        !$acc end kernels
       end if
       call Get_volumetric_average_3d(dm, dm%dccp, uz, ubulk, SPACE_AVERAGE, str)
       if(nrank == 0) &
       write(*, wrtfmt1e) "The initial, [scaled] bulk "//str//" = ", ubulk
     else
       dtmp = dm%dpcc
-      do i = 1, dtmp%xsz(1)
-        do j = 1, dtmp%xsz(2)
-          jj = dtmp%xst(2) + j - 1
-          do k = 1, dtmp%xsz(3)
+      xsz1 = dtmp%xsz(1)
+      xsz2 = dtmp%xsz(2)
+      xsz3 = dtmp%xsz(3)
+      xst2 = dtmp%xst(2)
+      !$acc parallel loop collapse(3) private(jj) default(present)
+      do k = 1, xsz3
+        do j = 1, xsz2
+          do i = 1, xsz1
+            jj = xst2 + j - 1
             fl%qx(i, j, k) =  fl%qx(i, j, k) + u_xy(1, jj)
           end do
         end do
       end do
+      !$acc end parallel loop
+
       if(dm%is_thermo) then
-        call convert_primary_conservative (dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
-        ux = fl%gx
+        call convert_primary_conservative (fl, dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+        !$acc kernels default(present)
+        ux(:,:,:) = fl%gx(:,:,:)
+        !$acc end kernels
         str = 'gx'
       else
-        ux = fl%qx
+        !$acc kernels default(present)
+        ux(:,:,:) = fl%qx(:,:,:)
+        !$acc end kernels
         str = 'qx'
       end if
+
       call Get_volumetric_average_3d(dm, dm%dpcc, ux, ubulk, SPACE_AVERAGE, str)
+      !$acc update device(ubulk)
       if(nrank == 0) &
       write(*, wrtfmt1e) "The initial, [original] bulk "//str//" = ", ubulk
-      ux = ux / ubulk
+      !$acc kernels default(present)
+      ux(:,:,:) = ux(:,:,:) / ubulk
+      !$acc end kernels
       if(dm%is_thermo) then
-        fl%gx = ux
-        call convert_primary_conservative(dm, fl%dDens, IG2Q, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+        !$acc kernels default(present)
+        fl%gx(:,:,:) = ux(:,:,:)
+        !$acc end kernels
+        call convert_primary_conservative(fl, dm, fl%dDens, IG2Q, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
       else
-        fl%qx = ux
+        !$acc kernels default(present)
+        fl%qx(:,:,:) = ux(:,:,:)
+        !$acc end kernels
       end if
+
       call Get_volumetric_average_3d(dm, dm%dpcc, ux, ubulk, SPACE_AVERAGE, str)
       if(nrank == 0) &
       write(*, wrtfmt1e) "The initial, [scaled] bulk "//str//" = ", ubulk
@@ -466,35 +705,53 @@ contains
       call extract_dirichlet_fbcx(dm%fbcx_qx, fl%qx, dm%dpcc)
       call extract_dirichlet_fbcx(dm%fbcx_qy, fl%qy, dm%dcpc)
       call extract_dirichlet_fbcx(dm%fbcx_qz, fl%qz, dm%dccp)
+    ! FIXME: check the index bounds
     else if(dm%ibcx_nominal(1, 1) == IBC_POISEUILLE .and. dm%icase /= ICASE_DUCT) then
       dtmp = dm%dpcc
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1
-        do k = 1, dtmp%xsz(3)
+      xsz2 = dtmp%xsz(2)
+      xsz3 = dtmp%xsz(3)
+      xst2 = dtmp%xst(2)
+      !$acc parallel loop collapse(2) private(jj) default(present)
+      do k = 1, xsz3
+        do j = 1, xsz2
+          jj = xst2 + j - 1
           dm%fbcx_qx(1, j, k) =  u_xy(1, jj)
           dm%fbcx_qy(1, j, k) = ZERO
           dm%fbcx_qz(1, j, k) = ZERO
         end do
       end do
+      !$acc end parallel loop
+
+      !$acc kernels default(present)
       dm%fbcx_qx(2, :, :) = dm%fbcx_qx(1, :, :)
       dm%fbcx_qy(2, :, :) = dm%fbcx_qy(1, :, :)
       dm%fbcx_qz(2, :, :) = dm%fbcx_qz(1, :, :)
+      !$acc end kernels
     else if(dm%ibcx_nominal(1, 1) == IBC_POISEUILLE .and. dm%icase == ICASE_DUCT) then
       dtmp = dm%dccp
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1
-        do i = 1, dtmp%xsz(1)
+      xsz1 = dtmp%xsz(1)
+      xsz2 = dtmp%xsz(2)
+      xst2 = dtmp%xst(2)
+      !$acc parallel loop collapse(2) private(jj) default(present)
+      do j = 1, xsz2
+        do i = 1, xsz1
+          jj = xst2 + j - 1
           dm%fbcz_qx(i, j, 1) =  u_xy(i, jj)
           dm%fbcz_qy(i, j, 1) = ZERO
           dm%fbcz_qz(i, j, 1) = ZERO
         end do
       end do
+      !$acc end parallel loop
+
+      !$acc kernels default(present)
       dm%fbcz_qx(:, :, 2) = dm%fbcz_qx(:, :, 1)
       dm%fbcz_qy(:, :, 2) = dm%fbcz_qy(:, :, 1)
       dm%fbcz_qz(:, :, 2) = dm%fbcz_qz(:, :, 1)
+      !$acc end kernels
     else
     end if
     !if(nrank == 0) call Print_debug_end_msg()
+    !$acc end data
 
     return
   end subroutine  initialise_poiseuille_flow
@@ -513,9 +770,11 @@ contains
     !----------------------------------------------------------------------------------------------------------
     !   x-pencil : update values
     !----------------------------------------------------------------------------------------------------------
+    !$acc kernels default(present)
     fl%qx(:, :, :) = fl%qx(:, :, :) + fl%init_velo3d(1)
     fl%qy(:, :, :) = fl%qy(:, :, :) + fl%init_velo3d(2)
     fl%qz(:, :, :) = fl%qz(:, :, :) + fl%init_velo3d(3)
+    !$acc end kernels
     !----------------------------------------------------------------------------------------------------------
     !   x-pencil : apply b.c.
     !----------------------------------------------------------------------------------------------------------
@@ -536,49 +795,52 @@ contains
     type(t_domain),  intent(in) :: dm
     type(t_flow), intent(inout) :: fl
 
-    integer :: i, j, k, ii, jj, kk
-    
+    integer :: i, j, k
+    integer :: xsz1, xsz2, xsz3
+
     if(nrank == 0) call Print_debug_inline_msg("Initialising flow field with given profile...")
     !----------------------------------------------------------------------------------------------------------
     !   x-pencil : update values
     !----------------------------------------------------------------------------------------------------------
-    do k = 1, dm%dpcc%xsz(3)
-      kk = dm%dpcc%xst(3) + k - 1
-      do j = 1, dm%dpcc%xsz(2)
-        jj = dm%dpcc%xst(2) + j - 1 !local2global_yid(j, dm%dpcc)
-        do i = 1, dm%dpcc%xsz(1)
-          ii = dm%dpcc%xst(1) + i - 1
+
+    xsz1 = dm%dpcc%xsz(1); xsz2 = dm%dpcc%xsz(2); xsz3 = dm%dpcc%xsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, xsz3
+      do j = 1, xsz2
+        do i = 1, xsz1
           fl%qx(i, j, k) = fl%qx(i, j, k) + dm%fbcx_qx(1, j, k)
         end do
       end do
     end do
+    !$acc end parallel loop
 
-    do k = 1, dm%dcpc%xsz(3)
-      kk = dm%dcpc%xst(3) + k - 1
-      do j = 1, dm%dcpc%xsz(2)
-        jj = dm%dcpc%xst(2) + j - 1 !local2global_yid(j, dm%dcpc)
-        do i = 1, dm%dcpc%xsz(1)
-          ii = dm%dcpc%xst(1) + i - 1
+    xsz1 = dm%dcpc%xsz(1); xsz2 = dm%dcpc%xsz(2); xsz3 = dm%dcpc%xsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, xsz3
+      do j = 1, xsz2
+        do i = 1, xsz1
           fl%qy(i, j, k) = fl%qy(i, j, k) + dm%fbcx_qy(1, j, k)
         end do
       end do
     end do
+    !$acc end parallel loop
 
-    do k = 1, dm%dccp%xsz(3)
-      kk = dm%dccp%xst(3) + k - 1
-      do j = 1, dm%dccp%xsz(2)
-        jj = dm%dccp%xst(2) + j - 1 !(j, dm%dccp)
-        do i = 1, dm%dccp%xsz(1)
-          ii = dm%dccp%xst(1) + i - 1
+    xsz1 = dm%dccp%xsz(1); xsz2 = dm%dccp%xsz(2); xsz3 = dm%dccp%xsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, xsz3
+      do j = 1, xsz2
+        do i = 1, xsz1
           fl%qz(i, j, k) = fl%qz(i, j, k) + dm%fbcx_qz(1, j, k)
         end do
       end do
     end do
+    !$acc end parallel loop
     !----------------------------------------------------------------------------------------------------------
     !   x-pencil : apply b.c.
     !----------------------------------------------------------------------------------------------------------
 
     if(nrank == 0) call Print_debug_end_msg()
+
     return
   end subroutine
 
@@ -587,7 +849,7 @@ contains
     use udf_type_mod
     use parameters_constant_mod
     use io_restart_mod
-    use io_visualisation_mod
+    use visualisation_field_mod
     use wtformat_mod
     use solver_tools_mod
     use continuity_eq_mod
@@ -654,7 +916,7 @@ contains
     call Find_max_min_3d(fl%qz, opt_name="qz")
 
     if(dm%is_thermo) then
-      call convert_primary_conservative (dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+      call convert_primary_conservative (fl, dm, fl%dDens, IQ2G, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
       !call update_dyn_fbcx_from_flow(dm, fl%gx, fl%gy, fl%gz, dm%fbcx_gx, dm%fbcx_gy, dm%fbcx_gz)
       !call convert_primary_conservative(fl%dDens, dm, itag=IG2Q, iloc=IALL)
       if(nrank == 0) call Print_debug_inline_msg("Max/Min [mass flux] for real initial flow field:")
@@ -675,11 +937,11 @@ contains
 !----------------------------------------------------------------------------------------------------------
 ! to initialise pressure correction term
 !----------------------------------------------------------------------------------------------------------
-    fl%pcor(:, :, :) = ZERO 
+!    fl%pcor(:, :, :) = ZERO   ! FIXME: not needed - remove?
     ! to set up halo b.c. for cylindrical pipe
     if(dm%icase == ICASE_PIPE) call update_fbcy_cc_flow_halo(fl, dm)
 
-    call Check_element_mass_conservation(fl, dm, 0, opt_str='initial') 
+    call Check_element_mass_conservation(fl, dm, 0, opt_str='initial')
     call write_visu_flow(fl, dm, 'init')
 
     if(nrank == 0) call Print_debug_end_msg()
@@ -695,7 +957,7 @@ contains
     use thermo_info_mod
     use io_restart_mod
     use statistics_mod
-    use io_visualisation_mod
+    use visualisation_field_mod
     use boundary_conditions_mod
     implicit none
 
@@ -706,7 +968,7 @@ contains
     integer :: i
 
     if(.not. dm%is_thermo) return
-    if(nrank == 0) call Print_debug_start_msg("Initialise thermo fields ...")  
+    if(nrank == 0) call Print_debug_start_msg("Initialise thermo fields ...")
 !----------------------------------------------------------------------------------------------------------
 ! to set up Fr etc, require update flow Re first
 !----------------------------------------------------------------------------------------------------------
@@ -734,7 +996,9 @@ contains
       fl%iteration = 0
     end if
 
+    !$acc kernels default(present)
     fl%dDens0(:, :, :) = fl%dDens(:, :, :)
+    !$acc end kernels
 
     if (dm%icase == ICASE_PIPE) call update_fbcy_cc_thermo_halo(tm, dm)
  
@@ -966,77 +1230,89 @@ contains
     real(WP) :: xc, yc, zc
     real(WP) :: xp, yp, zp
     integer :: i, j, k, ii, jj, kk
+    integer :: nx, ny, nz
     type(DECOMP_INFO) :: dtmp
 
     if(nrank == 0) call Print_debug_inline_msg("Initialising Taylor Green Vortex flow field ...")
 !----------------------------------------------------------------------------------------------------------
 !   ux in x-pencil
-!---------------------------------------------------------------------------------------------------------- 
+!----------------------------------------------------------------------------------------------------------
     dtmp = dm%dpcc
-    do k = 1, dtmp%xsz(3)
-      kk = dtmp%xst(3) + k - 1
-      zc = dm%h(3) * (real(kk - 1, WP) + HALF)
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1 !local2global_yid(j, dtmp)
-        yc = dm%yc(jj)
-        do i = 1, dtmp%xsz(1)
-          ii = dtmp%xst(1) + i - 1
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(3) default(present) private(ii, jj, kk, zc, yc, xp)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          kk = dm%dpcc%xst(3) + k - 1
+          zc = dm%h(3) * (real(kk - 1, WP) + HALF)
+          jj = dm%dpcc%xst(2) + j - 1 !local2global_yid(j, dtmp)
+          yc = dm%yc(jj)
+          ii = dm%dpcc%xst(1) + i - 1
           xp = dm%h(1) * real(ii - 1, WP)
           fl%qx(i, j, k) =  sin_wp ( xp ) * cos_wp ( yc ) * cos_wp ( zc )
-          !write(*,*) k, j, i, fl%qx(i,j,k)
         end do
       end do
     end do
+    !$acc end parallel loop
 !----------------------------------------------------------------------------------------------------------
 !   uy in x-pencil
 !----------------------------------------------------------------------------------------------------------
     dtmp = dm%dcpc
-    do k = 1, dtmp%xsz(3)
-      kk = dtmp%xst(3) + k - 1
-      zc = dm%h(3) * (real(kk - 1, WP) + HALF)
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1 !(j, dtmp)
-        yp = dm%yp(jj)
-        do i = 1, dtmp%xsz(1)
-          ii = dtmp%xst(1) + i - 1
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(3) default(present) private(ii, jj, kk, zc, yp, xc)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          kk = dm%dcpc%xst(3) + k - 1
+          zc = dm%h(3) * (real(kk - 1, WP) + HALF)
+          jj = dm%dcpc%xst(2) + j - 1 !(j, dtmp)
+          yp = dm%yp(jj)
+          ii = dm%dcpc%xst(1) + i - 1
           xc = dm%h(1) * (real(ii - 1, WP) + HALF)
           fl%qy(i, j, k) = -cos_wp ( xc ) * sin_wp ( yp ) * cos_wp ( zc )
         end do
       end do
     end do
+    !$acc end parallel loop
 !----------------------------------------------------------------------------------------------------------
 !   uz in x-pencil
 !---------------------------------------------------------------------------------------------------------- 
     !uz(:, :, :) =  ZERO
     dtmp = dm%dccp
-    do k = 1, dtmp%xsz(3)
-      do j = 1, dtmp%xsz(2)
-        do i = 1, dtmp%xsz(1)
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
           fl%qz(i, j, k) = zero
         end do
       end do
     end do
+    !$acc end parallel loop
 !----------------------------------------------------------------------------------------------------------
 !   p in x-pencil
 !----------------------------------------------------------------------------------------------------------
     dtmp = dm%dccc
-    do k = 1, dtmp%xsz(3)
-      kk = dtmp%xst(3) + k - 1
-      zc = dm%h(3) * (real(kk - 1, WP) + HALF)
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1 !local2global_yid(j, dtmp)
-        yc = dm%yc(jj)
-        do i = 1, dtmp%xsz(1)
-          ii = dtmp%xst(1) + i - 1
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(3) default(present) private(ii, jj, kk, zc, yc, xc)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          kk = dm%dccc%xst(3) + k - 1
+          zc = dm%h(3) * (real(kk - 1, WP) + HALF)
+          jj = dm%dccc%xst(2) + j - 1 !local2global_yid(j, dtmp)
+          yc = dm%yc(jj)
+          ii = dm%dccc%xst(1) + i - 1
           xc = dm%h(1) * (real(ii - 1, WP) + HALF)
           fl%pres(i, j, k)= ONE / SIXTEEN * ( cos_wp(TWO * xc) + cos_wp(TWO * yc) ) * &
                       (cos_wp(TWO * zc) + TWO)
         end do
       end do
     end do
+    !$acc end parallel loop
 
     if(nrank == 0) call Print_debug_end_msg()
-    
+
     return
   end subroutine initialise_vortexgreen_3dflow
   !==========================================================================================================
@@ -1053,6 +1329,7 @@ contains
     real(WP) :: xp, yp, zp
     real(WP) :: ux, uy, uz
     integer :: i, j, k, ii, jj, kk
+    integer :: nx, ny, nz
     type(DECOMP_INFO) :: dtmp
     integer, parameter :: i_ini_T = 1 ! 1 = isothermal T perturbation, 2 = T proportional to Kinetic Energy
 
@@ -1062,14 +1339,16 @@ contains
     if( .not. dm%is_thermo) return
       
     dtmp = dm%dccc
-    do k = 1, dtmp%xsz(3)
-      kk = dtmp%xst(3) + k - 1
-      zc = dm%h(3) * (real(kk - 1, WP) + HALF)
-      do j = 1, dtmp%xsz(2)
-        jj = dtmp%xst(2) + j - 1 !local2global_yid(j, dtmp)
-        yc = dm%yc(jj)
-        do i = 1, dtmp%xsz(1)
-          ii = dtmp%xst(1) + i - 1
+    nx = dtmp%xsz(1); ny = dtmp%xsz(2); nz = dtmp%xsz(3)
+    !$acc parallel loop collapse(3) default(present) private(ii, jj, kk, zc, yc, xc, ux, uy, uz)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
+          kk = dm%dccc%xst(3) + k - 1
+          zc = dm%h(3) * (real(kk - 1, WP) + HALF)
+          jj = dm%dccc%xst(2) + j - 1 !local2global_yid(j, dtmp)
+          yc = dm%yc(jj)
+          ii = dm%dccc%xst(1) + i - 1
           xc = dm%h(1) * (real(ii - 1, WP) + HALF)
           ! Method 1: 
           if(i_ini_T == 1) then ! isothermal perturbation
@@ -1085,6 +1364,7 @@ contains
         end do
       end do
     end do
+    !$acc end parallel loop
 
     if(nrank == 0) call Print_debug_end_msg()
     

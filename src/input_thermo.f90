@@ -34,7 +34,9 @@ module thermo_info_mod
 
   integer, save :: N_FUNC2TABLE = 1024
   logical :: is_ftplist_dim
+  !$acc declare create(is_ftplist_dim)
   type(t_fluidThermoProperty), save, allocatable, dimension(:) :: ftplist
+  !$acc declare create(ftplist)
   
   private :: buildup_property_relations_from_table
   private :: buildup_property_relations_from_function
@@ -230,6 +232,7 @@ contains
 !==========================================================================================================
 !==========================================================================================================
   subroutine ftp_refresh_thermal_properties_from_T_undim ( this )
+    !$acc routine seq
     type(t_fluidThermoProperty), intent(inout) :: this
 
     type(t_fluidThermoProperty) :: ftp0ref
@@ -359,17 +362,23 @@ contains
   subroutine ftp_refresh_thermal_properties_from_T_undim_3Dftp( ftp3d )
     type(t_fluidThermoProperty), intent(inout) :: ftp3d(:, :, :)
     integer :: i, j, k
+    integer :: nx, ny, nz
 
-    do i = 1, size(ftp3d, 1)
-      do j = 1, size(ftp3d, 2)
-        do k = 1, size(ftp3d, 3)
+    nx = size(ftp3d, 1)
+    ny = size(ftp3d, 2)
+    nz = size(ftp3d, 3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
             call ftp_refresh_thermal_properties_from_T_undim(ftp3d(i, j, k))
         end do
       end do
-    end do 
+    end do
+    !$acc end parallel loop
 
     return
-  end subroutine 
+  end subroutine ftp_refresh_thermal_properties_from_T_undim_3Dftp
   !==========================================================================================================
   subroutine ftp_refresh_thermal_properties_from_T_undim_3Dtm(fl, tm, dm)
     ! arguments
@@ -378,11 +387,16 @@ contains
     type(t_thermo), intent(inout) :: tm
     ! local
     integer :: i, j, k
+    integer :: nx, ny, nz
     type(t_fluidThermoProperty) :: ftp
 
-    do k = 1, dm%dccc%xsz(3)
-      do j = 1, dm%dccc%xsz(2)
-        do i = 1, dm%dccc%xsz(1)
+    nx = dm%dccc%xsz(1)
+    ny = dm%dccc%xsz(2)
+    nz = dm%dccc%xsz(3)
+    !$acc parallel loop collapse(3) default(present) private(ftp)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
           ftp%t = tm%tTemp(i, j, k)
           call ftp_refresh_thermal_properties_from_T_undim(ftp)
           tm%rhoh (i, j, k) = ftp%rhoh
@@ -393,6 +407,7 @@ contains
         end do
       end do
     end do
+    !$acc end parallel loop
 
     return
   end subroutine 
@@ -412,6 +427,7 @@ contains
 !> \param[inout]  this          a cell element with udf property
 !_______________________________________________________________________________
   subroutine ftp_refresh_thermal_properties_from_H(this)
+    !$acc routine seq
     type(t_fluidThermoProperty), intent(inout) :: this
 
     integer :: i1, i2, im
@@ -452,14 +468,22 @@ contains
   subroutine ftp_refresh_thermal_properties_from_H_3Dftp( ftp3d )
     type(t_fluidThermoProperty), intent(inout) :: ftp3d(:, :, :)
     integer :: i, j, k
+    integer :: nx, ny, nz
 
-    do i = 1, size(ftp3d, 1)
-      do j = 1, size(ftp3d, 2)
-        do k = 1, size(ftp3d, 3)
+    nx = size(ftp3d, 1)
+    ny = size(ftp3d, 2)
+    nz = size(ftp3d, 3)
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, nz
+      do j = 1, ny
+        do i = 1, nx
             call ftp_refresh_thermal_properties_from_H(ftp3d(i, j, k))
         end do
       end do
-    end do 
+    end do
+    !$acc end parallel loop
+
     return
   end subroutine
 !==========================================================================================================
@@ -478,26 +502,34 @@ contains
 !> \param[inout]  this          a cell element with udf property
 !_______________________________________________________________________________
   subroutine ftp_refresh_thermal_properties_from_DH(this)
+    !$acc routine seq
     type(t_fluidThermoProperty), intent(inout) :: this
 
     integer :: i1, i2, im
     real(WP) :: d1, dm
     real(WP) :: w1, w2, res
 
+!   print error message only for CPUs, or (TODO) create error flags if needed for GPUs
+!   for example, integer :: error_flag; error_flag = 0; !$acc parallel loop reduction(max:error_flag)
+#ifndef USE_GPU
     if(is_ftplist_dim) call Print_error_msg("Error. Please provide undimentional variables.")
-
+#endif
 
     if(this%rhoh < fluidparam%dhmin) then
-      if(nrank == 0) then 
+#ifndef USE_GPU
+      if(nrank == 0) then
         write(*, wrtfmt2e) 'this%rhoh < fluidparam%dhmin', this%rhoh, fluidparam%dhmin
         call Print_error_msg("rho*h is out of range.")
       end if
+#endif
       this%rhoh = fluidparam%dhmin
     else if(this%rhoh > fluidparam%dhmax) then
-      if(nrank == 0) then 
+#ifndef USE_GPU
+      if(nrank == 0) then
         write(*, wrtfmt2e) 'this%rhoh > fluidparam%dhmax', this%rhoh, fluidparam%dhmax
         call Print_error_msg("rho*h is out of range.")
       end if
+#endif
       this%rhoh = fluidparam%dhmax
     end if
     
@@ -532,8 +564,10 @@ contains
       w2 = ONE - w1
       this%t = w1 * ftplist(i1)%t + w2 * ftplist(i2)%t
       call ftp_refresh_thermal_properties_from_T_undim(this)
-    else  
+    else
+#ifndef USE_GPU
       call Print_error_msg('No such option of ipropertyState.')
+#endif
     end if
     return
   end subroutine ftp_refresh_thermal_properties_from_DH
@@ -688,7 +722,7 @@ contains
         end if
         if (ddh < MINP .and. nrank == 0) then
           call Print_warning_msg('The relation (rho * h) = FUNCTION (H) is not monotonicity.') 
-          write(*, wrtfmt1e) ' This occurs from H(J/KG) = ', \
+          write(*, wrtfmt1e) ' This occurs from H(J/KG) = ', &
           ftplist(i)%h  * fluidparam%ftp0ref%t * fluidparam%ftp0ref%cp + fluidparam%ftp0ref%h
           call Print_warning_msg('If this H locates in-between your interested range, please try to increase your reference temeprature.')
         end if
@@ -1223,7 +1257,8 @@ contains
     type(t_thermo), intent(inout) :: tm
     type(t_domain), intent(in) :: dm
 
-    integer :: j, jj
+    integer  :: i, j, jj, k
+    integer  :: nxbf, nx, ny, nz
     real(WP) :: Ts
     
     if(nrank == 0) call Print_debug_start_msg("Initialise thermal variables ...")
@@ -1241,12 +1276,38 @@ contains
       write (*, wrtfmt1r) '  mass enthaphy:',        tm%ftp_ini%rhoh
     end if
 
-    fl%dDens(:, :, :) = tm%ftp_ini%d
-    fl%mVisc(:, :, :) = tm%ftp_ini%m
-    tm%rhoh (:, :, :) = tm%ftp_ini%rhoh
-    tm%hEnth(:, :, :) = tm%ftp_ini%h
-    tm%kCond(:, :, :) = tm%ftp_ini%k
-    tm%tTemp(:, :, :) = tm%ftp_ini%t
+    nx = dm%dccc%xsz(1)
+    ny = dm%dccc%xsz(2)
+    nz = dm%dccc%xsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1, nz; do j=1, ny; do i=1, nx
+      fl%dDens(i, j, k) = tm%ftp_ini%d
+      fl%mVisc(i, j, k) = tm%ftp_ini%m
+      tm%rhoh (i, j, k) = tm%ftp_ini%rhoh
+      tm%hEnth(i, j, k) = tm%ftp_ini%h
+      tm%kCond(i, j, k) = tm%ftp_ini%k
+      tm%tTemp(i, j, k) = tm%ftp_ini%t
+    end do; end do; end do
+    !$acc end parallel loop
+
+    if((dm%inlet_tbuffer_len - dm%h(1)) > MINP) then
+      nxbf = floor(dm%inlet_tbuffer_len * dm%h1r(1))
+      nx = nxbf
+      ny = dm%dccc%xsz(2)
+      nz = dm%dccc%xsz(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k=1, nz; do j=1, ny; do i=1, nx
+        fl%dDens(i, j, k) = ONE
+        fl%mVisc(i, j, k) = ONE
+        tm%rhoh (i, j, k) = ZERO
+        tm%hEnth(i, j, k) = ZERO
+        tm%kCond(i, j, k) = ONE
+        tm%tTemp(i, j, k) = ONE
+      end do; end do; end do
+      !$acc end parallel loop
+    else
+      nxbf = 0
+    end if
 
     if(dm%ibcy_Tm(2) == IBC_DIRICHLET .and. tm%inittype == INIT_GVBCLN) then
 
@@ -1256,12 +1317,20 @@ contains
         Ts = tm%ftp_ini%t
       end if
 
-      do j = 1, dm%dccc%xsz(2) 
-         jj = dm%dccc%xst(2) + j - 1 
-         tm%tTemp(:, j, :) = (dm%yc(jj) - dm%lyb) / (dm%lyt - dm%lyb) &
-                           * (dm%fbcy_const(2, 5) - Ts) + Ts
-        !write(*,*) 'test', j, jj, tm%tTemp(1, j, 1)
-      end do
+      nx = dm%dccc%xsz(1)
+      ny = dm%dccc%xsz(2)
+      nz = dm%dccc%xsz(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k=1, nz; do j=1, ny; do i=1, nx
+        jj = dm%dccc%xst(2) + j - 1
+        if(i <= nxbf) then
+          tm%tTemp(i, j, k) = ONE
+        else
+          tm%tTemp(i, j, k) = (dm%yc(jj) - dm%lyb) / (dm%lyt - dm%lyb) &
+                            * (dm%fbcy_const(2, 5) - Ts) + Ts
+        end if
+      end do; end do; end do
+      !$acc end parallel loop
 
       call ftp_refresh_thermal_properties_from_T_undim_3Dtm(fl, tm, dm)
     end if 
@@ -1334,6 +1403,8 @@ contains
     call Buildup_fluidparam(tm)
     if (fluidparam%ipropertyState == IPROPERTY_TABLE) call buildup_property_relations_from_table
     if (fluidparam%ipropertyState == IPROPERTY_FUNCS) call buildup_property_relations_from_function
+    !$acc update device(ftplist)
+    !$acc update device(fluidparam)
     call Write_thermo_property
     tm%ftp_ini%t = tm%init_T0 / tm%ref_T0 ! already undim
     call ftp_refresh_thermal_properties_from_T_undim(tm%ftp_ini)
@@ -1343,6 +1414,4 @@ contains
   end subroutine Buildup_thermo_mapping_relations
 
 end module thermo_info_mod
-
-
 

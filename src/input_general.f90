@@ -367,6 +367,8 @@ contains
         if (nxdomain /= 1 .and. nrank == 0) call Print_error_msg("Set up nxdomain = 1.")
         allocate( domain (nxdomain) )
         allocate(   flow (nxdomain) )
+        !$acc enter data create(domain)
+        !$acc enter data create(flow)
         allocate( itmpx(nxdomain) ); itmpx = 0
         allocate( rtmpx(nxdomain) ); rtmpx = ZERO
         domain(:)%is_thermo = .false.
@@ -659,6 +661,7 @@ contains
         domain(:)%iAccuracy = domain(1)%iAccuracy
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%iviscous
         domain(:)%iviscous = domain(1)%iviscous
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%outlet_sponge_layer(1:2)
         ! some schemes are still testing, check >>>
         if(domain(1)%icoordinate == ICYLINDRICAL) then
           domain(1)%iAccuracy = IACCU_CD2
@@ -682,6 +685,13 @@ contains
           call Print_error_msg("Input error for numerical schemes.")
         end if
 
+#ifdef USE_GPU
+        if (domain(1)%iAccuracy == IACCU_CP4 .or.  &
+            domain(1)%iAccuracy == IACCU_CP6) then
+          call Print_error_msg("Compact schemes are currently not avaialbe for GPU.")
+        end if
+#endif
+
         if(nrank == 0) then
           do i = 1, nxdomain
             !write (*, wrtfmt1i) '------For the domain-x------ ', i
@@ -689,6 +699,10 @@ contains
             write (*, wrtfmt1i) 'time marching scheme :', domain(i)%iTimeScheme
             write (*, wrtfmt2s) 'current spatial accuracy scheme :', get_name_iacc(domain(i)%iAccuracy)
             write (*, wrtfmt1i) 'viscous term treatment  :', domain(i)%iviscous
+            if(domain(1)%outlet_sponge_layer(1) > MINP) then
+              write (*, wrtfmt2r) 'outlet sponge layer thickness :', domain(i)%outlet_sponge_layer(1)
+              write (*, wrtfmt2r) 'outlet sponge layer strength (Re):', domain(i)%outlet_sponge_layer(2)
+            end if
           end do
         end if
       !----------------------------------------------------------------------------------------------------------
@@ -738,7 +752,10 @@ contains
         read(inputUnit, *, iostat = ioerr) varname,   flow(1 : nxdomain)%igravity
 
         if(ANY(domain(:)%is_thermo)) is_any_energyeq = .true.
-        if(is_any_energyeq) allocate( thermo(nxdomain) )
+        if(is_any_energyeq) then
+          allocate( thermo(nxdomain) )
+          !$acc enter data create(thermo)
+        end if
         
         read(inputUnit, *, iostat = ioerr) varname, itmp
         if(is_any_energyeq) thermo(1 : nxdomain)%ifluid = itmp
@@ -753,6 +770,7 @@ contains
         if(is_any_energyeq) thermo(1 : nxdomain)%iterfrom = itmp
         read(inputUnit, *, iostat = ioerr) varname, rtmpx(1: nxdomain)
         if(is_any_energyeq) thermo(1 : nxdomain)%init_T0 = rtmpx(1: nxdomain)
+        read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%inlet_tbuffer_len
 
         if(is_any_energyeq .and. nrank == 0) then
           do i = 1, nxdomain
@@ -766,6 +784,7 @@ contains
             write (*, wrtfmt1i) 'thermo field initial type :', thermo(i)%inittype
             write (*, wrtfmt1i) 'iteration starting from :', thermo(i)%iterfrom
             write (*, wrtfmt1r) 'initial temperature (K) :', thermo(i)%init_T0
+            write (*, wrtfmt1r) 'inlet buffer length (lx/L0):', domain(i)%inlet_tbuffer_len
           end do
         else if(nrank == 0) then
          call Print_note_msg ('Thermal field is not considered. ')
@@ -777,6 +796,7 @@ contains
         read(inputUnit, *, iostat = ioerr) varname, domain(1:nxdomain)%is_mhd
         if(domain(1)%is_mhd) then
           allocate (mhd(nxdomain))
+          !$acc enter data create(mhd)
           read(inputUnit, *, iostat = ioerr) varname, mhd(1)%is_NStuart, mhd(1)%NStuart
           read(inputUnit, *, iostat = ioerr) varname, mhd(1)%is_NHartmn, mhd(1)%NHartmn
           read(inputUnit, *, iostat = ioerr) varname, mhd(1)%B_static(1:3)
@@ -837,6 +857,92 @@ contains
           end do
         end if
       !----------------------------------------------------------------------------------------------------------
+      ! [statistics]
+      !----------------------------------------------------------------------------------------------------------
+      else if ( secname(1:slen) == '[statistics]' ) then
+        read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%stat_istart
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_nskip(1:3)
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_u,   &
+                                                    domain(1)%stat_p,   &
+                                                    domain(1)%stat_pu,  &
+                                                    domain(1)%stat_uu,  &
+                                                    domain(1)%stat_uuu, &
+                                                    domain(1)%stat_dudu
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_h,    &
+                                                    domain(1)%stat_T,    &
+                                                    domain(1)%stat_f,    &
+                                                    domain(1)%stat_fu,   &
+                                                    domain(1)%stat_fh,   &
+                                                    domain(1)%stat_TT,   &
+                                                    domain(1)%stat_fuu,  &
+                                                    domain(1)%stat_fuh,  &
+                                                    domain(1)%stat_fuuu, &
+                                                    domain(1)%stat_fuuh
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_e,  &
+                                                    domain(1)%stat_j,  &
+                                                    domain(1)%stat_eu, &
+                                                    domain(1)%stat_ej, &
+                                                    domain(1)%stat_jj
+
+        do i = 1, nxdomain
+          domain(i)%stat_nskip(1:3) = domain(1)%stat_nskip(1:3)
+          if(domain(i)%is_stretching(2)) domain(i)%stat_nskip(2) = 1
+          domain(i)%stat_u = domain(1)%stat_u
+          domain(i)%stat_p = domain(1)%stat_p
+          domain(i)%stat_pu = domain(1)%stat_pu
+          domain(i)%stat_uu = domain(1)%stat_uu
+          domain(i)%stat_uuu = domain(1)%stat_uuu
+          domain(i)%stat_dudu = domain(1)%stat_dudu
+          domain(i)%stat_h = domain(1)%stat_h
+          domain(i)%stat_T = domain(1)%stat_T
+          domain(i)%stat_f = domain(1)%stat_f
+          domain(i)%stat_fu = domain(1)%stat_fu
+          domain(i)%stat_fh = domain(1)%stat_fh
+          domain(i)%stat_TT = domain(1)%stat_TT
+          domain(i)%stat_fuu = domain(1)%stat_fuu
+          domain(i)%stat_fuh = domain(1)%stat_fuh
+          domain(i)%stat_fuuu = domain(1)%stat_fuuu
+          domain(i)%stat_fuuh = domain(1)%stat_fuuh
+          domain(i)%stat_e = domain(1)%stat_e
+          domain(i)%stat_j = domain(1)%stat_j
+          domain(i)%stat_eu = domain(1)%stat_eu
+          domain(i)%stat_ej = domain(1)%stat_ej
+          domain(i)%stat_jj = domain(1)%stat_jj
+        end do
+
+        if( nrank == 0) then
+          do i = 1, nxdomain
+            write (*, wrtfmt1i) 'statistics written from :', domain(i)%stat_istart
+            write (*, wrtfmt3i) 'statistics skips in xyz :', domain(i)%stat_nskip(1:3)
+            write (*, *) '                statistics to compute   :'
+            if(domain(i)%stat_u==1) write (*, '(47X,A)') 'u{i}'
+            if(domain(i)%stat_p==1) write (*, '(47X,A)') 'p'
+            if(domain(i)%stat_pu==1) write (*, '(47X,A)') 'p * u{i}'
+            if(domain(i)%stat_uu==1) write (*, '(47X,A)') 'u{i} * u{j}'
+            if(domain(i)%stat_uuu==1) write (*, '(47X,A)') 'u{i} * u{j} * u{k}'
+            if(domain(i)%stat_dudu==1) write (*, '(47X,A)') 'du{i}/dx{k} * du{j}/dx{k}'
+            if(is_any_energyeq) then
+              if(domain(i)%stat_h==1) write (*, '(47X,A)') 'h'
+              if(domain(i)%stat_T==1) write (*, '(47X,A)') 'T'
+              if(domain(i)%stat_f==1) write (*, '(47X,A)') 'rho'
+              if(domain(i)%stat_fu==1) write (*, '(47X,A)') 'rho * u{i}'
+              if(domain(i)%stat_fh==1) write (*, '(47X,A)') 'rho * h'
+              if(domain(i)%stat_TT==1) write (*, '(47X,A)') 'T * T'
+              if(domain(i)%stat_fuu==1) write (*, '(47X,A)') 'rho * u{i} * u{j}'
+              if(domain(i)%stat_fuh==1) write (*, '(47X,A)') 'rho * u{i} * h'
+              if(domain(i)%stat_fuuu==1) write (*, '(47X,A)') 'rho * u{i} * u{j} * u{k}'
+              if(domain(i)%stat_fuuh==1) write (*, '(47X,A)') 'rho * u{i} * u{j} * h'
+            end if
+            if(domain(1)%is_mhd) then
+              if(domain(i)%stat_e==1) write (*, '(47X,A)') 'e'
+              if(domain(i)%stat_j==1) write (*, '(47X,A)') 'j{i}'
+              if(domain(i)%stat_eu==1) write (*, '(47X,A)') 'e * u{i}'
+              if(domain(i)%stat_ej==1) write (*, '(47X,A)') 'e * j{i}'
+              if(domain(i)%stat_jj==1) write (*, '(47X,A)') 'j{i} * j{j}'
+            end if
+          end do
+        end if
+      !----------------------------------------------------------------------------------------------------------
       ! [ioparams]
       !----------------------------------------------------------------------------------------------------------
       else if ( secname(1:slen) == '[io]' ) then
@@ -845,18 +951,15 @@ contains
         read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%visu_idim
         read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%visu_nfre
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%visu_nskip(1:3)
-        read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%stat_istart
-        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_nskip(1:3)
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%is_record_xoutlet, domain(1)%is_read_xinlet
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%ndbfre, domain(1)%ndbstart, domain(1)%ndbend
         
+        domain(1)%visu_nskip(1:3) = 1 ! This is a temporary solution to wait for features from 2decomp lib.
         do i = 1, nxdomain
           if(domain(1)%ndbfre/=0) &
           domain(:)%ndbend = (domain(1)%ndbend - domain(1)%ndbstart + 1)/domain(1)%ndbfre * domain(1)%ndbfre + domain(1)%ndbstart - 1
           domain(i)%visu_nskip(1:3) = domain(1)%visu_nskip(1:3)
-          domain(i)%stat_nskip(1:3) = domain(1)%stat_nskip(1:3) 
           if(domain(i)%is_stretching(2)) domain(i)%visu_nskip(2) = 1
-          if(domain(i)%is_stretching(2)) domain(i)%stat_nskip(2) = 1
           !
           do n = 1, 3
             if((domain(i)%visu_nskip(n) < 1) .or. &
@@ -888,8 +991,6 @@ contains
             write (*, wrtfmt1i) 'visu data dimensions :', domain(i)%visu_idim
             write (*, wrtfmt1i) 'visu data written freqency :', domain(i)%visu_nfre
             write (*, wrtfmt3i) 'visu data skips in xyz :', domain(i)%visu_nskip(1:3)
-            write (*, wrtfmt1i) 'statistics written from :', domain(i)%stat_istart
-            write (*, wrtfmt3i) 'statistics skips in xyz :', domain(i)%stat_nskip(1:3)
             write (*, wrtfmt1l) 'recording outlet plane? :', domain(1)%is_record_xoutlet
             write (*, wrtfmt1l) 'reading inlet plane? :', domain(1)%is_read_xinlet
             write (*, wrtfmt1i) 'reading/recording plane freqency :', domain(1)%ndbfre
@@ -941,6 +1042,13 @@ contains
     !----------------------------------------------------------------------------------------------------------
     ! cross session conditions
     !----------------------------------------------------------------------------------------------------------
+    if(domain(1)%is_periodic(1)) then
+      domain(1)%outlet_sponge_layer(1:2) = ZERO
+    end if
+    if(domain(1)%is_periodic(1) .or. &
+      .not. is_any_energyeq) then
+      domain(1)%inlet_tbuffer_len = ZERO
+    end if
     if((.not. domain(1)%is_periodic(2)) .and. is_any_energyeq) then
       ! check!
       if(domain(1)%is_periodic(1)) &
@@ -950,9 +1058,10 @@ contains
       domain(:)%fft_skip_c2c(2) = .true.
     end if
     if (.not. domain(1)%fft_skip_c2c(2)) domain(:)%mstret = MSTRET_3FMD
+    !
+    is_single_RK_projection = .false.
     if(is_any_energyeq) then
     !   if(domain(1)%ibcx_nominal(2,1)==IBC_CONVECTIVE) then
-         is_single_RK_projection = .false.
          if(is_single_RK_projection) &
          call Print_warning_msg('is_single_RK_projection on could introduce very high pressure.')
     !     !is_damping_drhodt = .true.
@@ -1372,6 +1481,5 @@ contains
     call Print_debug_start_msg()
     return
   end subroutine
-
 
 end module

@@ -298,6 +298,7 @@ def get_thermo_settings():
     refT0 = get_input("Reference Temperature (Kelvin)", 645.15, float)
     inittm = get_input("Thermal field initialization (0:Restart, 1:Interpolation, 2:Random, 3:Inlet. 4:Given, 5:Poiseuille, 6:functioni, 7:GivenBCMix)", 4, int)
     Tini = get_input("Initial temperature (Kelvin)", 645.15, float)
+    inlet_buffer = get_input("Unheated inlet buffer length", 0.0, float)
     if inittm == Init.RESTART.value:
       irestartfrom = get_input("Iteration to restart", 2000, int)
     else:
@@ -312,7 +313,8 @@ def get_thermo_settings():
         "ref_T0": refT0,
         "inittm": inittm,
         "irestartfrom": irestartfrom,
-        "Tini": Tini
+        "Tini": Tini,
+        "inlet_buffer": inlet_buffer
     }
 
 
@@ -539,12 +541,15 @@ def get_scheme_settings():
     iTimeScheme = 3
     iAccuracy = get_input("Spacial accuracy (1:2nd CD, 2:4th CD, 3:4th CP, 4:6th CP)", 1, int)
     iviscous = 1 
+    sponge_L = get_input("Outlet sponge layer length", 0.0, float)
+    sponge_Re = get_input("Outlet sponge layer Reynolds number", 100.0, float)
     
     return {
         "dt": dt,
         "iTimeScheme": iTimeScheme,
         "iAccuracy": iAccuracy,
-        "iviscous": iviscous
+        "iviscous": iviscous,
+        "out_sponge_L_Re": f"{sponge_L},{sponge_Re}"
     }
 
 # simcontrol
@@ -576,7 +581,6 @@ def get_io_settings():
     cpu_nfre = get_input("Frequency to print out CPU info", 1, int)
     ckpt_nfre = get_input("Frequency to save Checkpoint data", 1000, int)
     visu_nfre = get_input("Frequency for data visualization", 500, int)
-    stat_istart =  get_input("From which iteration to start statistics", 1000, int)
     is_write = get_input("Writing out outlet plane data? (0:No, 1:Yes)", 0, int)
     if iinlet == 1:
       is_read = 1
@@ -604,11 +608,69 @@ def get_io_settings():
         "visu_idim": visu_idim,
         "visu_nfre": visu_nfre,
         "visu_nskip": f"{iskip1},{iskip2},{iskip3}",
-        "stat_istart": stat_istart,
-        "stat_nskip": f"{iskip1},{iskip2},{iskip3}",
         "is_wrt_read_bc": f"{bool_to_string(is_write)},{bool_to_string(is_read)}",
         "wrt_read_nfre": f"{wrt_read_nfre1},{wrt_read_nfre2},{wrt_read_nfre3}"
     }
+
+# statistics Settings
+def get_statistics_settings():
+    # Always collect statistics section; do not ask whether to enable it.
+    # Basic timing and skip settings
+    stat_istart = get_input("stat_istart (time step to collect statistics)", 100, int)
+    nskip1 = get_input("stat_nskip nskip1", 1, int)
+    nskip2 = get_input("stat_nskip nskip2", 1, int)
+    nskip3 = get_input("stat_nskip nskip3", 1, int)
+    stat_nskip = f"{nskip1},{nskip2},{nskip3}"
+
+    # Flow statistical terms (asked separately)
+    print("Specify flow statistics to collect (0:No, 1:Yes) for each term:")
+    sf_u_i = get_input("Include u{i}? (u components)", 0, int)
+    sf_p = get_input("Include p?", 0, int)
+    sf_pu_i = get_input("Include p * u{i}?", 0, int)
+    sf_ui_uj = get_input("Include u{i} * u{j}?", 0, int)
+    sf_ui_uj_uk = get_input("Include u{i} * u{j} * u{k}?", 0, int)
+    sf_gradprod = get_input("Include du{i}/dx{k} * du{j}/dx{k}?", 0, int)
+    stat_flow = f"{sf_u_i},{sf_p},{sf_pu_i},{sf_ui_uj},{sf_ui_uj_uk},{sf_gradprod}"
+
+    # Thermal terms if enabled
+    # Thermal terms
+    if ithermo == 1:
+        print("Specify thermal statistics to collect (0:No, 1:Yes) for each term:")
+        st_h = get_input("Include h?", 1, int)
+        st_T = get_input("Include T?", 1, int)
+        st_rho = get_input("Include rho?", 1, int)
+        st_rhou_i = get_input("Include rho * u{i}?", 0, int)
+        st_rho_h = get_input("Include rho * h?", 0, int)
+        st_TT = get_input("Include T * T?", 0, int)
+        st_rhoui_roudj = get_input("Include rho * u{i} * u{j}?", 0, int)
+        st_rhoui_rhoh = get_input("Include rho * u{i} * h?", 0, int)
+        st_rhoui_uj_uk = get_input("Include rho * u{i} * u{j} * u{k}?", 0, int)
+        st_rhoui_uj_h = get_input("Include rho * u{i} * u{j} * h?", 0, int)
+        stat_thermo = f"{st_h},{st_T},{st_rho},{st_rhou_i},{st_rho_h},{st_TT},{st_rhoui_roudj},{st_rhoui_rhoh},{st_rhoui_uj_uk},{st_rhoui_uj_h}"
+    else:
+        # default when thermal is not enabled
+        stat_thermo = "0,0,0,0,0,0,0,0,0,0"
+
+    # MHD terms if enabled
+    if imhd == 1:
+        print("Specify MHD statistics to collect (0:No, 1:Yes) for each term:")
+        sm_e = get_input("Include e?", 0, int)
+        sm_ji = get_input("Include j{i}?", 0, int)
+        sm_eui = get_input("Include e * u{i}?", 0, int)
+        sm_eji = get_input("Include e * j{i}?", 0, int)
+        sm_jijj = get_input("Include j{i} * j{j}?", 0, int)
+        stat_mhd = f"{sm_e},{sm_ji},{sm_eui},{sm_eji},{sm_jijj}"
+    else:
+        stat_mhd = "0,0,0,0,0"
+
+    return {
+        "stat_istart": stat_istart,
+        "stat_nskip": stat_nskip,
+        "stat_flow": stat_flow,
+        "stat_thermo": stat_thermo,
+        "stat_mhd": stat_mhd
+    }
+
 
 # probe Settings
 def get_probe_settings(lxx, lzz, lyt, lyb):
@@ -726,12 +788,18 @@ def generate_ini(filename=DEFAULT_FILENAME):
     if simcontrol_settings:
       config["simcontrol"] = simcontrol_settings
 
-    print(message + "io" + message) 
+    # statistics should come before io in the ini file
+    print(message + "statistics" + message)
+    statistics_settings = get_statistics_settings()
+    if statistics_settings:
+        config["statistics"] = statistics_settings
+
+    print(message + "io" + message)
     io_settings = get_io_settings()
     if io_settings:
-      config["io"] = io_settings
+        config["io"] = io_settings
 
-    print(message + "probe" + message)  
+    print(message + "probe" + message)
     probe_settings = get_probe_settings(
         domain_settings["lxx"],
         domain_settings["lzz"],

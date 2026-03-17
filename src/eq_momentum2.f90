@@ -66,7 +66,7 @@ contains
 
       do k = 1, dm%dcpp%zsz(3)
         theta = dm%h(3) * REAL(k, WP)
-        do j = 1, dm%dccc%zsz(2)
+        do j = 1, dm%dcpp%zsz(2)
           fr_cpp_zpencil(:, j, k) =  acpp_zpencil(:, j, k) * sin_wp(theta)
           ft_cpp_zpencil(:, j, k) = -acpp_zpencil(:, j, k) * cos_wp(theta)
         end do
@@ -139,14 +139,12 @@ contains
           rhs_total = dm%tGamma(isub) * rhs_explicit_current + &
                       dm%tZeta (isub) * rhs_explicit_last
           rhs0(i, j, k) = rhs_explicit_current ! not (* dt)
-
       ! add pressure gradient
           rhs_total = rhs_total + &
                       dm%tAlpha(isub) * rhs1_pfc(i, j, k)
 
       ! times the time step 
           rhs1(i, j, k) = dm%dt * rhs_total ! * dt 
-
         end do
       end do
     end do
@@ -325,9 +323,9 @@ contains
     real(WP), dimension( dm%dppc%ysz(1), dm%dppc%ysz(2), dm%dppc%ysz(3) ) :: appc_ypencil
     real(WP), dimension( dm%dccc%ysz(1), dm%dccc%ysz(2), dm%dccc%ysz(3) ) :: accc_ypencil, accc_ypencil1
     real(WP), dimension( dm%dcpp%ysz(1), dm%dcpp%ysz(2), dm%dcpp%ysz(3) ) :: acpp_ypencil, acpp_ypencil1
-    real(WP), dimension( dm%dccp%ysz(1), dm%dccp%ysz(2), dm%dccp%ysz(3) ) :: accp_ypencil
+    real(WP), dimension( dm%dccp%ysz(1), dm%dccp%ysz(2), dm%dccp%ysz(3) ) :: accp_ypencil, accp_ypencil1
     real(WP), dimension( dm%dcpc%ysz(1), dm%dcpc%ysz(2), dm%dcpc%ysz(3) ) :: acpc_ypencil, acpc_ypencil1
-    real(WP), dimension( dm%dpcc%ysz(1), dm%dpcc%ysz(2), dm%dpcc%ysz(3) ) :: apcc_ypencil
+    real(WP), dimension( dm%dpcc%ysz(1), dm%dpcc%ysz(2), dm%dpcc%ysz(3) ) :: apcc_ypencil, apcc_ypencil1
     real(WP), dimension( dm%dpcp%ysz(1), dm%dpcp%ysz(2), dm%dpcp%ysz(3) ) :: apcp_ypencil
     
     real(WP), dimension( dm%dpcp%zsz(1), dm%dpcp%zsz(2), dm%dpcp%zsz(3) ) :: apcp_zpencil
@@ -808,6 +806,7 @@ contains
       call transpose_y_to_z(mu_ccc_ypencil, mu_ccc_zpencil, dm%dccc)
       !
       call Get_y_midp_C2P_3D(mu_ccc_ypencil, acpc_ypencil, dm, dm%iAccuracy, dm%ibcy_ftp, fbcy_c4c)
+
       !call axis_estimating_radial_xpx(acpc_ypencil, dm%dcpc, IPENCIL(2), dm, IDIM(1))
 ! #ifdef DEBUG_STEPS  
 !     ! serial only
@@ -817,9 +816,10 @@ contains
 !     end if
 ! #endif
       call transpose_y_to_x(acpc_ypencil, acpc_xpencil, dm%dcpc) !acpc_xpencil = muiy_cpc_xpencil
+
+      ! FIXME: need to add fbcx_4pc = MAXP for the case where is_fbcx_velo_required = .false.
       if(is_fbcx_velo_required) call get_fbcx_ftp_4pc(fbcx_4cc, fbcx_4pc, dm)
       call Get_x_midp_C2P_3D(acpc_xpencil, muixy_ppc_xpencil, dm, dm%iAccuracy, dm%ibcx_ftp, fbcx_4pc)
-
       !
       call transpose_x_to_y(muixy_ppc_xpencil, muixy_ppc_ypencil, dm%dppc)
       !
@@ -1238,6 +1238,51 @@ contains
     write(*,*) 'visx-13', apcc_zpencil(1, 1:4, 1)
     call is_valid_number_3D(apcc_zpencil, 'visx-13')
 #endif
+!----------------------------------------------------------------------------------------------------------
+! A patch for outlet sponge layer: X-mom diffusion term at (i', j, k)
+!----------------------------------------------------------------------------------------------------------
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      !--------------------------------       
+      ! diff-y-m1-sponge = 1/r * mu_sponge * d(r * qxdy)/dy
+      !------bulk------      
+      appc_ypencil = qxdy_ppc_ypencil
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(appc_ypencil, dm%dppc, dm%rp, 1, IPENCIL(2))
+      !------b.c.------
+      if(is_fbcy_velo_required) then
+        call extract_dirichlet_fbcy(fbcy_p4c, appc_ypencil, dm%dppc, dm, is_reversed = .true.)
+      else
+        fbcy_p4c = MAXP
+      end if
+      !------PDE------
+      call Get_y_1der_P2C_3D(appc_ypencil, apcc_ypencil1, dm, dm%iAccuracy, mbcy_tau1, fbcy_p4c)
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(apcc_ypencil1, dm%dpcc, dm%rci, 1, IPENCIL(2))
+      !--------------------------------       
+      ! diff-z-m1-sponge = 1/r * mu_sponge * d(1/r * qxdz)/dz
+      !------bulk------
+      apcp_zpencil = qxdz_pcp_zpencil
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(apcp_zpencil, dm%dpcp, dm%rci, 1, IPENCIL(3))
+      !------b.c.------
+      if(is_fbcz_velo_required) then
+        call extract_dirichlet_fbcz(fbcz_pc4, apcp_zpencil, dm%dpcp)
+      else
+        fbcz_pc4 = MAXP
+      end if
+      !------PDE------
+      call Get_z_1der_P2C_3D(apcp_zpencil, apcc_zpencil, dm, dm%iAccuracy, mbcz_tau1, fbcz_pc4)
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(apcc_zpencil, dm%dpcc, dm%rci, 1, IPENCIL(3))
+      !------two terms ------
+      call transpose_z_to_y(apcc_zpencil, apcc_ypencil, dm%dpcc)
+      apcc_ypencil = apcc_ypencil + apcc_ypencil1
+      call transpose_y_to_x(apcc_ypencil, apcc_xpencil, dm%dpcc)
+      do i = 1, dm%dpcc%xsz(1)
+        apcc_xpencil(i, :, :) = fl%rre_sponge_p(i) * apcc_xpencil(i, :, :)
+      end do
+      fl%mx_rhs =  fl%mx_rhs + apcc_xpencil
+    end if
 !==========================================================================================================
 ! the RHS of y-momentum equation
 ! d(gy)/dt = -        d(gxiy * qyix)/dx                             ! conv-x-m2         
@@ -1578,6 +1623,96 @@ contains
       call is_valid_number_3D(acpc_ypencil, 'visy-24')
 #endif
     end if
+!----------------------------------------------------------------------------------------------------------
+! A patch for outlet sponge layer: Y-mom diffusion term at (i, j', k)
+!----------------------------------------------------------------------------------------------------------
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      !------------------------------------------
+      ! Y-mom diffusion term 2/4 at (i, j', k)
+      ! diff-y-m2 = mu * d[r * 2  * (qyrdy)]/dy                 
+      !------------------------------------------
+      ! ------b.c.------
+      if(is_fbcy_velo_required) then
+        if(dm%icoordinate == ICYLINDRICAL) then
+          call Get_y_midp_P2C_3D(qyr_ypencil,  accc_ypencil, dm, dm%iAccuracy, dm%ibcy_qy, dm%fbcy_qyr)
+          call Get_y_1der_C2P_3D(accc_ypencil, acpc_ypencil, dm, dm%iAccuracy, dm%ibcy_qy, dm%fbcy_qyr) ! acpc_ypencil = d(qyr)/dy
+          call extract_dirichlet_fbcy(fbcy_c4c, acpc_ypencil, dm%dcpc, dm, is_reversed = .true.) ! fbcy_c4c = fbcy_dqyrdy_c4c
+        else if(dm%icoordinate == ICARTESIAN) then
+          call extract_dirichlet_fbcy(fbcy_c4c, qydy_cpc_ypencil, dm%dcpc, dm, is_reversed = .true.)
+        else
+        end if
+        fbcy_c4c = ( fbcy_c4c ) * TWO
+        if(dm%icoordinate == ICYLINDRICAL) then
+          call multiple_cylindrical_rn_x4x(fbcy_c4c, dm%dcpc, dm%rp, 1, IPENCIL(2))
+        end if
+      else
+        fbcy_c4c = MAXP
+      end if
+      ! ------bulk-----
+      if(dm%icoordinate == ICYLINDRICAL) then
+        accc_ypencil1 = qyrdy_ccc_ypencil
+      else if(dm%icoordinate == ICARTESIAN) then
+        accc_ypencil1 = qydy_ccc_ypencil
+      else
+      end if
+      accc_ypencil = ( accc_ypencil1 ) * TWO 
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(accc_ypencil, dm%dccc, dm%rc, 1, IPENCIL(2))
+      ! ------PDE-----
+      acpc_ypencil1 = ZERO
+      call Get_y_1der_C2P_3D(accc_ypencil, acpc_ypencil1, dm, dm%iAccuracy, mbcy_tau2, fbcy_c4c) 
+      !----------------------------------------------
+      ! Y-mom diffusion term 3/4 at (i, j', k)
+      ! diff-z-m2 = d[muiyz * (qzdy + qyr2dz - qzriy]/dz       
+      !----------------------------------------------
+      !------bulk-----
+      if(dm%icoordinate == ICYLINDRICAL) then
+        acpp_zpencil = qzdy_cpp_zpencil + qyr2dz_cpp_zpencil - qzriy_cpp_zpencil
+      else
+        acpp_zpencil = qzdy_cpp_zpencil + qydz_cpp_zpencil - ZERO
+      end if
+      !------b.c.-----
+      if(is_fbcz_velo_required) then
+        call extract_dirichlet_fbcz(fbcz_cp4, acpp_zpencil, dm%dcpp)
+      else
+        fbcz_cp4 = MAXP
+      end if
+      !------PDE-----
+      acpc_zpencil = ZERO
+      call Get_z_1der_P2C_3D(acpp_zpencil, acpc_zpencil, dm, dm%iAccuracy, mbcz_tau2, fbcz_cp4)
+      !--------------------------------------------------
+      ! Y-mom diffusion term 4/4 at (i, j', k)
+      ! diff-r-m2 = - [2 mu * (1/r * qzdz + 1/r * qyriy)]^y     
+      !---------------------------------------------------
+      acpc_ypencil = ZERO
+      if(dm%icoordinate == ICYLINDRICAL) then
+        !------b.c.------
+        if(is_fbcy_velo_required) then
+          call extract_dirichlet_fbcy(fbcy_c4c, qzrdz_cpc_ypencil, dm%dcpc, dm, is_reversed = .false.) ! fbcy_c4c = (1/r * qzdz)_c4c
+          call extract_dirichlet_fbcy(fbcy_c4c1, qyr2_ypencil, dm%dcpc, dm, is_reversed = .true.) ! fbcy_c4c1 = (1/r * qyriy)_c4c
+          fbcy_c4c = (fbcy_c4c + fbcy_c4c1) * TWO
+        else
+          fbcy_c4c = MAXP
+        end if
+        !------bulk------
+        accc_ypencil = qzdz_ccc_ypencil
+        call multiple_cylindrical_rn(accc_ypencil, dm%dccc, dm%rci, 1, IPENCIL(2)) ! accc_ypencil = 1/r * d(qz)/dz
+        accc_ypencil1 = qyriy_ccc_ypencil
+        call multiple_cylindrical_rn(accc_ypencil1, dm%dccc, dm%rci, 1, IPENCIL(2)) !accc_ypencil1 = 1/r * (qr/r)^r
+        accc_ypencil = (accc_ypencil + accc_ypencil1) * TWO
+        !------PDE------
+        call Get_y_midp_C2P_3D(accc_ypencil, acpc_ypencil, dm, dm%iAccuracy, mbcr_tau2, fbcy_c4c)
+      end if
+      !----all terms ---
+      acpc_ypencil = acpc_ypencil1 + acpc_ypencil
+      call transpose_z_to_y(acpc_zpencil, acpc_ypencil1, dm%dcpc)
+      acpc_ypencil = acpc_ypencil1 + acpc_ypencil
+      call transpose_y_to_x(acpc_ypencil, acpc_xpencil, dm%dcpc)
+      do i = 1, dm%dcpc%xsz(1)
+        acpc_xpencil(i, :, :) = fl%rre_sponge_c(i) * acpc_xpencil(i, :, :)
+      end do
+      fl%my_rhs =  fl%my_rhs + acpc_xpencil
+    end if
 !==========================================================================================================
 ! the RHS of z-momentum equation
 ! d(gz)/dt = -        d(gxiz * qzix)/dx                               ! conv-x-m3         
@@ -1736,7 +1871,7 @@ contains
     if(dm%is_thermo .and. (fl%igravity == i .or. fl%igravity == -i) )  then
       if(dm%icoordinate == ICYLINDRICAL) then
         call gravity_decomposition_to_rz(d_ccc_xpencil, fl%igravity, fl%fgravity(i), acpc_ypencil, accp_zpencil, dm)
-        my_rhs_pfc_ypencil = my_rhs_pfc_ypencil + accp_zpencil
+        my_rhs_pfc_ypencil = my_rhs_pfc_ypencil + acpc_ypencil
       else
         fbcz_cc4(:, :, :) = dm%fbcz_ftp(:, :, :)%d
         call Get_z_midp_C2P_3D(dDens_zpencil, accp_zpencil, dm, dm%iAccuracy, dm%ibcz_ftp, fbcz_cc4 )
@@ -1898,6 +2033,89 @@ contains
       write(*,*) 'visz-34', accp_ypencil(1, 1:4, 1)
       call is_valid_number_3D(accp_ypencil, 'visz-34')
 #endif
+    end if
+!----------------------------------------------------------------------------------------------------------
+! A patch for outlet sponge layer: Z-mom diffusion term at (i, j, k')
+!----------------------------------------------------------------------------------------------------------
+    if(dm%outlet_sponge_layer(1) > MINP) then
+      !---------------------------------------------------------
+      ! Z-mom diffusion term 2/4 at (i, j, k')
+      ! diff-y-m3 = muiyz * 1/r * d[(r * qzdy + qyrdz - qziy]/dy               
+      !----------------------------------------------------------
+      !------bulk------
+      acpp_ypencil = qzdy_cpp_ypencil
+      if(dm%icoordinate == ICYLINDRICAL) then
+        call multiple_cylindrical_rn(acpp_ypencil, dm%dcpp, dm%rp, 1, IPENCIL(2))
+        acpp_ypencil = acpp_ypencil + qyrdz_cpp_ypencil - qziy_cpp_ypencil
+      else
+        acpp_ypencil = acpp_ypencil + qydz_cpp_ypencil
+      end if
+      !------b.c.-----
+      if(is_fbcy_velo_required) then
+        call extract_dirichlet_fbcy(fbcy_c4p, acpp_ypencil, dm%dcpp, dm, is_reversed = .true.)
+      else
+        fbcy_c4p = MAXP
+      end if
+      !------PDE------
+      call Get_y_1der_P2C_3D(acpp_ypencil, accp_ypencil1, dm, dm%iAccuracy, mbcy_tau3, fbcy_c4p)
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(accp_ypencil1, dm%dccp, dm%rci, 1, IPENCIL(2))
+      !------------------------------------------------------------
+      ! Z-mom diffusion term 3/4 at (i, j, k')
+      ! diff-z-m3 = mu * 1/r2 * d[2 * (qzdz + qyriy)]/dz 
+      !------------------------------------------------------------
+      !------b.c.------
+      if(is_fbcz_velo_required) then
+        call extract_dirichlet_fbcz(fbcz_cc4, qzdz_ccp_zpencil, dm%dccp)
+        if(dm%icoordinate == ICYLINDRICAL) then
+          fbcz_cc41 = dm%fbcz_qyr
+        else
+          fbcz_cc41 = ZERO
+        end if
+        fbcz_cc4 = ( fbcz_cc4 + fbcz_cc41) * TWO
+      else
+        fbcz_cc4 = MAXP
+      end if
+      !------bulk------
+      if(dm%icoordinate == ICYLINDRICAL) then
+        accc_zpencil1 = qyriy_ccc_zpencil
+      else
+        accc_zpencil1 = ZERO
+      end if
+      accc_zpencil = ( qzdz_ccc_zpencil + accc_zpencil1) * TWO
+      !------PDE------
+      call Get_z_1der_C2P_3D(accc_zpencil, accp_zpencil, dm, dm%iAccuracy, mbcz_tau3, fbcz_cc4) 
+      if(dm%icoordinate == ICYLINDRICAL) &
+      call multiple_cylindrical_rn(accp_zpencil, dm%dccp, dm%rci, 2, IPENCIL(3))
+      !------------------------------------------------------------
+      ! Z-mom diffusion term 4/4 at (i, j, k')
+      ! diff-r-m3 = 1/r * [muiyz * (qzdy + 1/r2 * qydz - qzriy)]^y  (method 1)
+      !------------------------------------------------------------
+      accp_ypencil = ZERO
+      if(dm%icoordinate == ICYLINDRICAL) then
+      ! method 1
+        !------bulk1------
+        acpp_ypencil = (qzdy_cpp_ypencil + qyr2dz_cpp_ypencil - qzriy_cpp_ypencil) 
+        !------b.c.-----
+        if(is_fbcy_velo_required) then
+          call extract_dirichlet_fbcy(fbcy_c4p, acpp_ypencil, dm%dcpp, dm, is_reversed = .true.)
+        else
+          fbcy_c4p = MAXP
+        end if
+        !------PDE------
+        call Get_y_midp_P2C_3D(acpp_ypencil, accp_ypencil, dm, dm%iAccuracy, mbcr_tau3, fbcy_c4p)
+        if(dm%icoordinate == ICYLINDRICAL) &
+        call multiple_cylindrical_rn(accp_ypencil, dm%dccp, dm%rci, 1, IPENCIL(2))
+      end if
+      !--- all terms ---
+      accp_ypencil = accp_ypencil + accp_ypencil1
+      call transpose_z_to_y (accp_zpencil, accp_ypencil1, dm%dccp)
+      accp_ypencil = accp_ypencil + accp_ypencil1
+      call transpose_y_to_x (accp_ypencil, accp_xpencil, dm%dccp)
+      do i = 1, dm%dccp%xsz(1)
+        accp_xpencil(i, :, :) = fl%rre_sponge_c(i) * accp_xpencil(i, :, :)
+      end do
+      fl%mz_rhs =  fl%mz_rhs + accp_xpencil
     end if
 !----------------------------------------------------------------------------------------------------------
 ! x-mom: convert all terms to rhs
@@ -2102,7 +2320,6 @@ contains
     use cylindrical_rn_mod
     use find_max_min_ave_mod
     use typeconvert_mod
-    use io_visualisation_mod
     use solver_tools_mod
     implicit none
     !------------------------------------------------------------------
@@ -2141,7 +2358,7 @@ contains
     end if
     ! RHS-part2
     div = ZERO
-    call Get_divergence_flow(fl, div, dm)
+    call Get_divergence_flow(div, fl, dm)
     ! final RHS
     fl%pcor = drhodt + div
     !
@@ -2162,7 +2379,7 @@ contains
     !------------------------------------------------------------------
     ! 2. Solve Poisson equation
     !------------------------------------------------------------------
-    call solve_fft_poisson(fl%pcor, dm)
+    call solve_fft_poisson(fl%pcor, fl, dm)
     ! remove drift
     call Get_volumetric_average_3d(dm, dm%dccc, fl%pcor, pres_bulk, SPACE_AVERAGE, "phi")
     !if(nrank==0) write(*,*) 'shifted phi:', pres_bulk
@@ -2355,7 +2572,7 @@ contains
     ! to update velocity from gx gy gz 
     !----------------------------------------------------------------
     if(dm%is_thermo) then
-      call convert_primary_conservative(dm, fl%dDens, IG2Q, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
+      call convert_primary_conservative(fl, dm, fl%dDens, IG2Q, IALL, fl%qx, fl%qy, fl%qz, fl%gx, fl%gy, fl%gz)
     end if
 
 #ifdef DEBUG_STEPS

@@ -115,7 +115,6 @@ contains
     use typeconvert_mod
     use wtformat_mod
     use udf_type_mod
-    use io_files_mod
     use io_tools_mod
     use parameters_constant_mod
     implicit none 
@@ -303,45 +302,62 @@ contains
     real(WP) :: bulk_MKE, bulk_q(3), bulk_g(3), bulk_T, bulk_m, bulk_h, bulk_rhoh, mean_dpdx, pressure_drop, &
                 mass_balance(8)
     real(WP) :: bulk_fbcx(2), bulk_fbcy(2), bulk_fbcz(2)
-    real(WP), dimension( dm%dpcc%xsz(1), dm%dpcc%xsz(2), dm%dpcc%xsz(3) ) :: apcc_xpencil
-    real(WP), dimension( dm%dcpc%xsz(1), dm%dcpc%xsz(2), dm%dcpc%xsz(3) ) :: acpc
-    real(WP), dimension( dm%dccp%xsz(1), dm%dccp%xsz(2), dm%dccp%xsz(3) ) :: accp
-    real(WP), dimension( dm%dccc%xsz(1), dm%dccc%xsz(2), dm%dccc%xsz(3) ) :: accc1
-    real(WP), dimension( dm%dccc%xsz(1), dm%dccc%xsz(2), dm%dccc%xsz(3) ) :: accc2
-    real(WP), dimension( dm%dccc%xsz(1), dm%dccc%xsz(2), dm%dccc%xsz(3) ) :: accc3
-    real(WP), dimension( dm%dccc%xsz(1), dm%dccc%xsz(2), dm%dccc%xsz(3) ) :: fenergy
-    real(WP), dimension( dm%dccc%ysz(1), dm%dccc%ysz(2), dm%dccc%ysz(3) ) :: accc_ypencil
-    real(WP), dimension( dm%dccc%zsz(1), dm%dccc%zsz(2), dm%dccc%zsz(3) ) :: accc_zpencil
-    real(WP), dimension( dm%dcpc%ysz(1), dm%dcpc%ysz(2), dm%dcpc%ysz(3) ) :: acpc_ypencil, qy_ypencil
-    real(WP), dimension( dm%dccp%ysz(1), dm%dccp%ysz(2), dm%dccp%ysz(3) ) :: accp_ypencil
-    real(WP), dimension( dm%dccp%zsz(1), dm%dccp%zsz(2), dm%dccp%zsz(3) ) :: accp_zpencil, qz_zpencil
-    real(WP), dimension(4, dm%dpcc%xsz(2), dm%dpcc%xsz(3)) :: fbcx
-    real(WP), dimension(dm%dccc%ysz(1), 4, dm%dccc%ysz(3)) :: fbcy
-    real(WP), dimension(dm%dccc%zsz(1), dm%dccc%zsz(2), 4) :: fbcz
-    real(WP), dimension(dm%dcpc%ysz(1), 4, dm%dcpc%ysz(3)) :: fbcy_c4c
+    real(WP), pointer, dimension(:,:,:) :: accc1, accc2, accc3, fenergy
+    real(WP), pointer, dimension(:,:,:) :: accc_ypencil, accc_zpencil, acpc_ypencil, accp_ypencil, accp_zpencil
     real(WP) :: dMKEdt
+    integer, dimension(3) ::  ncccx, ncccy, ncccz, ncpcy, nccpy, nccpz
+    integer :: i, j, k
+    integer :: nx, ny, nz
 
+    ncccx = dm%dccc%xsz
+    ncccy = dm%dccc%ysz
+    ncccz = dm%dccc%zsz
+    ncpcy = dm%dcpc%ysz
+    nccpy = dm%dccp%ysz
+    nccpz = dm%dccp%zsz
 !----------------------------------------------------------------------------------------------------------
 !   kinetic energy = 1/2*rho * (uu+vv+ww)
 !----------------------------------------------------------------------------------------------------------
+    accc1(1:ncccx(1),1:ncccx(2),1:ncccx(3)) => fl%wk1
+    accc2(1:ncccx(1),1:ncccx(2),1:ncccx(3)) => fl%wk2
+    accc3(1:ncccx(1),1:ncccx(2),1:ncccx(3)) => fl%wk3
     ! ux
     call Get_x_midp_P2C_3D(fl%qx, accc1, dm, dm%iAccuracy, dm%ibcx_qx(:), dm%fbcx_qx)
     ! uy = qy/r
+    acpc_ypencil(1:ncpcy(1),1:ncpcy(2),1:ncpcy(3)) => fl%wk4
     call transpose_x_to_y(fl%qy, acpc_ypencil, dm%dcpc)
+    accc_ypencil(1:ncccy(1),1:ncccy(2),1:ncccy(3)) => fl%wk5
     call Get_y_midp_P2C_3D(acpc_ypencil, accc_ypencil, dm, dm%iAccuracy, dm%ibcy_qy(:), dm%fbcy_qy)
     if(dm%icoordinate == ICYLINDRICAL)&
     call multiple_cylindrical_rn(accc_ypencil, dm%dccc, dm%rci, 1, IPENCIL(2))
     call transpose_y_to_x(accc_ypencil, accc2, dm%dccc)
     ! qz = uz
+    accp_ypencil(1:nccpy(1),1:nccpy(2),1:nccpy(3)) => fl%wk4
     call transpose_x_to_y(fl%qz, accp_ypencil, dm%dccp)
+    accp_zpencil(1:nccpz(1),1:nccpz(2),1:nccpz(3)) => fl%wk5
     call transpose_y_to_z(accp_ypencil, accp_zpencil, dm%dccp)
+    accc_zpencil(1:ncccz(1),1:ncccz(2),1:ncccz(3)) => fl%wk4
     call Get_z_midp_P2C_3D(accp_zpencil, accc_zpencil, dm, dm%iAccuracy, dm%ibcz_qz(:), dm%fbcz_qz)
+    accc_ypencil(1:ncccy(1),1:ncccy(2),1:ncccy(3)) => fl%wk5
     call transpose_z_to_y(accc_zpencil, accc_ypencil, dm%dccc)
     call transpose_y_to_x(accc_ypencil, accc3, dm%dccc)
     !volumetric averaged kinetic energy
-    fenergy = HALF * (accc1 * accc1 + accc2 * accc2 + accc3 * accc3)
+    fenergy(1:ncccx(1),1:ncccx(2),1:ncccx(3)) => fl%wk4
+    nx = ncccx(1); ny = ncccx(2); nz = ncccx(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,nz; do j=1,ny; do i=1,nx
+      fenergy(i,j,k) = HALF * (accc1(i,j,k) * accc1(i,j,k) &
+                             + accc2(i,j,k) * accc2(i,j,k) &
+                             + accc3(i,j,k) * accc3(i,j,k))
+    end do; end do; end do
+    !$acc end parallel loop
     if(dm%is_thermo) then
-      fenergy = fenergy * fl%dDens
+    nx = ncccx(1); ny = ncccx(2); nz = ncccx(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,nz; do j=1,ny; do i=1,nx
+      fenergy(i,j,k) = fenergy(i,j,k) * fl%dDens(i,j,k)
+    end do; end do; end do
+    !$acc end parallel loop
     end if
     call Get_volumetric_average_3d(dm, dm%dccc, fenergy, bulk_MKE, SPACE_AVERAGE, 'MKE')
     dMKEdt = (bulk_MKE - fl%tt_kinetic_energy)/dm%dt
@@ -357,7 +373,7 @@ contains
     ! mean dp/dx pressure gradient
     call Get_x_1der_C2C_3D(fl%pres, accc1, dm, dm%iAccuracy, dm%ibcx_pr(:), dm%fbcx_pr)
     call Get_volumetric_average_3d(dm, dm%dccc, accc1, mean_dpdx,  SPACE_AVERAGE, 'dpdx')
-    !
+
     ! global pressure drop
     if(dm%ibcx_pr(1)/=IBC_PERIODIC) then
     call Get_area_average_2d_for_fbcx(dm, dm%dccc, fl%pres, bulk_fbcx, SPACE_INTEGRAL, 'varx')
@@ -365,25 +381,25 @@ contains
     else 
     pressure_drop = ZERO
     end if
-    !
+
     ! bulk streamwise velocity
     bulk_q = ZERO
     call Get_volumetric_average_3d(dm, dm%dpcc, fl%qx, bulk_q(1), SPACE_AVERAGE, 'ux')
     call Get_volumetric_average_3d(dm, dm%dccp, fl%qz, bulk_q(3), SPACE_AVERAGE, 'uz')
-    !
+
     ! thermal flow quantities
     if(dm%is_thermo .and. present(tm)) then
       ! bulk momentum
       bulk_g = ZERO
       call Get_volumetric_average_3d(dm, dm%dpcc, fl%gx, bulk_g(1), SPACE_AVERAGE, 'rho*ux')
       call Get_volumetric_average_3d(dm, dm%dccp, fl%gz, bulk_g(3), SPACE_AVERAGE, 'rho*uz')
-      !
+
       ! bulk temperature
       call Get_volumetric_average_3d(dm, dm%dccc, tm%tTemp, bulk_T,  SPACE_AVERAGE, 'T')
-      !
+
       ! bulk enthalpy
       call Get_volumetric_average_3d(dm, dm%dccc, tm%hEnth, bulk_h,  SPACE_AVERAGE, 'h')
-      !
+
       ! enthalpy balance
       call Get_volumetric_average_3d(dm, dm%dccc, tm%rhoh, bulk_rhoh,  SPACE_AVERAGE, 'rhoh')
     end if
@@ -403,7 +419,7 @@ contains
         metrics%bulk_massflux(:) = bulk_g(:)
         metrics%bulk_enthalpy    = bulk_h
       end if
-      !
+
       call write_metrics_json(trim('regression_test_metrics.json'), metrics, dm%is_thermo)
     end if
 !----------------------------------------------------------------------------------------------------------
@@ -435,7 +451,7 @@ contains
           bulk_MKE, bulk_q(1:3), mean_dpdx, pressure_drop
       end if
       close(myunit)
-    end if     
+    end if
 
     return
   end subroutine
@@ -488,7 +504,13 @@ contains
         iy = dm%probexid(2, nplc)
         iz = dm%probexid(3, nplc)
         !write(*,*) 'probe pts:', nrank, nplc, ix, iy, iz
+        !$acc update self(fl%qx(ix, iy, iz))
+        !$acc update self(fl%qy(ix, iy, iz))
+        !$acc update self(fl%qz(ix, iy, iz))
+        !$acc update self(fl%pres(ix, iy, iz))
+        !$acc update self(fl%pcor(ix, iy, iz))
         if(dm%is_thermo .and. present(tm)) then
+          !$acc update self(tm%tTemp(ix, iy, iz))
           write(myunit, '(7ES13.5)') fl%time, fl%qx(ix, iy, iz), fl%qy(ix, iy, iz), fl%qz(ix, iy, iz), &
             fl%pres(ix, iy, iz), fl%pcor(ix, iy, iz), tm%tTemp(ix, iy, iz)
         else
@@ -499,7 +521,7 @@ contains
     end do
 
     return
-  end subroutine 
+  end subroutine
 !==========================================================================================================
 end module
 

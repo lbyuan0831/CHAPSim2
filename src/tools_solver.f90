@@ -7,6 +7,7 @@ module solver_tools_mod
   !
   public  :: Update_Re
   public  :: Update_PrGr
+  public  :: Calculate_vis_sponge
   public  :: Calculate_xz_mean_yprofile
   public  :: Adjust_to_xzmean_zero
   !public  :: Get_volumetric_average_3d ! not used anymore
@@ -44,10 +45,11 @@ contains
     else
       fl%rre = ONE / fl%ren
     end if
+    !$acc update device(fl%rre)
 
     return
   end subroutine Update_Re
-
+!==========================================================================================================
   subroutine Update_PrGr(fl, tm)
     use parameters_constant_mod
     use thermo_info_mod
@@ -85,6 +87,8 @@ contains
     else ! no gravity
       fl%fgravity = ZERO
     end if
+    !$acc update device(fl%fgravity)
+    !$acc update device(tm%rPrRen)
 
     if(nrank==0) then
       if(fl%iteration == 1 .or. fl%iteration==fl%iterfrom) then
@@ -98,6 +102,60 @@ contains
     
     return
   end subroutine Update_PrGr
+!==========================================================================================================
+  subroutine Calculate_vis_sponge(fl, dm)
+    use parameters_constant_mod
+    use thermo_info_mod
+    use udf_type_mod
+    use math_mod
+    implicit none
+    !
+    type(t_domain), intent(in)    :: dm
+    type(t_flow),   intent(inout) :: fl
+    !
+    real(WP) :: x_start, Ls, vis, coeff, hx
+    real(WP) :: x, xi, x_offset
+    integer  :: i, nx, n
+    logical  :: has_sponge
+
+    if(dm%outlet_sponge_layer(1) <= MINP) return
+    ! --- sponge params ---
+    Ls = dm%outlet_sponge_layer(1)    ! sponge length
+    !
+    hx      = dm%h(1)
+    x_start = dm%lxx - Ls
+    !
+    vis = ONE / dm%outlet_sponge_layer(2)
+    coeff   = vis / TWO           ! = 1/(2*mu)
+    !
+    do n = 1, 2 
+      if (n == 1) then 
+        !Cell-centre array (ccc): global index nx
+        fl%rre_sponge_c = ZERO
+        nx       = dm%dccc%xsz(1)
+        x_offset = hx / TWO
+      else
+        !Node  array (pcc) : global index nx
+        fl%rre_sponge_p = ZERO
+        nx       = dm%dpcc%xsz(1)
+        x_offset = ZERO
+      end if
+
+      do i = 1, nx
+        x = REAL(i - 1, WP) * hx + x_offset
+        if (x < x_start) cycle
+
+        xi = (x - x_start) / Ls
+        if(n==1) then 
+          fl%rre_sponge_c(i) = coeff * (ONE - COS_WP(PI * xi))
+        else
+          fl%rre_sponge_p(i) = coeff * (ONE - COS_WP(PI * xi))
+        end if
+      end do
+    end do 
+
+    return
+  end subroutine Calculate_vis_sponge
 !==========================================================================================================
 !> \brief The main code for initialising flow variables
 !>
@@ -246,16 +304,83 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     real(WP) :: rtmp, rdxyz2, dyi, dtmax_mom, dtmax_ene, dtmax_mom_work, dtmax_ene_work
     integer :: i, j, k, jj
     real(wp) :: rsp(3), var(4), var_work(4)
-    
+
+#ifdef USE_GPU
+    integer :: xsz1, xsz2, xsz3
+    integer :: nthreads
+    real(WP), allocatable, dimension(:) :: cfl_diff_mom_local, cfl_diff_ene_local
+#endif
+
+    if(dm%is_thermo .and. (.not.present(opt_tm))) &
+    call Print_error_msg('Input error for subroutine: Check_cfl_diffusion')
+
     cfl_diff_mom = ZERO
     cfl_diff_ene = ZERO
 
+#ifdef USE_GPU
+    xsz1 = dm%dccc%xsz(1)
+    xsz2 = dm%dccc%xsz(2)
+    xsz3 = dm%dccc%xsz(3)
+    nthreads = xsz2*xsz3
+    allocate(cfl_diff_mom_local(nthreads))
+    allocate(cfl_diff_ene_local(nthreads))
+    !$acc data create(cfl_diff_mom_local, cfl_diff_ene_local)
+    !$acc parallel loop collapse(2) default(present) &
+    !$acc&         private(jj, dyi, rtmp, rdxyz2, rsp, cfl_diff_mom_work, cfl_diff_ene_work)
+    do k = 1, xsz3
+      do j = 1, xsz2
+        cfl_diff_mom_work = ZERO
+        cfl_diff_ene_work = ZERO
+        jj = dm%dccc%xst(2) + j - 1
+        rsp(1) = dm%h2r(1)
+        rsp(2) = dm%h2r(2)
+        rsp(3) = dm%h2r(3)
+        if(dm%is_stretching(2)) then
+          dyi = dm%yMappingcc(jj, 1) / dm%h(2)
+          rsp(2) = dyi * dyi
+        end if
+
+        if(dm%icoordinate == ICYLINDRICAL) &
+          rsp(3) = dm%h2r(3) * dm%rci(jj) * dm%rci(jj)
+
+        do i = 1, xsz1
+          rdxyz2 = rsp(1) + rsp(2) + rsp(3)
+          ! Momentum diffusion
+          if(dm%is_thermo) then
+            rtmp = rdxyz2 * fl%mVisc(i, j, k)
+          else
+            rtmp = rdxyz2
+          end if
+          if(rtmp > cfl_diff_mom_work) cfl_diff_mom_work = rtmp
+          ! Energy diffusion (if thermodynamic model is active)
+          if(dm%is_thermo) then
+            rtmp = rdxyz2 * opt_tm%kCond(i, j, k)
+            if(rtmp > cfl_diff_ene_work) cfl_diff_ene_work = rtmp
+          end if
+        end do
+        cfl_diff_mom_local(j + (k-1)*xsz2) = cfl_diff_mom_work
+        cfl_diff_ene_local(j + (k-1)*xsz2) = cfl_diff_ene_work
+      end do
+    end do
+    !$acc end parallel loop
+    !$acc update self(cfl_diff_mom_local, cfl_diff_ene_local)
+    !$acc end data
+
+    do i = 1, xsz2 * xsz3
+      if (cfl_diff_mom_local(i) > cfl_diff_mom) then
+        cfl_diff_mom = cfl_diff_mom_local(i)
+      end if
+      if (cfl_diff_ene_local(i) > cfl_diff_ene) then
+        cfl_diff_ene = cfl_diff_ene_local(i)
+      end if
+    end do
+
+    deallocate(cfl_diff_mom_local)
+    deallocate(cfl_diff_ene_local)
+#else
     rsp(1) = dm%h2r(1)
     rsp(2) = dm%h2r(2)
     rsp(3) = dm%h2r(3)
-    
-    if(dm%is_thermo .and. (.not.present(opt_tm))) &
-    call Print_error_msg('Input error for subroutine: Check_cfl_diffusion')
 
     do j = 1, dm%dccc%xsz(2)
       jj = dm%dccc%xst(2) + j - 1
@@ -289,7 +414,8 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
           !
         end do
       end do
-    end do 
+    end do
+#endif
 
     dtmax_mom = ONE / (TWO * fl%rre * cfl_diff_mom)
     cfl_diff_mom = cfl_diff_mom * TWO * dm%dt * fl%rre
@@ -348,7 +474,7 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
 !----------------------------------------------------------------------------------------------------------
 !> \param[inout]         
 !==========================================================================================================
-  subroutine Check_cfl_convection(u, v, w, dm)
+  subroutine Check_cfl_convection(u, v, w, fl, dm)
     use parameters_constant_mod
     use udf_type_mod
     use operations
@@ -358,89 +484,103 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     implicit none
 
     type(t_domain), intent(inout) :: dm
+    type(t_flow),   intent(inout) :: fl
     real(WP), dimension(dm%dpcc%xsz(1), dm%dpcc%xsz(2), dm%dpcc%xsz(3)), intent(in) :: u
     real(WP), dimension(dm%dcpc%xsz(1), dm%dcpc%xsz(2), dm%dcpc%xsz(3)), intent(in) :: v
     real(WP), dimension(dm%dccp%xsz(1), dm%dccp%xsz(2), dm%dccp%xsz(3)), intent(in) :: w
 
-    real(WP) :: var_xpencil (dm%dccc%xsz(1), &
-                             dm%dccc%xsz(2), &
-                             dm%dccc%xsz(3))
-    real(WP) :: var_ypencil (dm%dccc%ysz(1), &
-                             dm%dccc%ysz(2), &
-                             dm%dccc%ysz(3))
-    real(WP) :: var_zpencil (dm%dccc%zsz(1), &
-                             dm%dccc%zsz(2), &
-                             dm%dccc%zsz(3))
-    real(WP) :: accc_xpencil (dm%dccc%xsz(1), &
-                             dm%dccc%xsz(2), &
-                             dm%dccc%xsz(3))
-    real(WP) :: accc_ypencil (dm%dccc%ysz(1), &
-                             dm%dccc%ysz(2), &
-                             dm%dccc%ysz(3))
-    real(WP) :: accc_zpencil (dm%dccc%zsz(1), &
-                             dm%dccc%zsz(2), &
-                             dm%dccc%zsz(3))
-    real(WP) ::   v_ypencil (dm%dcpc%ysz(1), &
-                             dm%dcpc%ysz(2), &
-                             dm%dcpc%ysz(3))
-    real(WP) ::   w_ypencil (dm%dccp%ysz(1), &
-                             dm%dccp%ysz(2), &
-                             dm%dccp%ysz(3))
-    real(WP) ::   w_zpencil (dm%dccp%zsz(1), &
-                             dm%dccp%zsz(2), &
-                             dm%dccp%zsz(3))
+    real(WP), pointer, dimension(:,:,:) :: var_xpencil, var_ypencil, var_zpencil
+    real(WP), pointer, dimension(:,:,:) :: accc_xpencil, accc_ypencil, accc_zpencil
+    real(WP), pointer, dimension(:,:,:) :: v_ypencil, w_ypencil, w_zpencil
+
+    integer, dimension(3) ::  ncccx, ncccy, ncccz, ncpcy, nccpy, nccpz
+    integer :: nx, ny, nz, i, j, k
+
     real(WP)   :: dtmax
     real(wp) :: cfl(2), dy
-    integer :: j
+
+    ncccx = dm%dccc%xsz
+    ncccy = dm%dccc%ysz
+    ncccz = dm%dccc%zsz
+    ncpcy = dm%dcpc%ysz
+    nccpy = dm%dccp%ysz
+    nccpz = dm%dccp%zsz
+
 !----------------------------------------------------------------------------------------------------------
 ! Initialisation
 !----------------------------------------------------------------------------------------------------------
-    var_xpencil = ZERO
-    var_ypencil = ZERO
-    var_zpencil = ZERO
-    accc_xpencil = ZERO
-    accc_ypencil = ZERO
-    accc_zpencil = ZERO
+!   FIXME(check) not needed, remove
+!    var_xpencil = ZERO
+!    var_ypencil = ZERO
+!    var_zpencil = ZERO
+!    accc_xpencil = ZERO
+!    accc_ypencil = ZERO
+!    accc_zpencil = ZERO
+
 !----------------------------------------------------------------------------------------------------------
 ! X-pencil : u_ccc / dx
 !----------------------------------------------------------------------------------------------------------
+    accc_xpencil(1:ncccx(1),1:ncccx(2),1:ncccx(3)) => fl%wk1
     call Get_x_midp_P2C_3D(u, accc_xpencil, dm, dm%iAccuracy, dm%ibcx_qx, dm%fbcx_qx)
-    var_xpencil = accc_xpencil * dm%h1r(1)
+    var_xpencil(1:ncccx(1),1:ncccx(2),1:ncccx(3))  => fl%wk2
+    !$acc kernels default(present)
+    var_xpencil(:,:,:) = accc_xpencil(:,:,:) * dm%h1r(1)
+    !$acc end kernels
 !----------------------------------------------------------------------------------------------------------
 ! Y-pencil : v_ccc / dy / r
 !----------------------------------------------------------------------------------------------------------
+    var_ypencil(1:ncccy(1),1:ncccy(2),1:ncccy(3)) => fl%wk5
     call transpose_x_to_y(var_xpencil, var_ypencil, dm%dccc)
+    v_ypencil(1:ncpcy(1),1:ncpcy(2),1:ncpcy(3))   => fl%wk1
     call transpose_x_to_y(v,             v_ypencil, dm%dcpc)
+    accc_ypencil(1:ncccy(1),1:ncccy(2),1:ncccy(3)) => fl%wk2
     call Get_y_midp_P2C_3D(v_ypencil, accc_ypencil, dm, dm%iAccuracy, dm%ibcy_qy, dm%fbcy_qy)
-    accc_ypencil = accc_ypencil * dm%h1r(2)
-    if(dm%is_stretching(2)) then
-      do j = 1, dm%dccc%ysz(2)
-        accc_ypencil(:, j, :) = accc_ypencil(:, j, :) * dm%yMappingcc(j, 1)
-      end do 
-    end if
-    if(dm%icoordinate == ICYLINDRICAL) then
-      do j = 1, dm%dccc%ysz(2)
-        accc_ypencil(:, j, :) = accc_ypencil(:, j, :) * dm%rci(j) 
-      end do 
-    end if
-    var_ypencil = var_ypencil +  accc_ypencil
+    nx = ncccy(1); ny = ncccy(2); nz = ncccy(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,nz; do j=1,ny; do i=1,nx
+      accc_ypencil(i, j, k) = accc_ypencil(i, j, k) * dm%h1r(2)
+      if(dm%is_stretching(2)) then
+        accc_ypencil(i, j, k) = accc_ypencil(i, j, k) * dm%yMappingcc(j, 1)
+      end if
+      if(dm%icoordinate == ICYLINDRICAL) then
+        accc_ypencil(i, j, k) = accc_ypencil(i, j, k) * dm%rci(j)
+      end if
+    end do; end do; end do
+    !$acc end parallel loop
+    nx = ncccy(1); ny = ncccy(2); nz = ncccy(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,nz; do j=1,ny; do i=1,nx
+      var_ypencil(i,j,k) = var_ypencil(i,j,k) +  accc_ypencil(i,j,k)
+    end do; end do; end do
+    !$acc end parallel loop
 !----------------------------------------------------------------------------------------------------------
 ! Z-pencil : w_ccc / dz /r2
 !----------------------------------------------------------------------------------------------------------
+    var_zpencil(1:ncccz(1),1:ncccz(2),1:ncccz(3)) => fl%wk4
     call transpose_y_to_z(var_ypencil, var_zpencil, dm%dccc)
+    w_ypencil(1:nccpy(1),1:nccpy(2),1:nccpy(3))   => fl%wk1
     call transpose_x_to_y(w,             w_ypencil, dm%dccp)
     if(dm%icoordinate == ICYLINDRICAL) then
-      do j = 1, dm%dccp%ysz(2)
-        w_ypencil(:, j, :) = w_ypencil(:, j, :) * dm%rci(j) * dm%rci(j) 
-      end do 
+      nx = nccpy(1); ny = nccpy(2); nz = nccpy(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,nz; do j=1,ny; do i=1,nx
+        w_ypencil(i, j, k) = w_ypencil(i, j, k) * dm%rci(j) * dm%rci(j)
+      end do; end do; end do
+      !$acc end parallel loop
     end if
+    w_zpencil(1:nccpz(1),1:nccpz(2),1:nccpz(3))   => fl%wk2
     call transpose_y_to_z(w_ypencil,     w_zpencil, dm%dccp)
+    accc_zpencil(1:ncccz(1),1:ncccz(2),1:ncccz(3)) => fl%wk1
     call Get_z_midp_P2C_3D(w_zpencil, accc_zpencil, dm, dm%iAccuracy, dm%ibcz_qz, dm%fbcz_qz)
-    var_zpencil = var_zpencil +  accc_zpencil * dm%h1r(3)
+    nx = ncccz(1); ny = ncccz(2); nz = ncccz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,nz; do j=1,ny; do i=1,nx
+      var_zpencil(i,j,k) = (var_zpencil(i,j,k) + accc_zpencil(i,j,k) * dm%h1r(3)) * dm%dt
+    end do; end do; end do
+    !$acc end parallel loop
 !----------------------------------------------------------------------------------------------------------
 ! Z-pencil : Find the maximum 
 !----------------------------------------------------------------------------------------------------------
-    var_zpencil = var_zpencil * dm%dt
     call Find_max_min_3d(var_zpencil, opt_calc='MAXI', opt_work=cfl)
     dtmax = dm%dt/cfl(2)
     if(nrank == 0) then
@@ -449,12 +589,13 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
 
     if(cfl(2) > TWO) then 
       dm%dt = dm%dt / REAL(ceiling(cfl(2)/ 5.0_WP) * 5, WP)
+      !$acc update device(dm%dt)
       if(nrank == 0) then
         call Print_warning_msg("Warning: CFL is larger than 1.")
         write(*, wrtfmt1e) 'dt reduced to ', dm%dt
       end if
     end if
-    
+
     return
   end subroutine
 !==========================================================================================================
@@ -643,43 +784,68 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     type(t_domain), intent(in) :: dm
     real(WP), dimension(dm%d4cc%xsz(1), dm%d4cc%xsz(2), dm%d4cc%xsz(3)), intent(in)  :: fbcx_ftp_4cc
     real(WP), dimension(dm%d4pc%xsz(1), dm%d4pc%xsz(2), dm%d4pc%xsz(3)), intent(out) :: fbcx_ftp_4pc
-    real(WP), dimension(dm%d4cc%xsz(1), dm%d4cc%xsz(2), dm%d4cc%xsz(3)) :: fbcx_4cc
     real(WP), dimension(dm%d4cc%ysz(1), dm%d4cc%ysz(2), dm%d4cc%ysz(3)) :: a4cc_ypencil
     real(WP), dimension(dm%d4pc%ysz(1), dm%d4pc%ysz(2), dm%d4pc%ysz(3)) :: a4pc_ypencil
     real(WP), dimension(dm%d4pc%xsz(1), dm%d4pc%xsz(2), dm%d4pc%xsz(3)) :: a4pc_xpencil
-    integer :: i, j, k!, ibcy(2)
+    integer, dimension(3) ::  n4pcx, n4pcy
+    integer  :: i, j, k!, ibcy(2)
+    integer  :: nx, ny, nz
+    integer  :: ierror_flg
     real(WP) :: fbc
 
-
+    ierror_flg = 0
+    n4pcx = dm%d4pc%xsz
+    n4pcy = dm%d4pc%ysz
+    !$acc data create(a4cc_ypencil, a4pc_ypencil, a4pc_xpencil)
     if(dm%ibcx_ftp(2) == IBC_DIRICHLET) then
-      fbcx_4cc(:, :, :) = fbcx_ftp_4cc(:, :, :)
-      call transpose_x_to_y(fbcx_4cc, a4cc_ypencil, dm%d4cc)
-      do i = 1, dm%d4pc%ysz(1)
-        do k = 1, dm%d4pc%ysz(3)
-          j = 1
-          a4pc_ypencil(i, j, k) = (THREE * a4cc_ypencil(i, j, k) - a4cc_ypencil(i, j+1, k))/TWO
-          j= dm%d4pc%ysz(2)
-          if(j<=2) call Print_error_msg('get_fbcx_ftp_4pc decomposition error')
-          a4pc_ypencil(i, j, k) = (THREE * a4cc_ypencil(i, j-1, k) - a4cc_ypencil(i, j-2, k))/TWO
-          do j = 2, dm%d4pc%ysz(2)-1
-            a4pc_ypencil(i, j, k) = (a4cc_ypencil(i, j-1, k) + a4cc_ypencil(i, j, k))/TWO
+      call transpose_x_to_y(fbcx_ftp_4cc, a4cc_ypencil, dm%d4cc)
+      nx = n4pcy(1); ny = n4pcy(2); nz = n4pcy(3)
+      !$acc parallel loop collapse(3) default(present) reduction(max:ierror_flg)
+      do k = 1, nz
+        do j = 1, ny
+          do i = 1, nx
+            if (j==1) then
+              a4pc_ypencil(i, j, k) = (THREE * a4cc_ypencil(i, j, k) - a4cc_ypencil(i, j+1, k))/TWO
+            else if (j==ny) then
+              if(j<=2) ierror_flg = 1
+              a4pc_ypencil(i, j, k) = (THREE * a4cc_ypencil(i, j-1, k) - a4cc_ypencil(i, j-2, k))/TWO
+            else
+              a4pc_ypencil(i, j, k) = (a4cc_ypencil(i, j-1, k) + a4cc_ypencil(i, j, k))/TWO
+            end if
           end do
         end do
-      end do 
+      end do
+      !$acc end parallel loop
+      if(ierror_flg/=0) call Print_error_msg('get_fbcx_ftp_4pc decomposition error')
+
       ! ibcy = IBC_INTRPL
       ! call Get_y_midp_C2P_3D(a4cc_ypencil, a4pc_ypencil, dm, dm%iAccuracy, dm%ibcy_ftp, fbcy_44c)
        call transpose_y_to_x(a4pc_ypencil, a4pc_xpencil, dm%d4pc)
-       fbcx_ftp_4pc(:, :, :) = a4pc_xpencil(:, :, :)
+      !$acc kernels default(present)
+      fbcx_ftp_4pc(:, :, :) = a4pc_xpencil(:, :, :)
+      !$acc end kernels
     else
-      fbcx_ftp_4pc(2, :, :) = MAXP 
+      !$acc kernels default(present)
+      fbcx_ftp_4pc(2, :, :) = MAXP
+      !$acc end kernels
     end if
+    !$acc end data
 
+    ny = n4pcx(2); nz = n4pcx(3)
+    !$acc parallel default(present)
     if(dm%ibcx_ftp(1) == IBC_DIRICHLET) then
       fbc = fbcx_ftp_4cc(1, 1, 1)
-      fbcx_ftp_4pc(1, :, :) = fbc ! check
     else 
-      fbcx_ftp_4pc(1, :, :) = MAXP 
-    end if 
+      fbc = MAXP
+    end if
+
+    !$acc loop collapse(2)
+    do k = 1, nz
+      do j = 1, ny
+        fbcx_ftp_4pc(1,j,k) = fbc
+      end do
+    end do
+    !$acc end parallel
 
     ! write(*,*) '1-', fbcx_ftp_4pc(1, :, :)
     ! write(*,*) '2-', fbcx_ftp_4pc(2, :, :)
@@ -698,10 +864,7 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     real(WP), dimension(:,:,:), intent(in) :: drhodt
     type(t_domain), intent(in) :: dm
     real(WP), intent(out) :: mass_imbalance(8)
-    !
-    real(WP), dimension(4, dm%dpcc%xsz(2), dm%dpcc%xsz(3)) :: fbcx
-    real(WP), dimension(dm%dcpc%ysz(1), 4, dm%dcpc%ysz(3)) :: fbcy
-    real(WP), dimension(dm%dccp%zsz(1), dm%dccp%zsz(2), 4) :: fbcz
+
     real(WP) :: intg_m, intg_fbcx(2), intg_fbcy(2), intg_fbcz(2)
     !-----------------------------------------------------------------
     ! mass balance = density change + net mass flux through boundaries
@@ -718,33 +881,30 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     ! x-bc
     if(dm%ibcx_qx(1)/=IBC_PERIODIC)then
       if(dm%is_thermo) then
-        fbcx = dm%fbcx_gx
+        call Get_area_average_2d_for_fbcx(dm, dm%dpcc, dm%fbcx_gx, intg_fbcx, SPACE_INTEGRAL, 'fbcx')
       else
-        fbcx = dm%fbcx_qx
+        call Get_area_average_2d_for_fbcx(dm, dm%dpcc, dm%fbcx_qx, intg_fbcx, SPACE_INTEGRAL, 'fbcx')
       end if
-      call Get_area_average_2d_for_fbcx(dm, dm%dpcc, fbcx, intg_fbcx, SPACE_INTEGRAL, 'fbcx')
     else
       intg_fbcx = ZERO
     end if
     ! y-bc
     if(dm%ibcy_qy(1)/=IBC_PERIODIC)then
       if(dm%is_thermo) then
-        fbcy = dm%fbcy_gy
+        call Get_area_average_2d_for_fbcy(dm, dm%dcpc, dm%fbcy_gy, intg_fbcy, SPACE_INTEGRAL, 'fbcy', is_rf=.true.)
       else
-        fbcy = dm%fbcy_qy
+        call Get_area_average_2d_for_fbcy(dm, dm%dcpc, dm%fbcy_qy, intg_fbcy, SPACE_INTEGRAL, 'fbcy', is_rf=.true.)
       end if
-      call Get_area_average_2d_for_fbcy(dm, dm%dcpc, fbcy, intg_fbcy, SPACE_INTEGRAL, 'fbcy', is_rf=.true.)
     else
       intg_fbcy = ZERO
     end if
     ! z-bc
     if(dm%ibcz_qz(1)/=IBC_PERIODIC)then
       if(dm%is_thermo) then
-        fbcz = dm%fbcz_gz
+        call Get_area_average_2d_for_fbcz(dm, dm%dccp, dm%fbcz_gz, intg_fbcz, SPACE_INTEGRAL, 'fbcz')
       else
-        fbcz = dm%fbcz_qz
+        call Get_area_average_2d_for_fbcz(dm, dm%dccp, dm%fbcz_qz, intg_fbcz, SPACE_INTEGRAL, 'fbcz')
       end if
-      call Get_area_average_2d_for_fbcz(dm, dm%dccp, fbcz, intg_fbcz, SPACE_INTEGRAL, 'fbcz')
     else
       intg_fbcz = ZERO
     end if
@@ -756,7 +916,7 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     mass_imbalance(8)   = intg_m + &
                           intg_fbcx(1) - intg_fbcx(2) + &
                           intg_fbcy(1) - intg_fbcy(2) + &
-                          intg_fbcz(1) - intg_fbcz(2) 
+                          intg_fbcz(1) - intg_fbcz(2)
     return
   end subroutine 
 
@@ -768,24 +928,38 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     implicit none
     type(t_domain), intent(in) :: dm
     real(WP), intent(inout) :: accc_xpencil(:, :, :)
-    integer :: i, k
+
+    integer, dimension(3) ::  ncccx, ncccz
+    integer :: i, j, k
+    integer :: nx, ny, nz
     real(WP), dimension(dm%dccc%zsz(1), dm%dccc%zsz(2), dm%dccc%zsz(3)) :: accc_zpencil
-    !
+
     if(.not. dm%is_thermo) return
     if(.not. is_damping_drhodt) return
-    !
+
+    !$acc data create(accc_zpencil)
     if(dm%is_conv_outlet(1)) then
-      do i = 1, dm%dccc%xsz(1)
-          accc_xpencil(i,:,:) = accc_xpencil(i,:,:) * (ONE - dm%xdamping(i))
-      end do
+      ncccx = dm%dccc%xsz
+      nx = ncccx(1); ny = ncccx(2); nz = ncccx(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,nz; do j=1,ny; do i=1,nx
+        accc_xpencil(i,j,k) = accc_xpencil(i,j,k) * (ONE - dm%xdamping(i))
+      end do; end do; end do
+      !$acc end parallel loop
     end if
-    !
+
     if(dm%is_conv_outlet(3)) then
       call transpose_to_z_pencil(accc_xpencil, accc_zpencil, dm%dccc, IPENCIL(1))
-      do i = 1, dm%dccc%zsz(3)
-        accc_zpencil(:,:,k) = accc_zpencil(:,:,k) * (ONE - dm%zdamping(k) )
-      end do
+      ncccz = dm%dccc%zsz
+      nx = ncccz(1); ny = ncccz(2); nz = ncccz(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,nz; do j=1,ny; do i=1,nx
+        accc_zpencil(i,j,k) = accc_zpencil(i,j,k) * (ONE - dm%zdamping(k) )
+      end do; end do; end do
+      !$acc end parallel loop
     end if
+    !$acc end data
+
     return
   end subroutine
 
@@ -797,5 +971,5 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     logical :: d
     d = (.not. is_single_RK_projection) .or. (isub == ITIME_RK3) 
   end function
-  !
+
 end module

@@ -4,8 +4,8 @@
 module fft2decomp_interface_mod
   use decomp_2d
   use mpi_mod
-  use parameters_constant_mod, disabled => WP!, only: zero, half, one, onepfive, two, twopfive, &
-                             !        three, pi, threepfive, four, twopi, cx_one_one
+  use parameters_constant_mod, only: MINP, zero, half, one, onepfive, two, twopfive, &
+                                     three, pi, threepfive, four, twopi, cx_one_one
   use math_mod, only: cos_prec, abs_prec, sin_prec, sqrt_wp
   !use geometry_mod, only: alpha, beta
   use print_msg_mod
@@ -91,8 +91,7 @@ module fft2decomp_interface_mod
   complex(mytype),allocatable,dimension(:), save :: yky,yk2,eys
   complex(mytype),allocatable,dimension(:), save :: xkx,xk2,exs
 !----------------------------------------------------------------------------------------------------------
-  real(mytype), allocatable, save :: aa(:), bb(:), cc(:), bbb_real(:), bbb_imag(:)
-  real(mytype), allocatable, save :: rc2(:), ty_real(:), ty_imag(:)
+  real(mytype), allocatable, save :: aa(:), bb(:), cc(:), rc2(:)
 
   public :: build_up_fft2decomp_interface
 
@@ -376,10 +375,8 @@ contains
     !---
     ! for 2d fft cylindrical coord
     !---
-    if (skip_c2c(2)) then 
-      allocate(ty_real(ny))
-      allocate(ty_imag(ny))
-      allocate(aa(ny), bb(ny), cc(ny), bbb_real(ny), bbb_imag(ny))
+    if (skip_c2c(2)) then
+      allocate(aa(ny), bb(ny), cc(ny))
       do j = 1, dm%nc(2)
         aa(j) = dm%h2r(2) * dm%yMappingcc(j, 1) * dm%yMappingpt(j  , 1) * dm%rp(j  ) * dm%rc(j)
         cc(j) = dm%h2r(2) * dm%yMappingcc(j, 1) * dm%yMappingpt(j+1, 1) * dm%rp(j+1) * dm%rc(j)
@@ -397,21 +394,37 @@ contains
           aa(1) = ZERO
           bb(1) = -(aa(1) + cc(1))
         end if
-        !
+
         ! assume dphi/dn = 0 on b.c., Neumann B.C
         ! here apply the second order ghost cell configuration
         if(dm%ibcy_pr(2)/=IBC_NEUMANN) &
         call Print_warning_msg('The assumption of bcy(2) TDMA coeff. is broken.')
         bb(dm%nc(2)) = bb(dm%nc(2)) + cc(dm%nc(2))
         cc(dm%nc(2)) = 0.0_WP
-        !
+
       end if
     ! write(*,*) 'a', aa
     ! write(*,*) 'b', bb
     ! write(*,*) 'c', cc
       allocate(rc2(ny))
       rc2(:) = ONE / (dm%rci(:) * dm%rci(:))
+
+      !$acc enter data copyin(aa, bb, cc)
+      !$acc enter data copyin(rc2)
+
     end if
+
+    !$acc enter data copyin(istret)
+    !$acc enter data copyin(xlx, yly, zlz)
+    !$acc enter data copyin(nclx, ncly, nclz, nclx1, ncly1, nclz1)
+    !$acc enter data copyin(nx, ny, nz, nxm, nym, nzm)
+    !$acc enter data copyin(dx, dy, dz, alpha, beta)
+    !$acc enter data copyin(alcaix6, acix6, bcix6)
+    !$acc enter data copyin(alcaiy6, aciy6, bciy6)
+    !$acc enter data copyin(alcaiz6, aciz6, bciz6)
+    !$acc enter data copyin(ailcaix6, aicix6, bicix6, cicix6, dicix6)
+    !$acc enter data copyin(ailcaiy6, aiciy6, biciy6, ciciy6, diciy6)
+    !$acc enter data copyin(ailcaiz6, aiciz6, biciz6, ciciz6, diciz6)
 
     return
   end subroutine build_up_fft2decomp_interface
@@ -432,6 +445,9 @@ subroutine inversion5_v1(aaa_in,eee,spI)
   !use dbg_schemes, only: abs_prec
   use math_mod, only: cx, rl, iy
   use fft2decomp_interface_mod
+#ifdef PROFILING
+  use nvtx
+#endif
 
   implicit none
 
@@ -444,122 +460,249 @@ subroutine inversion5_v1(aaa_in,eee,spI)
   real(mytype), parameter :: epsilon = 1.e-8_mytype
 #endif
 
-  complex(mytype),dimension(spI%yst(1):spI%yen(1),ny/2,spI%yst(3):spI%yen(3),5) :: aaa, aaa_in
-  complex(mytype),dimension(spI%yst(1):spI%yen(1),spI%yst(2):spI%yen(2),spI%yst(3):spI%yen(3)) :: eee
+  complex(mytype),intent(IN), dimension(spI%yst(1):spI%yen(1), ny/2, &
+                                        spI%yst(3):spI%yen(3), 5   ) :: aaa_in
+  complex(mytype),intent(OUT),dimension(spI%yst(1):spI%yen(1),       &
+                                        spI%yst(2):spI%yen(2),       &
+                                        spI%yst(3):spI%yen(3))       :: eee
+  complex(mytype),            dimension(spI%yst(1):spI%yen(1), ny/2, &
+                                        spI%yst(3):spI%yen(3), 5   ) :: aaa
+
   integer :: i,j,k,m,mi,jc
   integer,dimension(2) :: ja,jb
   complex(mytype),dimension(spI%yst(1):spI%yen(1),spI%yst(3):spI%yen(3)) :: sr
   complex(mytype),dimension(spI%yst(1):spI%yen(1),spI%yst(3):spI%yen(3)) :: a1,b1
 
   real(mytype) :: tmp1,tmp2,tmp3,tmp4
+  integer :: nxst, nxen, nyst, nyen, nzst, nzen
 
-  ! complex(mytype) :: cx
-  ! real(mytype) :: rl, iy
-  ! external cx, rl, iy
+  !$acc data create(aaa, sr, a1, b1)
 
-  aaa = aaa_in
+  !$acc kernels default(present)
+  aaa(:,:,:,:) = aaa_in(:,:,:,:)
+  !$acc end kernels
 
   do i = 1, 2
-     ja(i) = 4 - i
-     jb(i) = 5 - i
-  enddo
-  do m = 1, ny/2 - 2
-     do i = 1, 2
-        mi = m + i
-        do k = spI%yst(3), spI%yen(3)
-           do j = spI%yst(1), spI%yen(1)
-              if (dabs(rl(aaa(j,m,k,3))) > MINP) tmp1 = rl(aaa(j,mi,k,3-i)) / rl(aaa(j,m,k,3))
-              if (dabs(iy(aaa(j,m,k,3))) > MINP) tmp2 = iy(aaa(j,mi,k,3-i)) / iy(aaa(j,m,k,3))
-              sr(j,k)=cx(tmp1,tmp2)
-              eee(j,mi,k)=cx(rl(eee(j,mi,k)) - tmp1 * rl(eee(j,m,k)),&
-                             iy(eee(j,mi,k)) - tmp2 * iy(eee(j,m,k)))
-           enddo
-        enddo
-        do jc = ja(i), jb(i)
-           do k = spI%yst(3), spI%yen(3)
-              do j = spI%yst(1), spI%yen(1)
-                 aaa(j,mi,k,jc) = cx(rl(aaa(j,mi,k,jc)) - rl(sr(j,k)) * rl(aaa(j,m,k,jc+i)),&
-                                     iy(aaa(j,mi,k,jc)) - iy(sr(j,k)) * iy(aaa(j,m,k,jc+i)))
-              enddo
-           enddo
-        enddo
-     enddo
+    ja(i) = 4 - i
+    jb(i) = 5 - i
   enddo
 
-  do k = spI%yst(3), spI%yen(3)
-     do j = spI%yst(1), spI%yen(1)
-        if (abs_prec(rl(aaa(j,ny/2-1,k,3))) > epsilon) then
-           tmp1 = rl(aaa(j,ny/2,k,2)) / rl(aaa(j,ny/2-1,k,3))
-        else
-           tmp1 = zero
-        endif
-        if (abs_prec(iy(aaa(j,ny/2-1,k,3))) > epsilon) then
-           tmp2 = iy(aaa(j,ny/2,k,2)) / iy(aaa(j,ny/2-1,k,3))
-        else
-           tmp2 = zero
-        endif
-        sr(j,k) = cx(tmp1,tmp2)
-        b1(j,k) = cx(rl(aaa(j,ny/2,k,3)) - tmp1 * rl(aaa(j,ny/2-1,k,4)),&
-                     iy(aaa(j,ny/2,k,3)) - tmp2 * iy(aaa(j,ny/2-1,k,4)))
+!#ifdef PROFILING
+!  call nvtxStartRange("stretch mesh, multiple kernels")
+!#endif
 
-        if (abs_prec(rl(b1(j,k))) > epsilon) then
-           tmp1 = rl(sr(j,k)) / rl(b1(j,k))
-           tmp3 = rl(eee(j,ny/2,k)) / rl(b1(j,k)) - tmp1 * rl(eee(j,ny/2-1,k))
-        else
-           tmp1 = zero
-           tmp3 = zero
-        endif
-        if (abs_prec(iy(b1(j,k))) > epsilon) then
-           tmp2 = iy(sr(j,k)) / iy(b1(j,k))
-           tmp4 = iy(eee(j,ny/2,k)) / iy(b1(j,k)) - tmp2 * iy(eee(j,ny/2-1,k))
-        else
-           tmp2 = zero
-           tmp4 = zero
-        endif
-        a1(j,k) = cx(tmp1,tmp2)
-        eee(j,ny/2,k) = cx(tmp3,tmp4)
+!  nxst = spI%yst(1); nxen = spI%yen(1)
+!  nzst = spI%yst(3); nzen = spI%yen(3)
+!  do m = 1, ny/2 - 2
+!    do i = 1, 2
+!      mi = m + i
 
-        if (abs_prec(rl(aaa(j,ny/2-1,k,3))) > epsilon) then
-           tmp1 = one / rl(aaa(j,ny/2-1,k,3))
-        else
-           tmp1 = zero
-        endif
-        if (abs_prec(iy(aaa(j,ny/2-1,k,3))) > epsilon) then
-           tmp2 = one / iy(aaa(j,ny/2-1,k,3))
-        else
-           tmp2 = zero
-        endif
-        b1(j,k) = cx(tmp1, tmp2)
-        a1(j,k) = cx(rl(aaa(j,ny/2-1,k,4)) * rl(b1(j,k)),&
-                     iy(aaa(j,ny/2-1,k,4)) * iy(b1(j,k)))
-        eee(j,ny/2-1,k) = cx(rl(eee(j,ny/2-1,k)) * rl(b1(j,k)) - rl(a1(j,k)) * rl(eee(j,ny/2,k)),&
-                             iy(eee(j,ny/2-1,k)) * iy(b1(j,k)) - iy(a1(j,k)) * iy(eee(j,ny/2,k)))
-     enddo
-  enddo
+!!!    Note: m direction is non-parallelisable on GPU, eee(mi) = f(eee(mi), eee(m))
+!!!    this will generate a number of small kernels
+!      !$acc parallel loop collapse(2) private(tmp1, tmp2, jc) present(aaa, eee, sr)
+!      do k = nzst, nzen
+!        do j = nxst, nxen
 
-  do i = ny/2 - 2, 1, -1
-     do k = spI%yst(3), spI%yen(3)
-        do j = spI%yst(1), spI%yen(1)
-           if (abs_prec(rl(aaa(j,i,k,3))) > epsilon) then
-              tmp1 = one / rl(aaa(j,i,k,3))
-           else
-              tmp1 = zero
-           endif
-           if (abs_prec(iy(aaa(j,i,k,3))) > epsilon) then
-              tmp2 = one/iy(aaa(j,i,k,3))
-           else
-              tmp2 = zero
-           endif
-           sr(j,k) = cx(tmp1,tmp2)
-           a1(j,k) = cx(rl(aaa(j,i,k,4)) * rl(sr(j,k)),&
-                        iy(aaa(j,i,k,4)) * iy(sr(j,k)))
-           b1(j,k) = cx(rl(aaa(j,i,k,5)) * rl(sr(j,k)),&
-                        iy(aaa(j,i,k,5)) * iy(sr(j,k)))
-           eee(j,i,k) = cx(rl(eee(j,i,k)) * rl(sr(j,k)) - rl(a1(j,k)) * rl(eee(j,i+1,k)) - rl(b1(j,k)) * rl(eee(j,i+2,k)),&
-                           iy(eee(j,i,k)) * iy(sr(j,k)) - iy(a1(j,k)) * iy(eee(j,i+1,k)) - iy(b1(j,k)) * iy(eee(j,i+2,k)))
-        enddo
-     enddo
-  enddo
+!          if (rl(aaa(j,m,k,3)) /= zero) then
+!            tmp1 = rl(aaa(j,mi,k,3-i)) / rl(aaa(j,m,k,3))
+!          else
+!            tmp1 = zero
+!          end if
+
+!          if (iy(aaa(j,m,k,3)) /= zero) then
+!            tmp2 = iy(aaa(j,mi,k,3-i)) / iy(aaa(j,m,k,3))
+!          else
+!            tmp2 = zero
+!          end if
+
+!          sr(j,k) = cx(tmp1, tmp2)
+
+!          eee(j,mi,k) = cx( &
+!              rl(eee(j,mi,k)) - tmp1 * rl(eee(j,m,k)), &
+!              iy(eee(j,mi,k)) - tmp2 * iy(eee(j,m,k)) )
+
+!          do jc = ja(i), jb(i)
+!            aaa(j,mi,k,jc) = cx( &
+!                rl(aaa(j,mi,k,jc)) - rl(sr(j,k)) * rl(aaa(j,m,k,jc+i)), &
+!                iy(aaa(j,mi,k,jc)) - iy(sr(j,k)) * iy(aaa(j,m,k,jc+i)) )
+!          end do
+
+!        end do
+!      end do
+!      !$acc end parallel loop
+
+!    end do
+!  end do
+
+!#ifdef PROFILING
+!  call nvtxEndRange
+!#endif
+
+#ifdef PROFILING
+  call nvtxStartRange("stretch mesh, single kernel")
+#endif
+
+  nxst = spI%yst(1); nxen = spI%yen(1)
+  nzst = spI%yst(3); nzen = spI%yen(3)
+  !$acc parallel loop collapse(2) private(tmp1, tmp2, jc) present(aaa, eee, sr)
+  do k = nzst, nzen
+    do j = nxst, nxen
+!!    Note: moving the serial loop to the innermost layer is much faster than 
+!!          having multiple kernels
+      !$acc loop seq
+      do m = 1, ny/2 - 2
+        do i = 1, 2
+          mi = m + i
+
+          if (dabs(rl(aaa(j,m,k,3))) > MINP) then
+            tmp1 = rl(aaa(j,mi,k,3-i)) / rl(aaa(j,m,k,3))
+          else
+            tmp1 = zero
+          end if
+
+          if (dabs(iy(aaa(j,m,k,3))) > MINP) then
+            tmp2 = iy(aaa(j,mi,k,3-i)) / iy(aaa(j,m,k,3))
+          else
+            tmp2 = zero
+          end if
+
+          sr(j,k) = cx(tmp1, tmp2)
+
+          eee(j,mi,k) = cx( &
+              rl(eee(j,mi,k)) - tmp1 * rl(eee(j,m,k)), &
+              iy(eee(j,mi,k)) - tmp2 * iy(eee(j,m,k)) )
+
+          do jc = ja(i), jb(i)
+            aaa(j,mi,k,jc) = cx( &
+                rl(aaa(j,mi,k,jc)) - rl(sr(j,k)) * rl(aaa(j,m,k,jc+i)), &
+                iy(aaa(j,mi,k,jc)) - iy(sr(j,k)) * iy(aaa(j,m,k,jc+i)) )
+          end do
+
+        end do
+      end do
+
+    end do
+  end do
+  !$acc end parallel loop
+
+#ifdef PROFILING
+  call nvtxEndRange
+#endif
+
+  nxst = spI%yst(1); nxen = spI%yen(1)
+  nzst = spI%yst(3); nzen = spI%yen(3)
+  !$acc parallel loop collapse(2) private(tmp1, tmp2, tmp3, tmp4) &
+  !$acc&                          present(aaa, eee, sr, a1, b1)
+  do k = nzst, nzen
+    do j = nxst, nxen
+      if (abs_prec(rl(aaa(j,ny/2-1,k,3))) > epsilon) then
+        tmp1 = rl(aaa(j,ny/2,k,2)) / rl(aaa(j,ny/2-1,k,3))
+      else
+        tmp1 = zero
+      end if
+
+      if (abs_prec(iy(aaa(j,ny/2-1,k,3))) > epsilon) then
+        tmp2 = iy(aaa(j,ny/2,k,2)) / iy(aaa(j,ny/2-1,k,3))
+      else
+        tmp2 = zero
+      end if
+
+      sr(j,k) = cx(tmp1, tmp2)
+
+      b1(j,k) = cx( &
+        rl(aaa(j,ny/2,k,3)) - tmp1 * rl(aaa(j,ny/2-1,k,4)), &
+        iy(aaa(j,ny/2,k,3)) - tmp2 * iy(aaa(j,ny/2-1,k,4)) )
+
+      if (abs_prec(rl(b1(j,k))) > epsilon) then
+        tmp1 = rl(sr(j,k)) / rl(b1(j,k))
+        tmp3 = rl(eee(j,ny/2,k)) / rl(b1(j,k)) - tmp1 * rl(eee(j,ny/2-1,k))
+      else
+        tmp1 = zero
+        tmp3 = zero
+      end if
+
+      if (abs_prec(iy(b1(j,k))) > epsilon) then
+        tmp2 = iy(sr(j,k)) / iy(b1(j,k))
+        tmp4 = iy(eee(j,ny/2,k)) / iy(b1(j,k)) - tmp2 * iy(eee(j,ny/2-1,k))
+      else
+        tmp2 = zero
+        tmp4 = zero
+      end if
+
+      a1(j,k) = cx(tmp1, tmp2)
+      eee(j,ny/2,k) = cx(tmp3, tmp4)
+
+      if (abs_prec(rl(aaa(j,ny/2-1,k,3))) > epsilon) then
+        tmp1 = one / rl(aaa(j,ny/2-1,k,3))
+      else
+        tmp1 = zero
+      end if
+
+      if (abs_prec(iy(aaa(j,ny/2-1,k,3))) > epsilon) then
+        tmp2 = one / iy(aaa(j,ny/2-1,k,3))
+      else
+        tmp2 = zero
+      end if
+
+      b1(j,k) = cx(tmp1, tmp2)
+
+      a1(j,k) = cx( &
+        rl(aaa(j,ny/2-1,k,4)) * rl(b1(j,k)), &
+        iy(aaa(j,ny/2-1,k,4)) * iy(b1(j,k)) )
+
+      eee(j,ny/2-1,k) = cx( &
+        rl(eee(j,ny/2-1,k)) * rl(b1(j,k)) - rl(a1(j,k)) * rl(eee(j,ny/2,k)), &
+        iy(eee(j,ny/2-1,k)) * iy(b1(j,k)) - iy(a1(j,k)) * iy(eee(j,ny/2,k)) )
+
+    end do
+  end do
+  !$acc end parallel loop
+
+  nxst = spI%yst(1); nxen = spI%yen(1)
+  nzst = spI%yst(3); nzen = spI%yen(3)
+  !$acc parallel loop collapse(2) private(tmp1, tmp2) &
+  !$acc&                          present(aaa, eee, sr, a1, b1)
+  do k = nzst, nzen
+    do j = nxst, nxen
+
+      !$acc loop seq
+      do i = ny/2 - 2, 1, -1
+        if (abs_prec(rl(aaa(j,i,k,3))) > epsilon) then
+          tmp1 = one / rl(aaa(j,i,k,3))
+        else
+          tmp1 = zero
+        end if
+
+        if (abs_prec(iy(aaa(j,i,k,3))) > epsilon) then
+          tmp2 = one / iy(aaa(j,i,k,3))
+        else
+          tmp2 = zero
+        end if
+
+        sr(j,k) = cx(tmp1, tmp2)
+
+        a1(j,k) = cx( &
+          rl(aaa(j,i,k,4)) * rl(sr(j,k)), &
+          iy(aaa(j,i,k,4)) * iy(sr(j,k)) )
+
+        b1(j,k) = cx( &
+          rl(aaa(j,i,k,5)) * rl(sr(j,k)), &
+          iy(aaa(j,i,k,5)) * iy(sr(j,k)) )
+
+        eee(j,i,k) = cx( &
+          rl(eee(j,i,k)) * rl(sr(j,k)) &
+          - rl(a1(j,k)) * rl(eee(j,i+1,k)) &
+          - rl(b1(j,k)) * rl(eee(j,i+2,k)), &
+          iy(eee(j,i,k)) * iy(sr(j,k)) &
+          - iy(a1(j,k)) * iy(eee(j,i+1,k)) &
+          - iy(b1(j,k)) * iy(eee(j,i+2,k)) )
+      end do
+
+    end do
+  end do
+  !$acc end parallel loop
+
+  !$acc end data
 
   return
 
@@ -589,118 +732,172 @@ subroutine inversion5_v2(aaa,eee,spI)
   real(mytype), parameter :: epsilon = 1.e-8_mytype
 #endif
 
-  complex(mytype),dimension(spI%yst(1):spI%yen(1),nym,spI%yst(3):spI%yen(3),5) :: aaa
-  complex(mytype),dimension(spI%yst(1):spI%yen(1),nym,spI%yst(3):spI%yen(3)) :: eee
+  complex(mytype),intent(INOUT),dimension(spI%yst(1):spI%yen(1),nym,spI%yst(3):spI%yen(3),5) :: aaa
+  complex(mytype),intent(INOUT),dimension(spI%yst(1):spI%yen(1),nym,spI%yst(3):spI%yen(3)) :: eee
+
   integer :: i,j,k,m,mi,jc
   integer,dimension(2) :: ja,jb
   complex(mytype),dimension(spI%yst(1):spI%yen(1),spI%yst(3):spI%yen(3)) :: sr
   complex(mytype),dimension(spI%yst(1):spI%yen(1),spI%yst(3):spI%yen(3)) :: a1,b1
 
   real(mytype) :: tmp1,tmp2,tmp3,tmp4
+  integer :: nxst, nxen, nyst, nyen, nzst, nzen
 
-  ! complex(mytype) :: cx
-  ! real(mytype) :: rl, iy
-  ! external cx, rl, iy
+  !$acc data create(sr, a1, b1)
 
   do i = 1, 2
      ja(i) = 4 - i
      jb(i) = 5 - i
   enddo
-  do m = 1, nym - 2
-     do i = 1, 2
-        mi = m + i
-        do k = spI%yst(3), spI%yen(3)
-           do j = spI%yst(1), spI%yen(1)
-              if (dabs(rl(aaa(j,m,k,3))) > MINP) tmp1 = rl(aaa(j,mi,k,3-i)) / rl(aaa(j,m,k,3))
-              if (dabs(iy(aaa(j,m,k,3))) > MINP) tmp2 = iy(aaa(j,mi,k,3-i)) / iy(aaa(j,m,k,3))
-              sr(j,k) = cx(tmp1, tmp2)
-              eee(j,mi,k) = cx(rl(eee(j,mi,k)) - tmp1 * rl(eee(j,m,k)),&
-                               iy(eee(j,mi,k)) - tmp2 * iy(eee(j,m,k)))
-           enddo
-        enddo
-        do jc = ja(i), jb(i)
-           do k = spI%yst(3), spI%yen(3)
-              do j = spI%yst(1), spI%yen(1)
-                 aaa(j,mi,k,jc) = cx(rl(aaa(j,mi,k,jc)) - rl(sr(j,k)) * rl(aaa(j,m,k,jc+i)),&
-                                     iy(aaa(j,mi,k,jc)) - iy(sr(j,k)) * iy(aaa(j,m,k,jc+i)))
-              enddo
-           enddo
-        enddo
-     enddo
-  enddo
-  do k = spI%yst(3), spI%yen(3)
-     do j = spI%yst(1), spI%yen(1)
-        if (abs_prec(rl(aaa(j,nym-1,k,3))) > epsilon) then
-           tmp1 = rl(aaa(j,nym,k,2)) / rl(aaa(j,nym-1,k,3))
-        else
-           tmp1 = zero
-        endif
-        if (abs_prec(iy(aaa(j,nym-1,k,3))) > epsilon) then
-           tmp2 = iy(aaa(j,nym,k,2)) / iy(aaa(j,nym-1,k,3))
-        else
-           tmp2 = zero
-        endif
-        sr(j,k) = cx(tmp1,tmp2)
-        b1(j,k) = cx(rl(aaa(j,nym,k,3)) - tmp1 * rl(aaa(j,nym-1,k,4)),&
-                     iy(aaa(j,nym,k,3)) - tmp2 * iy(aaa(j,nym-1,k,4)))
-        if (abs_prec(rl(b1(j,k))) > epsilon) then
-           tmp1 = rl(sr(j,k)) / rl(b1(j,k))
-           tmp3 = rl(eee(j,nym,k)) / rl(b1(j,k)) - tmp1 * rl(eee(j,nym-1,k))
-        else
-           tmp1 = zero
-           tmp3 = zero
-        endif
-        if (abs_prec(iy(b1(j,k))) > epsilon) then
-           tmp2 = iy(sr(j,k)) / iy(b1(j,k))
-           tmp4 = iy(eee(j,nym,k)) / iy(b1(j,k)) - tmp2 * iy(eee(j,nym-1,k))
-        else
-           tmp2 = zero
-           tmp4 = zero
-        endif
-        a1(j,k) = cx(tmp1, tmp2)
-        eee(j,nym,k) = cx(tmp3, tmp4)
 
-        if (abs_prec(rl(aaa(j,nym-1,k,3))) > epsilon) then
-           tmp1 = one / rl(aaa(j,nym-1,k,3))
-        else
-           tmp1 = zero
-        endif
-        if (abs_prec(iy(aaa(j,nym-1,k,3))) > epsilon) then
-           tmp2 = one / iy(aaa(j,nym-1,k,3))
-        else
-           tmp2 = zero
-        endif
-        b1(j,k) = cx(tmp1,tmp2)
-        a1(j,k) = cx(rl(aaa(j,nym-1,k,4)) * rl(b1(j,k)),&
-                     iy(aaa(j,nym-1,k,4)) * iy(b1(j,k)))
-        eee(j,nym-1,k) = cx(rl(eee(j,nym-1,k)) * rl(b1(j,k)) - rl(a1(j,k)) * rl(eee(j,nym,k)),&
-                            iy(eee(j,nym-1,k)) * iy(b1(j,k)) - iy(a1(j,k)) * iy(eee(j,nym,k)))
-     enddo
-  enddo
+  nxst = spI%yst(1); nxen = spI%yen(1)
+  nzst = spI%yst(3); nzen = spI%yen(3)
+  !$acc parallel loop collapse(2) private(tmp1, tmp2, jc) present(aaa, eee, sr)
+  do k = nzst, nzen
+    do j = nxst, nxen
 
-  do i = nym - 2, 1, -1
-     do k = spI%yst(3), spI%yen(3)
-        do j = spI%yst(1), spI%yen(1)
-           if (abs_prec(rl(aaa(j,i,k,3))) > epsilon) then
-              tmp1 = one / rl(aaa(j,i,k,3))
-           else
-              tmp1 = zero
-           endif
-           if (abs_prec(iy(aaa(j,i,k,3))) > epsilon) then
-              tmp2 = one / iy(aaa(j,i,k,3))
-           else
-              tmp2 = zero
-           endif
-           sr(j,k) = cx(tmp1,tmp2)
-           a1(j,k) = cx(rl(aaa(j,i,k,4)) * rl(sr(j,k)),&
-                        iy(aaa(j,i,k,4)) * iy(sr(j,k)))
-           b1(j,k) = cx(rl(aaa(j,i,k,5)) * rl(sr(j,k)),&
-                        iy(aaa(j,i,k,5)) * iy(sr(j,k)))
-           eee(j,i,k) = cx(rl(eee(j,i,k)) * rl(sr(j,k)) - rl(a1(j,k)) * rl(eee(j,i+1,k)) -rl(b1(j,k)) * rl(eee(j,i+2,k)),&
-                           iy(eee(j,i,k)) * iy(sr(j,k)) - iy(a1(j,k)) * iy(eee(j,i+1,k)) -iy(b1(j,k)) * iy(eee(j,i+2,k)))
-        enddo
-     enddo
-  enddo
+      !$acc loop seq
+      do m = 1, nym - 2
+        do i = 1, 2
+          mi = m + i
+
+          if (dabs(rl(aaa(j,m,k,3))) > MINP) then
+            tmp1 = rl(aaa(j,mi,k,3-i)) / rl(aaa(j,m,k,3))
+          else
+            tmp1 = zero
+          end if
+
+          if (dabs(iy(aaa(j,m,k,3))) > MINP) then
+            tmp2 = iy(aaa(j,mi,k,3-i)) / iy(aaa(j,m,k,3))
+          else
+            tmp2 = zero
+          end if
+
+          sr(j,k) = cx(tmp1, tmp2)
+
+          eee(j,mi,k) = cx( &
+              rl(eee(j,mi,k)) - tmp1 * rl(eee(j,m,k)), &
+              iy(eee(j,mi,k)) - tmp2 * iy(eee(j,m,k)) )
+
+          do jc = ja(i), jb(i)
+            aaa(j,mi,k,jc) = cx( &
+                rl(aaa(j,mi,k,jc)) - rl(sr(j,k)) * rl(aaa(j,m,k,jc+i)), &
+                iy(aaa(j,mi,k,jc)) - iy(sr(j,k)) * iy(aaa(j,m,k,jc+i)) )
+          end do
+
+        end do
+      end do
+
+    end do
+  end do
+  !$acc end parallel loop
+
+  nxst = spI%yst(1); nxen = spI%yen(1)
+  nzst = spI%yst(3); nzen = spI%yen(3)
+  !$acc parallel loop collapse(2) private(tmp1, tmp2, tmp3, tmp4) &
+  !$acc&                          present(aaa, eee, sr, a1, b1)
+  do k = nzst, nzen
+    do j = nxst, nxen
+
+      if (abs_prec(rl(aaa(j,nym-1,k,3))) > epsilon) then
+        tmp1 = rl(aaa(j,nym,k,2)) / rl(aaa(j,nym-1,k,3))
+      else
+        tmp1 = zero
+      end if
+
+      if (abs_prec(iy(aaa(j,nym-1,k,3))) > epsilon) then
+        tmp2 = iy(aaa(j,nym,k,2)) / iy(aaa(j,nym-1,k,3))
+      else
+        tmp2 = zero
+      end if
+
+      sr(j,k) = cx(tmp1, tmp2)
+
+      b1(j,k) = cx(rl(aaa(j,nym,k,3)) - tmp1 * rl(aaa(j,nym-1,k,4)), &
+                   iy(aaa(j,nym,k,3)) - tmp2 * iy(aaa(j,nym-1,k,4)))
+
+      if (abs_prec(rl(b1(j,k))) > epsilon) then
+        tmp1 = rl(sr(j,k)) / rl(b1(j,k))
+        tmp3 = rl(eee(j,nym,k)) / rl(b1(j,k)) - tmp1 * rl(eee(j,nym-1,k))
+      else
+        tmp1 = zero
+        tmp3 = zero
+      end if
+
+      if (abs_prec(iy(b1(j,k))) > epsilon) then
+        tmp2 = iy(sr(j,k)) / iy(b1(j,k))
+        tmp4 = iy(eee(j,nym,k)) / iy(b1(j,k)) - tmp2 * iy(eee(j,nym-1,k))
+      else
+        tmp2 = zero
+        tmp4 = zero
+      end if
+
+      a1(j,k) = cx(tmp1, tmp2)
+      eee(j,nym,k) = cx(tmp3, tmp4)
+
+      if (abs_prec(rl(aaa(j,nym-1,k,3))) > epsilon) then
+        tmp1 = one / rl(aaa(j,nym-1,k,3))
+      else
+        tmp1 = zero
+      end if
+
+      if (abs_prec(iy(aaa(j,nym-1,k,3))) > epsilon) then
+        tmp2 = one / iy(aaa(j,nym-1,k,3))
+      else
+        tmp2 = zero
+      end if
+
+      b1(j,k) = cx(tmp1, tmp2)
+
+      a1(j,k) = cx(rl(aaa(j,nym-1,k,4)) * rl(b1(j,k)), &
+                   iy(aaa(j,nym-1,k,4)) * iy(b1(j,k)))
+
+      eee(j,nym-1,k) = cx( &
+          rl(eee(j,nym-1,k)) * rl(b1(j,k)) - rl(a1(j,k)) * rl(eee(j,nym,k)), &
+          iy(eee(j,nym-1,k)) * iy(b1(j,k)) - iy(a1(j,k)) * iy(eee(j,nym,k)) )
+
+    end do
+  end do
+  !$acc end parallel loop
+
+  nxst = spI%yst(1); nxen = spI%yen(1)
+  nzst = spI%yst(3); nzen = spI%yen(3)
+  !$acc parallel loop collapse(2) private(tmp1, tmp2) &
+  !$acc&                          present(aaa, eee, sr, a1, b1)
+  do k = nzst, nzen
+    do j = nxst, nxen
+
+      !$acc loop seq
+      do i = nym - 2, 1, -1
+        if (abs_prec(rl(aaa(j,i,k,3))) > epsilon) then
+          tmp1 = one / rl(aaa(j,i,k,3))
+        else
+          tmp1 = zero
+        end if
+
+        if (abs_prec(iy(aaa(j,i,k,3))) > epsilon) then
+          tmp2 = one / iy(aaa(j,i,k,3))
+        else
+          tmp2 = zero
+        end if
+
+        sr(j,k) = cx(tmp1, tmp2)
+
+        a1(j,k) = cx(rl(aaa(j,i,k,4)) * rl(sr(j,k)), &
+                     iy(aaa(j,i,k,4)) * iy(sr(j,k)))
+        b1(j,k) = cx(rl(aaa(j,i,k,5)) * rl(sr(j,k)), &
+                     iy(aaa(j,i,k,5)) * iy(sr(j,k)))
+
+        eee(j,i,k) = cx( &
+          rl(eee(j,i,k)) * rl(sr(j,k)) - rl(a1(j,k)) * rl(eee(j,i+1,k)) - rl(b1(j,k)) * rl(eee(j,i+2,k)), &
+          iy(eee(j,i,k)) * iy(sr(j,k)) - iy(a1(j,k)) * iy(eee(j,i+1,k)) - iy(b1(j,k)) * iy(eee(j,i+2,k)) )
+      end do
+
+    end do
+  end do
+  !$acc end parallel loop
+
+  !$acc end data
 
   return
 
@@ -746,11 +943,6 @@ module decomp_2d_poisson
   complex(mytype), save, allocatable, dimension(:,:,:) :: kxyz
   !wave numbers for stretching in a pentadiagonal matrice
   complex(mytype), save, allocatable, dimension(:,:,:,:) :: a,a2,a3
-  ! work arrays, 
-  ! naming convention: cw (complex); rw (real); 
-  !                    1 = X-pencil; 2 = Y-pencil; 3 = Z-pencil
-  real(mytype), allocatable, dimension(:,:,:) :: rw1,rw1b,rw2,rw2b,rw3
-  complex(mytype), allocatable, dimension(:,:,:) :: cw1,cw1b,cw2,cw22,cw2b,cw2c
 
   ! underlying FFT library only needs to be initialised once
   logical, save :: fft_initialised = .false.
@@ -759,10 +951,12 @@ module decomp_2d_poisson
   ! Abstract interface for all Poisson routines
   !---------------------------------------------------
   abstract interface
-    subroutine poisson_base(rhs)
+    subroutine poisson_base(rhs, fl)
+      use udf_type_mod
       use decomp_2d_constants, only: mytype
       use math_mod, only: cx, rl, iy
       real(mytype), dimension(:,:,:), intent(inout) :: rhs
+      type(t_flow), intent(in) :: fl
     end subroutine poisson_base
   end interface
   !---------------------------------------------------
@@ -773,21 +967,22 @@ module decomp_2d_poisson
   ! define subs
   !---------------------------------------------------
   public :: decomp_2d_poisson_init,decomp_2d_poisson_finalize,poisson
-contains
 
-
+  contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise Poisson solver for given boundary conditions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine decomp_2d_poisson_init()
 
+    use math_mod, only: rl, iy
+
     implicit none
 
     !integer :: nx, ny, nz, i
     
-    real(mytype) :: rl, iy
-    external  rl, iy
+!    real(mytype) :: rl, iy
+!    external  rl, iy
 
     if (nclx) then
        bcx=0
@@ -862,6 +1057,7 @@ contains
     allocate(ay(ny),by(ny))
     allocate(az(nz),bz(nz))
     call abxyz(ax,ay,az,bx,by,bz,nx,ny,nz,bcx,bcy,bcz)
+    !$acc enter data copyin(ax, ay, az, bx, by, bz)
 
 #ifdef DEBUG_FFT 
     if (nrank .eq. 0) write(*,*)'# decomp_2d_poisson_init decomp_info_init'
@@ -869,85 +1065,28 @@ contains
 
     call decomp_info_init(nx, ny, nz, ph)
     call decomp_info_init(nx, ny, nz/2+1, sp)
+    !$acc enter data copyin(ph, sp)
 
 #ifdef DEBUG_FFT 
     if (nrank .eq. 0) write(*,*)'# decomp_2d_poisson_init decomp_info_init ok'
 #endif
 
     ! allocate work space
-    if (bcx==0 .and. bcy==0 .and. bcz==0) then
-       allocate(cw1(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(kxyz(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
+    if (bcx==0 .and. bcy==1 .and. bcz==0) then
+      allocate(kxyz(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
+                    sp%yst(3):sp%yen(3)))
+    else
+      allocate(kxyz(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
+                    sp%xst(3):sp%xen(3)))
+    end if
+
+    if ((istret == 1).or.(istret == 2)) then
        allocate(a(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
        allocate(a2(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
+       !$acc enter data create(a, a2)
+    else if (istret == 3) then
        allocate(a3(sp%yst(1):sp%yen(1),ny,sp%yst(3):sp%yen(3),5))
-    else if (bcx==1 .and. bcy==0 .and. bcz==0) then
-       allocate(cw1(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(cw1b(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(rw1(ph%xst(1):ph%xen(1),ph%xst(2):ph%xen(2), &
-            ph%xst(3):ph%xen(3)))
-       allocate(rw1b(ph%xst(1):ph%xen(1),ph%xst(2):ph%xen(2), &
-            ph%xst(3):ph%xen(3)))
-       allocate(rw2(ph%yst(1):ph%yen(1),ph%yst(2):ph%yen(2), &
-            ph%yst(3):ph%yen(3)))
-       allocate(kxyz(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(a(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
-       allocate(a2(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
-       allocate(a3(sp%yst(1):sp%yen(1),ny,sp%yst(3):sp%yen(3),5))
-    else if (bcx==0 .and. bcy==1 .and. bcz==0) then
-       allocate(rw2(ph%yst(1):ph%yen(1),ph%yst(2):ph%yen(2), &
-            ph%yst(3):ph%yen(3)))
-       allocate(rw2b(ph%yst(1):ph%yen(1),ph%yst(2):ph%yen(2), &
-            ph%yst(3):ph%yen(3)))
-       allocate(cw1(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(cw2(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(cw22(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(cw2b(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(cw2c(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(kxyz(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(a(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
-       allocate(a2(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
-       allocate(a3(sp%yst(1):sp%yen(1),ny,sp%yst(3):sp%yen(3),5))
-    else if (bcx==1 .and. bcy==1) then
-       allocate(cw1(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(cw1b(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))
-       allocate(cw2(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(cw22(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(cw2b(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(cw2c(sp%yst(1):sp%yen(1),sp%yst(2):sp%yen(2), &
-            sp%yst(3):sp%yen(3)))
-       allocate(rw1(ph%xst(1):ph%xen(1),ph%xst(2):ph%xen(2), &
-            ph%xst(3):ph%xen(3)))
-       allocate(rw1b(ph%xst(1):ph%xen(1),ph%xst(2):ph%xen(2), &
-            ph%xst(3):ph%xen(3)))
-       allocate(rw2(ph%yst(1):ph%yen(1),ph%yst(2):ph%yen(2), &
-            ph%yst(3):ph%yen(3)))
-       allocate(rw2b(ph%yst(1):ph%yen(1),ph%yst(2):ph%yen(2), &
-            ph%yst(3):ph%yen(3)))
-       if (bcz==1) then  
-          allocate(rw3(ph%zsz(1),ph%zsz(2),ph%zsz(3)))
-       end if
-       allocate(kxyz(sp%xst(1):sp%xen(1),sp%xst(2):sp%xen(2), &
-            sp%xst(3):sp%xen(3)))    
-       allocate(a(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
-       allocate(a2(sp%yst(1):sp%yen(1),ny/2,sp%yst(3):sp%yen(3),5))
-       allocate(a3(sp%yst(1):sp%yen(1),nym,sp%yst(3):sp%yen(3),5))      
+       !$acc enter data create(a3)
     end if
 
 #ifdef DEBUG_FFT 
@@ -955,7 +1094,12 @@ contains
 #endif
 
     call waves()
-    if (bcy == 1 .and. istret /= 0) call matrice_refinement()
+    !$acc enter data copyin(zkz, zk2, ezs, yky, yk2, eys, xkx, xk2, exs)
+    !$acc enter data copyin(kxyz)
+
+    ! TODO: comment out, not needed?
+!    if (bcy == 1 .and. istret /= 0) call matrice_refinement()
+
     !write(*,*) 'POinit ii1 arl ', rl(a(1,1,1,1)),rl(a(1,1,1,2)),rl(a(1,1,1,3)),&
     !                              rl(a(1,1,1,4)),rl(a(1,1,1,5))
     !write(*,*) 'POinit ii1 aiy ', iy(a(1,1,1,1)),iy(a(1,1,1,2)),iy(a(1,1,1,3)),&
@@ -1002,30 +1146,24 @@ contains
     implicit none
 
     deallocate(ax,bx,ay,by,az,bz)
+    !$acc exit data delete(ax,bx,ay,by,az,bz)
 
     call decomp_info_finalize(ph)
     call decomp_info_finalize(sp)
+    !$acc exit data delete(ph, sp)
 
     call decomp_2d_fft_finalize
     fft_initialised = .false.
 
     deallocate(kxyz)
+    !$acc exit data delete(kxyz)
 
-    if (bcx==0 .and. bcy==0 .and. bcz==0) then
-       deallocate(cw1)
-       deallocate(a,a2,a3)
-    else if (bcx==1 .and. bcy==0 .and. bcz==0) then
-       deallocate(cw1,cw1b,rw1,rw1b,rw2)
-       deallocate(a,a2,a3)
-    else if (bcx==0 .and. bcy==1 .and. bcz==0) then
-       deallocate(cw1,cw2,cw2b,rw2,rw2b)
-       deallocate(a,a2,a3)
-    else if (bcx==1 .and. bcy==1) then
-       deallocate(cw1,cw1b,cw2,cw2b,rw1,rw1b,rw2,rw2b)
-       deallocate(a,a2,a3)
-       if (bcz==1) then
-          deallocate(rw3)
-       end if
+    if ((istret == 1).or.(istret == 2)) then
+       deallocate(a,a2)
+       !$acc exit data delete(a, a2)
+    else if (istret == 3) then
+       deallocate(a3)
+       !$acc exit data delete(a3)
     end if
 
     return
@@ -1034,8 +1172,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Solving 3D Poisson equation with periodic B.C in all 3 dimensions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson_000(rhs)
+  subroutine poisson_000(rhs, fl)
     use math_mod, only: cx, rl, iy
+    use udf_type_mod
+
     implicit none
     !use derivX
     !use derivY
@@ -1044,6 +1184,7 @@ contains
     ! right-hand-side of Poisson as input
     ! solution of Poisson as output
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(in) :: fl
 
     integer, dimension(3) :: fft_start, fft_end, fft_size
 
@@ -1052,19 +1193,14 @@ contains
     complex(mytype) :: ytt,xtt,ztt,yt1,xt1,yt2,xt2
     complex(mytype) :: xtt1,ytt1,ztt1,zt1,zt2
 
-
     real(mytype) :: tmp1, tmp2,x ,y, z, avg_param
 
-    !integer :: nx,ny,nz, 
     integer :: i,j,k
 
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
-
-    ! nx = nx_global
-    ! ny = ny_global
-    ! nz = nz_global
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1
+    type(c_ptr) :: cptr
 
     if (.not. fft_initialised) then
        call decomp_2d_fft_init(PHYSICAL_IN_Z)
@@ -1086,12 +1222,19 @@ contains
 !     end do
 ! #endif
 
-    ! compute r2c transform 
+    ! compute r2c transform
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call decomp_2d_fft_3d(rhs,cw1)
 
     ! normalisation
-    cw1 = cw1 / real(nx, kind=mytype) /real(ny, kind=mytype) &
+    !$acc kernels default(present)
+    cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype) /real(ny, kind=mytype) &
          / real(nz, kind=mytype)
+    !$acc end kernels
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw1), avg_param)
@@ -1102,9 +1245,14 @@ contains
 !   = (rl + I iy)(cos(-k_x*dx/2) + i sin(-k_x * dx/2))
 !   = (rl + I iy)(b - i a) 
 !   = (rl * b + iy * a, iy * b - rl * a )
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
 
              ! post-processing in spectral space
 
@@ -1189,6 +1337,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw1), avg_param)
@@ -1218,12 +1368,15 @@ contains
   end subroutine poisson_000
 
 
-  subroutine poisson_100(rhs)
+  subroutine poisson_100(rhs, fl)
     !use dbg_schemes, only: abs_prec
-    use math_mod, only: cx, rl, iy!, only: abs_prec
+    use math_mod, only: cx, rl, iy, abs_prec
+    use udf_type_mod
+
     implicit none
 
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(in) :: fl
 
     complex(mytype) :: xyzk
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
@@ -1232,30 +1385,37 @@ contains
     !integer :: nx,ny,nz, 
     integer :: i,j,k, itmp
 
-    !complex(mytype) :: cx
-    !real(mytype) :: rl, iy
-    !external cx, rl, iy
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    real(mytype),    pointer, dimension(:,:,:)   :: rw1, rw1b, rw2
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw1b
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw1b
+    type(c_ptr) :: cptr
 
 100 format(1x,a8,3I4,2F12.6)
 
-    ! nx = nx_global - 1
-    ! ny = ny_global
-    ! nz = nz_global
-
+    rw1 (1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk1
+    rw1b(1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk2
+    rw2(ph%yst(1):ph%yen(1),ph%yst(2):ph%yen(2),ph%yst(3):ph%yen(3)) => fl%wk3
     !write(*,*) 'Poisson_100'
     ! rhs is in Z-pencil but requires global operations in X
     call transpose_z_to_y(rhs,rw2,ph)
     call transpose_y_to_x(rw2,rw1,ph)
-    do k = ph%xst(3), ph%xen(3)
-       do j = ph%xst(2), ph%xen(2)
-          do i = 1, nx/2
-             rw1b(i,j,k) = rw1(2*(i-1)+1,j,k)
-          enddo
-          do i = nx/2 + 1, nx
-             rw1b(i,j,k) = rw1(2*nx-2*i+2,j,k)
+
+    nyst = ph%xst(2); nyen = ph%xen(2)
+    nzst = ph%xst(3); nzen = ph%xen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = 1, nx
+             if(i < nx/2+1) then
+                rw1b(i,j,k) = rw1(2*(i-1)+1,j,k)
+             else
+                rw1b(i,j,k) = rw1(2*nx-2*i+2,j,k)
+             end if
           enddo
        enddo
     end do
+    !$acc end parallel loop
 
     call transpose_x_to_y(rw1b,rw2,ph)
     call transpose_y_to_z(rw2,rhs,ph)
@@ -1265,12 +1425,19 @@ contains
        fft_initialised = .true.
     end if
 
-    ! compute r2c transform 
+    ! compute r2c transform
+    cptr = c_loc(fl%wk4(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call decomp_2d_fft_3d(rhs,cw1)
 
     ! normalisation
-    cw1 = cw1 / real(nx, kind=mytype) /real(ny, kind=mytype) &
+    !$acc kernels default(present)
+    cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype) /real(ny, kind=mytype) &
          / real(nz, kind=mytype)
+    !$acc end kernels
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
        do j = sp%xst(2), sp%xen(2)
@@ -1286,9 +1453,13 @@ contains
     ! post-processing in spectral space
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) + tmp2 * az(k), &
@@ -1300,11 +1471,16 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN Y
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * by(j) + tmp2 * ay(j), &
@@ -1317,12 +1493,21 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
+    cptr = c_loc(fl%wk5(1))
+    call c_f_pointer(cptr, tcw1b, sp%xsz)
+    cw1b(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1b
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          cw1b(1,j,k) = cw1(1,j,k)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 2, nx
+             if(i==2) cw1b(1,j,k) = cw1(1,j,k)
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              tmp3 = rl(cw1(nx-i+2,j,k))
@@ -1340,6 +1525,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
        do j = sp%xst(2), sp%xen(2)
@@ -1353,9 +1540,13 @@ contains
 #endif
 
     ! Solve Poisson
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2)
+    do k = nzst, nzen
+      do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(kxyz(i,j,k))
              tmp2 = iy(kxyz(i,j,k))
              ! CANNOT DO A DIVISION BY ZERO
@@ -1378,14 +1569,19 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! post-processing backward
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          cw1(1,j,k) = cw1b(1,j,k)
-          do i = 2, nx 
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = 2, nx
+             if(i==2) cw1(1,j,k) = cw1b(1,j,k)
              tmp1 = rl(cw1b(i,j,k))
              tmp2 = iy(cw1b(i,j,k))
              tmp3 = rl(cw1b(nx-i+2,j,k))
@@ -1403,6 +1599,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3),sp%xen(3)
        do j = sp%xst(2),sp%xen(2)
@@ -1416,9 +1614,13 @@ contains
 #endif
 
     ! POST PROCESSING IN Y
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2)
+    do k = nzst, nzen
+      do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * by(j) - tmp2 * ay(j), &
@@ -1431,11 +1633,16 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2)
+    do k = nzst, nzen
+      do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) - tmp2 * az(k), &
@@ -1447,6 +1654,7 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! compute c2r transform
     call decomp_2d_fft_3d(cw1,rhs)
@@ -1454,16 +1662,20 @@ contains
     ! rhs is in Z-pencil but requires global operations in X
     call transpose_z_to_y(rhs,rw2,ph)
     call transpose_y_to_x(rw2,rw1,ph)
-    do k = ph%xst(3), ph%xen(3)
-       do j = ph%xst(2), ph%xen(2)
+
+    nyst = ph%xst(2); nyen = ph%xen(2)
+    nzst = ph%xst(3); nzen = ph%xen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 1, nx/2
              rw1b(2*i-1,j,k) = rw1(i,j,k)
-          enddo
-          do i = 1, nx/2
-             rw1b(2*i,j,k) = rw1(nx-i+1,j,k)
+             rw1b(2*i  ,j,k) = rw1(nx-i+1,j,k)
           enddo
        enddo
     end do
+    !$acc end parallel loop
+
     call transpose_x_to_y(rw1b,rw2,ph)
     call transpose_y_to_z(rw2,rhs,ph)
 
@@ -1476,23 +1688,27 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Solving 3D Poisson equation: Neumann in Y; periodic in X & Z
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson_010(rhs)
+  subroutine poisson_010(rhs, fl)
     !use dbg_schemes, only: abs_prec
-    use math_mod, only: cx, rl, iy!, only: abs_prec
+    use udf_type_mod
+    use math_mod, only: cx, rl, iy, abs_prec
+
     implicit none
 
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(IN) :: fl
 
     complex(mytype) :: xyzk
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
-    !integer :: nx,ny,nz, 
     integer :: i,j,k
 
-    !complex(mytype) :: cx
-    !real(mytype) :: rl, iy
-    !external cx, rl, iy
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    real(mytype),    pointer, dimension(:,:,:)   :: rw2, rw2b
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw2, cw22, cw2b, cw2c
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw2, tcw22, tcw2b, tcw2c
+    type(c_ptr) :: cptr
 
     !real(mytype) :: avg_param
 
@@ -1506,29 +1722,45 @@ contains
     if (nrank .eq. 0) write(*,*)'# Poisoon_010 Init'
 #endif
     ! rhs is in Z-pencil but requires global operations in Y
+    rw2(ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3))  => fl%wk1
+    rw2b(ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk2
     call transpose_z_to_y(rhs,rw2,ph)
-    do k = ph%yst(3), ph%yen(3)
-       do i = ph%yst(1), ph%yen(1)
-          do j = 1, ny/2
-             rw2b(i,j,k) = rw2(i,2*(j-1)+1,k)
-          enddo
-          do j = ny/2 + 1, ny
-             rw2b(i,j,k) = rw2(i,2*ny-2*j+2,k)
+    nxst = ph%yst(1); nxen = ph%yen(1)
+    nzst = ph%yst(3); nzen = ph%yen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do i = nxst, nxen
+          do j = 1, ny
+             if(j < ny/2+1) then
+                rw2b(i,j,k) = rw2(i,2*(j-1)+1,k)
+             else
+                rw2b(i,j,k) = rw2(i,2*ny-2*j+2,k)
+             end if
           enddo
        enddo
     end do
+    !$acc end parallel loop
+
     call transpose_y_to_z(rw2b,rhs,ph)
 
     if (.not. fft_initialised) then
        call decomp_2d_fft_init(PHYSICAL_IN_Z,nx,ny,nz)
        fft_initialised = .true.
     end if
-    ! compute r2c transform 
+
+    ! compute r2c transform
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call decomp_2d_fft_3d(rhs,cw1)
 
     ! normalisation
-    cw1 = cw1 / real(nx, kind=mytype) /real(ny, kind=mytype) &
-         / real(nz, kind=mytype)
+    !$acc kernels default(present)
+    cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype) /real(ny, kind=mytype) &
+               / real(nz, kind=mytype)
+    !$acc end kernels
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
        do j = sp%xst(2), sp%xen(2)
@@ -1544,9 +1776,13 @@ contains
     ! post-processing in spectral space
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) + tmp2 * az(k), &
@@ -1558,11 +1794,16 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bx(i) + tmp2 * ax(i), &
@@ -1575,15 +1816,27 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN Y
     ! NEED TO BE IN Y PENCILS!!!!!!!!!!!!!!!
+    cptr = c_loc(fl%wk2(1))
+    call c_f_pointer(cptr, tcw2, sp%ysz)
+    cw2(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2
+
     call transpose_x_to_y(cw1,cw2,sp)
 
-    do k = sp%yst(3), sp%yen(3)
-       do i = sp%yst(1), sp%yen(1)
-          cw2b(i,1,k) = cw2(i,1,k)
-          do j = 2, ny      
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw2b, sp%ysz)
+    cw2b(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2b
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do i = nxst, nxen
+          do j = 2, ny
+             if(j==2) cw2b(i,1,k) = cw2(i,1,k)
              tmp1 = rl(cw2(i,j,k))
              tmp2 = iy(cw2(i,j,k))
              tmp3 = rl(cw2(i,ny-j+2,k))
@@ -1601,6 +1854,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     do k = sp%yst(3), sp%yen(3)
        do j = sp%yst(2), sp%yen(2)
@@ -1614,23 +1869,27 @@ contains
     end do
 #endif
 
-    if (istret == 0) then 
+    if (istret == 0) then
 
        ! Solve Poisson
        ! doing wave number division in Y-pencil
-       do k = sp%yst(3), sp%yen(3)
-          do j = sp%yst(2), sp%yen(2)
-             do i = sp%yst(1), sp%yen(1)
+       nxst = sp%yst(1); nxen = sp%yen(1)
+       nyst = sp%yst(2); nyen = sp%yen(2)
+       nzst = sp%yst(3); nzen = sp%yen(3)
+       !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2)
+       do k = nzst, nzen
+          do j = nyst, nyen
+             do i = nxst, nxen
                 tmp1 = rl(kxyz(i,j,k))
                 tmp2 = iy(kxyz(i,j,k))
                 !CANNOT DO A DIVISION BY ZERO
-                if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) < epsilon)) then    
+                if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) < epsilon)) then
                    cw2b(i,j,k) = cx(zero, zero)
                 end if
                 if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) >= epsilon)) then
                    cw2b(i,j,k) = cx(zero, iy(cw2b(i,j,k)) / (-tmp2))
                 end if
-                if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) < epsilon)) then    
+                if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) < epsilon)) then
                    cw2b(i,j,k) = cx(rl(cw2b(i,j,k)) / (-tmp1), zero)
                 end if
                 if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) >= epsilon)) then
@@ -1639,9 +1898,16 @@ contains
              end do
           end do
        end do
+       !$acc end parallel loop
 
     else
-       call matrice_refinement()
+
+       cptr = c_loc(fl%wk3(1))
+       call c_f_pointer(cptr, tcw22, sp%ysz)
+       cw22(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw22
+
+       call matrice_refinement(cw2, cw22)
+
        !write(*,*) 'PO_010 ii1 A rl ', rl(a(1,1,1,1)),rl(a(1,1,1,2)),rl(a(1,1,1,3)),&
        !                              rl(a(1,1,1,4)),rl(a(1,1,1,5))
        !write(*,*) 'PO_010 ii1 A iy ', iy(a(1,1,1,1)),iy(a(1,1,1,2)),iy(a(1,1,1,3)),&
@@ -1672,50 +1938,96 @@ contains
        !                             rl(a3(5,5,5,4)),rl(a3(5,5,5,5))
        !write(*,*) 'PO_010 ii5 A3 iy ', iy(a3(5,5,5,1)),iy(a3(5,5,5,2)),iy(a3(5,5,5,3)),&
        !                             iy(a3(5,5,5,4)),iy(a3(5,5,5,5))
+
+       cptr = c_loc(fl%wk4(1))
+       call c_f_pointer(cptr, tcw2c, sp%ysz)
+       cw2c(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2c
+
        if (istret /= 3) then
-          cw2 = zero
-          cw2c = zero
-          do k = sp%yst(3), sp%yen(3)
-             do j = 1, ny/2
-                do i = sp%yst(1), sp%yen(1)
-                   cw2(i,j,k) = cw2b(i,2*j-1,k) 
-                   cw2c(i,j,k) = cw2b(i,2*j,k)
+         nxst = sp%yst(1); nxen = sp%yen(1)
+         nyst = sp%yst(2); nyen = sp%yen(2)
+         nzst = sp%yst(3); nzen = sp%yen(3)
+         !$acc parallel loop collapse(3) default(present)
+         do k = nzst, nzen
+            do j = nyst, nyen
+               do i = nxst, nxen
+                  cw2(i,j,k)  = zero
+                  cw2c(i,j,k) = zero
                 enddo
              enddo
-          enddo
+         enddo
+         !$acc end parallel loop
+         !$acc parallel loop collapse(3) default(present)
+         do k = nzst, nzen
+            do j = 1, ny/2
+               do i = nxst, nxen
+                  cw2(i,j,k)  = cw2b(i,2*j-1,k)
+                  cw2c(i,j,k) = cw2b(i,2*j,k)
+               enddo
+            enddo
+         enddo
+         !$acc end parallel loop
 
-          call inversion5_v1(a,cw2,sp)
-          call inversion5_v1(a2,cw2c,sp)
+         call inversion5_v1(a,cw2,sp)
+         call inversion5_v1(a2,cw2c,sp)
 
-          cw2b = zero
-          do k = sp%yst(3), sp%yen(3)
-             do j = 1, ny-1,2
-                do i = sp%yst(1), sp%yen(1)
-                   cw2b(i,j,k) = cw2(i,(j+1)/2,k)
-                enddo
-             enddo
-             do j = 2, ny, 2
-                do i=sp%yst(1), sp%yen(1)
-                   cw2b(i,j,k) = cw2c(i,j/2,k)
-                enddo
-             enddo
-          enddo
+         nxst = sp%yst(1); nxen = sp%yen(1)
+         nyst = sp%yst(2); nyen = sp%yen(2)
+         nzst = sp%yst(3); nzen = sp%yen(3)
+         !$acc parallel loop collapse(3) default(present)
+         do k = nzst, nzen
+            do j = nyst, nyen
+               do i = nxst, nxen
+                  cw2b(i,j,k)  = zero
+               enddo
+            enddo
+         enddo
+         !$acc end parallel loop
+
+         nxst = sp%yst(1); nxen = sp%yen(1)
+         nzst = sp%yst(3); nzen = sp%yen(3)
+         !$acc parallel loop collapse(3) default(present)
+         do k = nzst, nzen
+            do j = 1, ny
+               do i = nxst, nxen
+                  if (mod(j,2) == 1) then
+                     cw2b(i,j,k) = cw2(i,(j+1)/2,k)
+                  else
+                     cw2b(i,j,k) = cw2c(i,j/2,k)
+                  end if
+               end do
+            end do
+         end do
+         !$acc end parallel loop
+
        else
-          do k = sp%yst(3), sp%yen(3)
-             do j = 1, ny
-                do i = sp%yst(1), sp%yen(1)
-                   cw2(i,j,k) = cw2b(i,j,k) 
-                enddo
-             enddo
-          enddo
+
+         nxst = sp%yst(1); nxen = sp%yen(1)
+         nzst = sp%yst(3); nzen = sp%yen(3)
+         !$acc parallel loop collapse(3) default(present)
+         do k = nzst, nzen
+            do j = 1, ny
+               do i = nxst, nxen
+                  cw2(i,j,k) = cw2b(i,j,k) 
+               enddo
+            enddo
+         enddo
+         !$acc end parallel loop
+
           call inversion5_v2(a3,cw2,sp)
-          do k = sp%yst(3), sp%yen(3)
-             do j = 1, ny
-                do i = sp%yst(1), sp%yen(1)
+
+         nxst = sp%yst(1); nxen = sp%yen(1)
+         nzst = sp%yst(3); nzen = sp%yen(3)
+         !$acc parallel loop collapse(3) default(present)
+         do k = nzst, nzen
+            do j = 1, ny
+               do i = nxst, nxen
                    cw2b(i,j,k) = cw2(i,j,k) 
-                enddo
-             enddo
-          enddo
+               enddo
+            enddo
+         enddo
+         !$acc end parallel loop
+
        endif
 
     endif
@@ -1743,10 +2055,15 @@ contains
     ! post-processing backward
 
     ! POST PROCESSING IN Y
-    do k = sp%yst(3), sp%yen(3)
-       do i = sp%yst(1), sp%yen(1)
-          cw2(i,1,k) = cw2b(i,1,k)
-          do j = 2, ny 
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    ! POST PROCESSING IN Y
+    do k = nzst, nzen
+       do i = nxst, nxen
+          do j = 2, ny
+             if(j==2) cw2(i,1,k) = cw2b(i,1,k)
              tmp1 = rl(cw2b(i,j,k))
              tmp2 = iy(cw2b(i,j,k))
              tmp3 = rl(cw2b(i,ny-j+2,k))
@@ -1764,9 +2081,15 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! Back to X-pencil
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call transpose_y_to_x(cw2,cw1,sp)
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3),sp%xen(3)
        do j = sp%xst(2),sp%xen(2)
@@ -1780,9 +2103,13 @@ contains
 #endif
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bx(i) - tmp2 * ax(i), &
@@ -1795,11 +2122,16 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) - tmp2 * az(k), &
@@ -1811,22 +2143,30 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! compute c2r transform, back to physical space
     call decomp_2d_fft_3d(cw1,rhs)
 
     ! rhs is in Z-pencil but requires global operations in Y
+    rw2(ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3))  => fl%wk1
+    rw2b(ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk2
+
     call transpose_z_to_y(rhs,rw2,ph)
-    do k = ph%yst(3), ph%yen(3)
-       do i = ph%yst(1), ph%yen(1)
-          do j = 1, ny/2
+
+    nxst = ph%yst(1); nxen = ph%yen(1)
+    nzst = ph%yst(3); nzen = ph%yen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = 1, ny/2
+          do i = nxst, nxen
              rw2b(i,2*j-1,k) = rw2(i,j,k)
-          enddo
-          do j=1,ny/2
-             rw2b(i,2*j,k) = rw2(i,ny-j+1,k)
-          enddo
-       enddo
+             rw2b(i,2*j  ,k) = rw2(i,ny-j+1,k)
+          end do
+       end do
     end do
+    !$acc end parallel loop
+
     call transpose_y_to_z(rw2b,rhs,ph)
 
     !  call decomp_2d_fft_finalize
@@ -1837,13 +2177,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Solving 3D Poisson equation: Neumann in Y; periodic in X & Z
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson_010_yskip(rhs)
+  subroutine poisson_010_yskip(rhs, fl)
     use tridiagonal_matrix_algorithm
+    use udf_type_mod
     !use dbg_schemes, only: abs_prec
-    use math_mod, only: cx, rl, iy!, only: abs_prec
+    use math_mod, only: cx, rl, iy, abs_prec
     implicit none
 
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(IN) :: fl
 
     complex(mytype) :: xyzk
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
@@ -1851,18 +2193,15 @@ contains
 
     !integer :: nx,ny,nz, 
     integer :: i,j,k,ii,jj,kk
-
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    real(mytype) :: bbb_real(ny), bbb_imag(ny), ty_real(ny), ty_imag(ny)
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw2
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw2
+    type(c_ptr) :: cptr
 
     !real(mytype) :: avg_param
 
 100 format(1x,a8,3I4,2F12.6)
-
-    ! nx = nx_global
-    ! ny = ny_global - 1
-    ! nz = nz_global
 
 #ifdef DEBUG_FFT
     if (nrank .eq. 0) write(*,*)'# Poisoon_010 Init'
@@ -1885,15 +2224,32 @@ contains
        call decomp_2d_fft_init(PHYSICAL_IN_Z,nx,ny,nz,opt_skip_XYZ_c2c=skip_c2c)
        fft_initialised = .true.
     end if
-    ! compute r2c transform 
+    ! compute r2c transform
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call decomp_2d_fft_3d(rhs,cw1)
 
     ! normalisation
     ! cw1 = cw1 / real(nx, kind=mytype) /real(ny, kind=mytype) &
     !      / real(nz, kind=mytype)
-    if (.not. skip_c2c(1)) cw1 = cw1 / real(nx, kind=mytype)
-    if (.not. skip_c2c(2)) cw1 = cw1 / real(ny, kind=mytype)
-    if (.not. skip_c2c(3)) cw1 = cw1 / real(nz, kind=mytype)
+    if (.not. skip_c2c(1)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype)
+      !$acc end kernels
+    end if
+    if (.not. skip_c2c(2)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(ny, kind=mytype)
+      !$acc end kernels
+    end if
+    if (.not. skip_c2c(3)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(nz, kind=mytype)
+      !$acc end kernels
+    end if
+
 ! #ifdef DEBUG_FFT
     ! do k = sp%xst(3), sp%xen(3)
     !    do j = sp%xst(2), sp%xen(2)
@@ -1907,9 +2263,13 @@ contains
     ! post-processing in spectral space
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) + tmp2 * az(k), &
@@ -1921,11 +2281,16 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bx(i) + tmp2 * ax(i), &
@@ -1938,178 +2303,28 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN Y
     ! NEED TO BE IN Y PENCILS!!!!!!!!!!!!!!!
+    cptr = c_loc(fl%wk2(1))
+    call c_f_pointer(cptr, tcw2, sp%ysz)
+    cw2(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2
+
     call transpose_x_to_y(cw1,cw2,sp)
-
-!     do k = sp%yst(3), sp%yen(3)
-!        do i = sp%yst(1), sp%yen(1)
-!           cw2b(i,1,k) = cw2(i,1,k)
-!           do j = 2, ny      
-!              tmp1 = rl(cw2(i,j,k))
-!              tmp2 = iy(cw2(i,j,k))
-!              tmp3 = rl(cw2(i,ny-j+2,k))
-!              tmp4 = iy(cw2(i,ny-j+2,k))
-!              xx1 = tmp1 * by(j)
-!              xx2 = tmp1 * ay(j)
-!              xx3 = tmp2 * by(j)
-!              xx4 = tmp2 * ay(j)
-!              xx5 = tmp3 * by(j)
-!              xx6 = tmp3 * ay(j)
-!              xx7 = tmp4 * by(j)
-!              xx8 = tmp4 * ay(j)
-!              cw2b(i,j,k) = half * cx(xx1+xx4+xx5-xx8, &
-!                                     -xx2+xx3+xx6+xx7)
-!           end do
-!        end do
-!     end do
-! #ifdef DEBUG_FFT
-!     do k = sp%yst(3), sp%yen(3)
-!        do j = sp%yst(2), sp%yen(2)
-!           do i = sp%yst(1), sp%yen(1)
-!              if (abs_prec(cw2b(i,j,k)) > 1.0e-4_mytype) then
-!                 write(*,100) 'after y',i,j,k,cw2b(i,j,k)
-!                 write(*,*)kxyz(i,j,k)
-!              end if
-!           end do
-!        end do
-!     end do
-! #endif
-
-!     if (istret == 0) then 
-
-!        ! Solve Poisson
-!        ! doing wave number division in Y-pencil
-!        do k = sp%yst(3), sp%yen(3)
-!           do j = sp%yst(2), sp%yen(2)
-!              do i = sp%yst(1), sp%yen(1)
-!                 tmp1 = rl(kxyz(i,j,k))
-!                 tmp2 = iy(kxyz(i,j,k))
-!                 !CANNOT DO A DIVISION BY ZERO
-!                 if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) < epsilon)) then    
-!                    cw2b(i,j,k) = cx(zero, zero)
-!                 end if
-!                 if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) >= epsilon)) then
-!                    cw2b(i,j,k) = cx(zero, iy(cw2b(i,j,k)) / (-tmp2))
-!                 end if
-!                 if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) < epsilon)) then    
-!                    cw2b(i,j,k) = cx(rl(cw2b(i,j,k)) / (-tmp1), zero)
-!                 end if
-!                 if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) >= epsilon)) then
-!                    cw2b(i,j,k) = cx(rl(cw2b(i,j,k)) / (-tmp1), iy(cw2b(i,j,k)) / (-tmp2))
-!                 end if
-!              end do
-!           end do
-!        end do
-
-!     else
-!        call matrice_refinement()
-!        !write(*,*) 'PO_010 ii1 A rl ', rl(a(1,1,1,1)),rl(a(1,1,1,2)),rl(a(1,1,1,3)),&
-!        !                              rl(a(1,1,1,4)),rl(a(1,1,1,5))
-!        !write(*,*) 'PO_010 ii1 A iy ', iy(a(1,1,1,1)),iy(a(1,1,1,2)),iy(a(1,1,1,3)),&
-!        !                              iy(a(1,1,1,4)),iy(a(1,1,1,5))
-!        !!                 
-!        !write(*,*) 'PO_010 ii5 A rl ', rl(a(5,5,5,1)),rl(a(5,5,5,2)),rl(a(5,5,5,3)),&
-!        !                              rl(a(5,5,5,4)),rl(a(5,5,5,5))
-!        !write(*,*) 'PO_010 ii5 A iy ', iy(a(5,5,5,1)),iy(a(5,5,5,2)),iy(a(5,5,5,3)),&
-!        !                              iy(a(5,5,5,4)),iy(a(5,5,5,5))
-!        !!
-!        !write(*,*) 'PO_010 ii1 A2 rl ', rl(a2(1,1,1,1)),rl(a2(1,1,1,2)),rl(a2(1,1,1,3)),&
-!        !                               rl(a2(1,1,1,4)),rl(a2(1,1,1,5))
-!        !write(*,*) 'PO_010 ii1 A2 iy ', iy(a2(1,1,1,1)),iy(a2(1,1,1,2)),iy(a2(1,1,1,3)),&
-!        !                               iy(a2(1,1,1,4)),iy(a2(1,1,1,5))
-!        !!                 
-!        !write(*,*) 'PO_010 ii5 A2 rl ', rl(a2(5,5,5,1)),rl(a2(5,5,5,2)),rl(a2(5,5,5,3)),&
-!        !                               rl(a2(5,5,5,4)),rl(a2(5,5,5,5))
-!        !write(*,*) 'PO_010 ii5 A2 iy ', iy(a2(5,5,5,1)),iy(a2(5,5,5,2)),iy(a2(5,5,5,3)),&
-!        !                               iy(a2(5,5,5,4)),iy(a2(5,5,5,5))
-!        !!!
-!        !!!
-!        !write(*,*) 'PO_010 ii1 A3 rl ', rl(a3(1,1,1,1)),rl(a3(1,1,1,2)),rl(a3(1,1,1,3)),&
-!        !                          rl(a3(1,1,1,4)),rl(a3(1,1,1,5))
-!        !write(*,*) 'PO_010 ii1 A3 iy ', iy(a3(1,1,1,1)),iy(a3(1,1,1,2)),iy(a3(1,1,1,3)),&
-!        !                          iy(a3(1,1,1,4)),iy(a3(1,1,1,5))
-!        !!
-!        !write(*,*) 'PO_010 ii5 A3 rl ', rl(a3(5,5,5,1)),rl(a3(5,5,5,2)),rl(a3(5,5,5,3)),&
-!        !                             rl(a3(5,5,5,4)),rl(a3(5,5,5,5))
-!        !write(*,*) 'PO_010 ii5 A3 iy ', iy(a3(5,5,5,1)),iy(a3(5,5,5,2)),iy(a3(5,5,5,3)),&
-!        !                             iy(a3(5,5,5,4)),iy(a3(5,5,5,5))
-!        if (istret /= 3) then
-!           cw2 = zero
-!           cw2c = zero
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = 1, ny/2
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2(i,j,k) = cw2b(i,2*j-1,k) 
-!                    cw2c(i,j,k) = cw2b(i,2*j,k)
-!                 enddo
-!              enddo
-!           enddo
-
-!           call inversion5_v1(a,cw2,sp)
-!           call inversion5_v1(a2,cw2c,sp)
-
-!           cw2b = zero
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = 1, ny-1,2
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2b(i,j,k) = cw2(i,(j+1)/2,k)
-!                 enddo
-!              enddo
-!              do j = 2, ny, 2
-!                 do i=sp%yst(1), sp%yen(1)
-!                    cw2b(i,j,k) = cw2c(i,j/2,k)
-!                 enddo
-!              enddo
-!           enddo
-!        else
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = 1, ny
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2(i,j,k) = cw2b(i,j,k) 
-!                 enddo
-!              enddo
-!           enddo
-!           call inversion5_v2(a3,cw2,sp)
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = 1, ny
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2b(i,j,k) = cw2(i,j,k) 
-!                 enddo
-!              enddo
-!           enddo
-!        endif
-
-!     endif
-
-!    !we are in Y pencil, !check below necessary? , commented by WW
-!    !  do k = sp%yst(3), sp%yen(3)  
-!    !     do i = sp%yst(1), sp%yen(1)
-!    !        if ((i == nx/2+1).and.(k == nz/2+1)) then
-!    !           cw2b(i,:,k) = zero
-!    !        endif
-!    !     enddo
-!    !  enddo
-! #ifdef DEBUG_FFT
-!     do k = sp%yst(3), sp%yen(3)
-!        do j = sp%yst(2), sp%yen(2)
-!           do i = sp%yst(1), sp%yen(1)
-!              if (abs_prec(cw2b(i,j,k)) > 1.0e-4_mytype) then
-!                 write(*,100) 'AFTER',i,j,k,cw2b(i,j,k)
-!                 write(*,*)kxyz(i,j,k)
-!              end if
-!           end do
-!        end do
-!     end do
-! #endif
 
 !-----------------------------------------------------------
 ! TMDA in the Y direction (stretching grids direction)
 !-----------------------------------------------------------
-    do i = sp%yst(1), sp%yen(1)
-      do k = sp%yst(3), sp%yen(3)
-        do j = sp%yst(2), sp%yen(2)
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nyst = sp%yst(2); nyen = sp%yen(2)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(2) default(present) &
+    !$acc&         private(bbb_real, bbb_imag, ty_real, ty_imag)
+    do k = nzst, nzen
+      do i = nxst, nxen
+        !$acc loop seq
+        do j = nyst, nyen
           bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
           bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
           ty_real(j) = rl(cw2(i, j, k))
@@ -2119,40 +2334,47 @@ contains
         !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
         call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
         call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
-        do j =sp%yst(2), sp%yen(2)
+        !$acc loop seq
+        do j = nyst, nyen
           cw2(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
-        end do  
-      end do 
+        end do
+      end do
     end do
+    !$acc end parallel loop
 
-    ! post-processing backward
-
-    ! ! POST PROCESSING IN Y
-    ! do k = sp%yst(3), sp%yen(3)
-    !    do i = sp%yst(1), sp%yen(1)
-    !       cw2(i,1,k) = cw2b(i,1,k)
-    !       do j = 2, ny 
-    !          tmp1 = rl(cw2b(i,j,k))
-    !          tmp2 = iy(cw2b(i,j,k))
-    !          tmp3 = rl(cw2b(i,ny-j+2,k))
-    !          tmp4 = iy(cw2b(i,ny-j+2,k))
-    !          xx1 = tmp1 * by(j)
-    !          xx2 = tmp1 * ay(j)
-    !          xx3 = tmp2 * by(j)
-    !          xx4 = tmp2 * ay(j)
-    !          xx5 = tmp3 * by(j)
-    !          xx6 = tmp3 * ay(j)
-    !          xx7 = tmp4 * by(j)
-    !          xx8 = tmp4 * ay(j)
-    !          cw2(i,j,k) = cx(xx1-xx4+xx6+xx7, &
-    !                       -(-xx2-xx3+xx5-xx8))
-    !       end do
-    !    end do
-    ! end do
+!!   perform TDMA on CPU for checking
+!    !$acc update self(cw2)
+!    nxst = sp%yst(1); nxen = sp%yen(1)
+!    nyst = sp%yst(2); nyen = sp%yen(2)
+!    nzst = sp%yst(3); nzen = sp%yen(3)
+!    do k = nzst, nzen
+!      do i = nxst, nxen
+!        do j = nyst, nyen
+!          bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
+!          bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
+!          ty_real(j) = rl(cw2(i, j, k))
+!          ty_imag(j) = iy(cw2(i, j, k))
+!          !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test31', ty(j), i, j, k
+!        end do
+!        !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
+!        call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
+!        call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
+!        do j = nyst, nyen
+!          cw2(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
+!          !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
+!        end do
+!      end do
+!    end do
+!    !$acc update device(cw2)
 
     ! Back to X-pencil
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call transpose_y_to_x(cw2,cw1,sp)
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3),sp%xen(3)
        do j = sp%xst(2),sp%xen(2)
@@ -2166,9 +2388,13 @@ contains
 #endif
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bx(i) - tmp2 * ax(i), &
@@ -2181,11 +2407,16 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) - tmp2 * az(k), &
@@ -2197,23 +2428,10 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! compute c2r transform, back to physical space
     call decomp_2d_fft_3d(cw1,rhs)
-
-    ! ! rhs is in Z-pencil but requires global operations in Y
-    ! call transpose_z_to_y(rhs,rw2,ph)
-    ! do k = ph%yst(3), ph%yen(3)
-    !    do i = ph%yst(1), ph%yen(1)
-    !       do j = 1, ny/2
-    !          rw2b(i,2*j-1,k) = rw2(i,j,k)
-    !       enddo
-    !       do j=1,ny/2
-    !          rw2b(i,2*j,k) = rw2(i,ny-j+1,k)
-    !       enddo
-    !    enddo
-    ! end do
-    ! call transpose_y_to_z(rw2b,rhs,ph)
 
     !  call decomp_2d_fft_finalize
 
@@ -2222,65 +2440,77 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Solving 3D Poisson equation: Neumann in X, Y; Neumann/periodic in Z
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson_11x(rhs)
+  subroutine poisson_11x(rhs, fl)
     !use dbg_schemes, only: abs_prec
-    use math_mod, only: cx, rl, iy!, only: abs_prec
+    use math_mod, only: cx, rl, iy, abs_prec
+    use udf_type_mod
+
     implicit none
 
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(in) :: fl
 
     complex(mytype) :: xyzk
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
-    !integer :: nx,ny,nz, 
     integer :: i,j,k
 
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    integer :: nxsz, nysz, nzsz
+    real(mytype),    pointer, dimension(:,:,:)   :: rw1, rw1b, rw2, rw2b, rw3
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw1b, cw2, cw22, cw2b, cw2c
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw1b, tcw2, tcw22, tcw2b, tcw2c
+    type(c_ptr) :: cptr
+
 #ifdef DEBUG_FFT
     real(mytype) avg_param
 #endif
 
 100 format(1x,a8,3I4,2F12.6)
 
-    ! nx = nx_global - 1
-    ! ny = ny_global - 1
-    ! !write(*,*) 'Poisson_11x'
-    ! if (bcz == 1) then
-    !    nz = nz_global - 1
-    ! else if (bcz == 0) then
-    !    nz = nz_global
-    ! end if
+    rw1 (1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk1
+    rw1b(1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk2
+    rw2 (ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk3
+    rw2b(ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk4
+    rw3 (ph%zst(1):ph%zen(1),ph%zst(2):ph%zen(2),1:nz) => fl%wk5
 
-    if (bcz == 1) then  
-       do j = 1, ph%zsz(2)
-          do i = 1, ph%zsz(1)
-             do k = 1, nz/2
-                rw3(i,j,k) = rhs(i,j,2*(k-1)+1)
-             end do
-             do k = nz/2 + 1, nz
-                rw3(i,j,k) = rhs(i,j,2*nz-2*k+2)
+    if (bcz == 1) then
+      nxsz = ph%zsz(1); nysz = ph%zsz(2)
+      !$acc parallel loop collapse(3) default(present)
+       do j = 1, nysz
+          do i = 1, nxsz
+             do k = 1, nz
+                if(k < nz/2+1) then
+                   rw3(i,j,k) = rhs(i,j,2*(k-1)+1)
+                else
+                   rw3(i,j,k) = rhs(i,j,2*nz-2*k+2)
+                end if
              end do
           end do
        end do
+       !$acc end parallel loop
        call transpose_z_to_y(rw3,rw2,ph)
     else if (bcz == 0) then
        call transpose_z_to_y(rhs,rw2,ph)
     end if
 
-
-    do k = ph%yst(3), ph%yen(3)
-       do i = ph%yst(1), ph%yen(1)
-          do j = 1, ny/2
-             rw2b(i,j,k) = rw2(i,2*(j-1)+1,k)
-          end do
-          do j = ny/2 + 1, ny
-             rw2b(i,j,k) = rw2(i,2*ny-2*j+2,k)
+    nxst = ph%yst(1); nxen = ph%yen(1)
+    nzst = ph%yst(3); nzen = ph%yen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do i = nxst, nxen
+          do j = 1, ny
+             if(j < ny/2+1) then
+                rw2b(i,j,k) = rw2(i,2*(j-1)+1,k)
+             else
+                rw2b(i,j,k) = rw2(i,2*ny-2*j+2,k)
+             end if
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (rw2b, avg_param)
@@ -2292,16 +2522,22 @@ contains
     ! Assuming homogeneous Neumann symmetry.
     call transpose_y_to_x(rw2b,rw1,ph)
 
-    do k = ph%xst(3), ph%xen(3)
-       do j = ph%xst(2), ph%xen(2)
-          do i = 1, nx/2
-             rw1b(i,j,k) = rw1(2*(i-1)+1,j,k)
-          end do
-          do i = nx/2 + 1, nx
-             rw1b(i,j,k) = rw1(2*nx-2*i+2,j,k)
-          end do
-       end do
+    nyst = ph%xst(2); nyen = ph%xen(2)
+    nzst = ph%xst(3); nzen = ph%xen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = 1, nx
+             if(i < nx/2+1) then
+                rw1b(i,j,k) = rw1(2*(i-1)+1,j,k)
+             else
+                rw1b(i,j,k) = rw1(2*nx-2*i+2,j,k)
+             end if
+          enddo
+       enddo
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (rw1b, avg_param)
@@ -2318,12 +2554,18 @@ contains
     end if
 
     ! compute r2c transform 
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
 
     call decomp_2d_fft_3d(rhs,cw1)
 
     ! normalisation
-    cw1 = cw1 / real(nx, kind=mytype) /real(ny, kind=mytype) &
+    !$acc kernels default(present)
+    cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype) /real(ny, kind=mytype) &
          / real(nz, kind=mytype)
+    !$acc end kernels
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3),sp%xen(3)
        do j = sp%xst(2),sp%xen(2)
@@ -2339,9 +2581,13 @@ contains
     ! post-processing in spectral space
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) + tmp2 * az(k), &
@@ -2353,6 +2599,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw1), avg_param)
@@ -2361,11 +2609,24 @@ contains
 
     ! POST PROCESSING IN Y
     ! WE HAVE TO BE IN Y PENCILS
+    cptr = c_loc(fl%wk2(1))
+    call c_f_pointer(cptr, tcw2, sp%ysz)
+    cw2(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2
+
+    cptr = c_loc(fl%wk3(1))
+    call c_f_pointer(cptr, tcw2b, sp%ysz)
+    cw2b(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2b
+
     call transpose_x_to_y(cw1,cw2,sp)
-    do k = sp%yst(3), sp%yen(3)
-       do i = sp%yst(1), sp%yen(1)
-          cw2b(i,1,k) = cw2(i,1,k)
-          do j = 2, ny 
+
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do i = nxst, nxen
+          do j = 2, ny
+             if(j==2) cw2b(i,1,k) = cw2(i,1,k)
              tmp1 = rl(cw2(i,j,k))
              tmp2 = iy(cw2(i,j,k))
              tmp3 = rl(cw2(i,ny-j+2,k))
@@ -2383,6 +2644,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw2), avg_param)
@@ -2391,6 +2654,7 @@ contains
 
     ! back to X-pencil
     call transpose_y_to_x(cw2b,cw1,sp)
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
        do j = sp%xst(2), sp%xen(2)
@@ -2406,11 +2670,19 @@ contains
     if (nrank == 0) write(*,*)'## Poisson11X Back to X cw1 ', avg_param
 #endif
 
+    cptr = c_loc(fl%wk5(1))
+    call c_f_pointer(cptr, tcw1b, sp%xsz)
+    cw1b(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1b
+
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          cw1b(1,j,k) = cw1(1,j,k)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 2, nx
+             if(i==2) cw1b(1,j,k) = cw1(1,j,k)
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              tmp3 = rl(cw1(nx-i+2,j,k))
@@ -2428,6 +2700,7 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
@@ -2447,27 +2720,33 @@ contains
     if (istret == 0) then
 
        ! Solve Poisson
-       do k = sp%xst(3), sp%xen(3)
-          do j = sp%xst(2), sp%xen(2)
-             do i = sp%xst(1), sp%xen(1)
+       nxst = sp%xst(1); nxen = sp%xen(1)
+       nyst = sp%xst(2); nyen = sp%xen(2)
+       nzst = sp%xst(3); nzen = sp%xen(3)
+       !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2)
+       do k = nzst, nzen
+         do j = nyst, nyen
+             do i = nxst, nxen
                 tmp1 = rl(kxyz(i,j,k))
                 tmp2 = iy(kxyz(i,j,k))
-                !CANNOT DO A DIVISION BY ZERO
-                if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) < epsilon)) then    
+                ! CANNOT DO A DIVISION BY ZERO
+                if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) < epsilon)) then
                    cw1b(i,j,k) = cx(zero, zero)
                 end if
                 if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) >= epsilon)) then
                    cw1b(i,j,k) = cx(zero, iy(cw1b(i,j,k)) / (-tmp2))
                 end if
-                if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) < epsilon)) then    
+                if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) < epsilon)) then
                    cw1b(i,j,k) = cx(rl(cw1b(i,j,k)) / (-tmp1), zero)
                 end if
                 if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) >= epsilon)) then
-                   cw1b(i,j,k) = cx(real(cw1b(i,j,k)) / (-tmp1), iy(cw1b(i,j,k)) / (-tmp2))
+                   cw1b(i,j,k) = cx(rl(cw1b(i,j,k)) / (-tmp1), iy(cw1b(i,j,k)) / (-tmp2))
                 end if
              end do
           end do
        end do
+      !$acc end parallel loop
+
 #ifdef DEBUG_FFT
        avg_param = zero
        call avg3d (abs_prec(cw1b), avg_param)
@@ -2475,7 +2754,17 @@ contains
 #endif
 
     else
-       call matrice_refinement()
+
+       cptr = c_loc(fl%wk1(1))
+       call c_f_pointer(cptr, tcw22, sp%ysz)
+       cw22(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw22
+
+       cptr = c_loc(fl%wk4(1))
+       call c_f_pointer(cptr, tcw2c, sp%ysz)
+       cw2c(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2c
+
+       call matrice_refinement(cw2, cw22)
+
        !write(*,*) 'PO_11X ii1 arl ', rl(a(1,1,1,1)),rl(a(1,1,1,2)),rl(a(1,1,1,3)),&
        !                              rl(a(1,1,1,4)),rl(a(1,1,1,5))
        !write(*,*) 'PO_11X ii1 aiy ', iy(a(1,1,1,1)),iy(a(1,1,1,2)),iy(a(1,1,1,3)),&
@@ -2512,58 +2801,99 @@ contains
        !we are now in Y pencil
 
        if (istret /= 3) then
-          cw2 = zero
-          cw2c = zero
-          do k = sp%yst(3), sp%yen(3)
+          nxst = sp%yst(1); nxen = sp%yen(1)
+          nyst = sp%yst(2); nyen = sp%yen(2)
+          nzst = sp%yst(3); nzen = sp%yen(3)
+          !$acc parallel loop collapse(3) default(present)
+          do k = nzst, nzen
+             do j = nyst, nyen
+                do i = nxst, nxen
+                   cw2(i,j,k)  = zero
+                   cw2c(i,j,k) = zero
+                enddo
+             enddo
+          enddo
+          !$acc end parallel loop
+          !$acc parallel loop collapse(3) default(present)
+          do k = nzst, nzen
              do j = 1, ny/2
-                do i = sp%yst(1), sp%yen(1)
-                   cw2(i,j,k) = cw2b(i,2*j-1,k) 
+                do i = nxst, nxen
+                   cw2(i,j,k)  = cw2b(i,2*j-1,k)
                    cw2c(i,j,k) = cw2b(i,2*j,k)
                 enddo
              enddo
           enddo
+          !$acc end parallel loop
 
           call inversion5_v1(a,cw2,sp)
           call inversion5_v1(a2,cw2c,sp)
 
-          cw2b = zero
-          do k = sp%yst(3), sp%yen(3)
-             do j = 1, ny-1, 2
-                do i=sp%yst(1), sp%yen(1)
-                   cw2b(i,j,k) = cw2(i,(j+1)/2,k)
-                enddo
-             enddo
-             do j = 2, ny, 2
-                do i = sp%yst(1), sp%yen(1)
-                   cw2b(i,j,k) = cw2c(i,j/2,k)
+          nxst = sp%yst(1); nxen = sp%yen(1)
+          nyst = sp%yst(2); nyen = sp%yen(2)
+          nzst = sp%yst(3); nzen = sp%yen(3)
+          !$acc parallel loop collapse(3) default(present)
+          do k = nzst, nzen
+             do j = nyst, nyen
+                do i = nxst, nxen
+                   cw2b(i,j,k)  = zero
                 enddo
              enddo
           enddo
+          !$acc end parallel loop
+
+          nxst = sp%yst(1); nxen = sp%yen(1)
+          nzst = sp%yst(3); nzen = sp%yen(3)
+          !$acc parallel loop collapse(3) default(present)
+          do k = nzst, nzen
+             do j = 1, ny
+                do i = nxst, nxen
+                   if (mod(j,2) == 1) then
+                      cw2b(i,j,k) = cw2(i,(j+1)/2,k)
+                   else
+                      cw2b(i,j,k) = cw2c(i,j/2,k)
+                   end if
+                end do
+             end do
+          end do
+          !$acc end parallel loop
+
 #ifdef DEBUG_FFT
           avg_param = zero
           call avg3d (abs_prec(cw2b), avg_param)
           if (nrank == 0) write(*,*)'## Poisson11X Solve Pois istret < 3 ', avg_param
 #endif
        else
-          cw2 = zero
-          do k = sp%yst(3), sp%yen(3)
-             do j = sp%yst(2), sp%yen(2)
-                do i = sp%yst(1), sp%yen(1)
+
+          nxst = sp%yst(1); nxen = sp%yen(1)
+          nyst = sp%yst(2); nyen = sp%yen(2)
+          nzst = sp%yst(3); nzen = sp%yen(3)
+          !$acc parallel loop collapse(3) default(present)
+          do k = nzst, nzen
+             do j = nyst, nyen
+                do i = nxst, nxen
                    cw2(i,j,k) = cw2b(i,j,k) 
                 enddo
              enddo
           enddo
+          !$acc end parallel loop
 
           call inversion5_v2(a3,cw2,sp)
 
-          do k = sp%yst(3), sp%yen(3)
-             do j = sp%yst(2), sp%yen(2)
-                do i = sp%yst(1), sp%yen(1)
+          nxst = sp%yst(1); nxen = sp%yen(1)
+          nyst = sp%yst(2); nyen = sp%yen(2)
+          nzst = sp%yst(3); nzen = sp%yen(3)
+          !$acc parallel loop collapse(3) default(present)
+          do k = nzst, nzen
+             do j = nyst, nyen
+                do i = nxst, nxen
                    cw2b(i,j,k) = cw2(i,j,k) 
                 enddo
              enddo
           enddo
+         !$acc end parallel loop
+
        endif
+
 #ifdef DEBUG_FFT
           avg_param = zero
           call avg3d (abs_prec(cw2b), avg_param)
@@ -2571,6 +2901,11 @@ contains
 #endif
        !we have to go back in X pencils
        call transpose_y_to_x(cw2b,cw1b,sp)
+
+       cptr = c_loc(fl%wk1(1))
+       call c_f_pointer(cptr, tcw1, sp%xsz)
+       cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     endif
 
 #ifdef DEBUG_FFT
@@ -2587,13 +2922,18 @@ contains
     call avg3d (abs_prec(cw1b), avg_param)
     if (nrank == 0) write(*,*)'## Poisson11X Solve Pois AFTER ', avg_param
 #endif
+
     !stop
     ! post-processing backward
 
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          cw1(1,j,k) = cw1b(1,j,k)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 2, nx
+             if(i==2) cw1(1,j,k) = cw1b(1,j,k)
              tmp1 = rl(cw1b(i,j,k))
              tmp2 = iy(cw1b(i,j,k))
              tmp3 = rl(cw1b(nx-i+2,j,k))
@@ -2607,10 +2947,12 @@ contains
              xx7 = tmp4 * bx(i)
              xx8 = tmp4 * ax(i)
              cw1(i,j,k) = cx(xx1-xx4+xx6+xx7, &
-                          -(-xx2-xx3+xx5-xx8))
+                           -(-xx2-xx3+xx5-xx8))
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
        do j = sp%xst(2), sp%xen(2)
@@ -2629,10 +2971,16 @@ contains
     ! POST PROCESSING IN Y
     ! NEED to be in Y-pencil
     call transpose_x_to_y(cw1,cw2,sp)
-    do k = sp%yst(3), sp%yen(3)
-       do i = sp%yst(1), sp%yen(1)
-          cw2b(i,1,k) = cw2(i,1,k)
+
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    ! POST PROCESSING IN Y
+    do k = nzst, nzen
+       do i = nxst, nxen
           do j = 2, ny
+             if(j==2) cw2b(i,1,k) = cw2(i,1,k)
              tmp1 = rl(cw2(i,j,k))
              tmp2 = iy(cw2(i,j,k))
              tmp3 = rl(cw2(i,ny-j+2,k))
@@ -2650,6 +2998,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     do k = sp%yst(3), sp%yen(3)
        do j = sp%yst(2), sp%yen(2)
@@ -2668,9 +3018,13 @@ contains
     call transpose_y_to_x(cw2b,cw1,sp)
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) - tmp2 * az(k), &
@@ -2682,6 +3036,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw1), avg_param)
@@ -2690,49 +3046,64 @@ contains
 
     ! compute c2r transform, back to physical space
     call decomp_2d_fft_3d(cw1,rhs)
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (rhs, avg_param)
     if (nrank == 0) write(*,*)'## Poisson11X Solve Pois Back Phy RHS ', avg_param
 #endif
 
-    if (bcz == 1) then 
-       do j = 1, ph%zsz(2)
-          do i = 1, ph%zsz(1)
+    rw1 (1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk1
+    rw1b(1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk2
+    rw2 (ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk3
+    rw2b(ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk4
+    rw3 (ph%zst(1):ph%zen(1),ph%zst(2):ph%zen(2),1:nz) => fl%wk5
+
+    if (bcz == 1) then
+      nxsz = ph%zsz(1); nysz = ph%zsz(2)
+      !$acc parallel loop collapse(3) default(present)
+       do j = 1, nysz
+          do i = 1, nxsz
              do k = 1, nz/2
                 rw3(i,j,2*k-1) = rhs(i,j,k)
-             end do
-             do k = 1, nz/2
                 rw3(i,j,2*k) = rhs(i,j,nz-k+1)
              end do
           end do
        end do
+       !$acc end parallel loop
        call transpose_z_to_y(rw3,rw2,ph)
-    else if (bcz == 0) then 
-       call transpose_z_to_y(rhs,rw2,ph)   
+    else if (bcz == 0) then
+       call transpose_z_to_y(rhs,rw2,ph)
     end if
 
-    do k = ph%yst(3), ph%yen(3)
-       do i = ph%yst(1), ph%yen(1)
-          do j = 1, ny/2
+    nxst = ph%yst(1); nxen = ph%yen(1)
+    nzst = ph%yst(3); nzen = ph%yen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = 1, ny/2
+          do i = nxst, nxen
              rw2b(i,2*j-1,k) = rw2(i,j,k)
+             rw2b(i,2*j  ,k) = rw2(i,ny-j+1,k)
           end do
-          do j = 1, ny/2
-             rw2b(i,2*j,k) = rw2(i,ny-j+1,k)
-          end do
-       enddo
+       end do
     end do
+    !$acc end parallel loop
+
     call transpose_y_to_x(rw2b,rw1,ph)
-    do k = ph%xst(3), ph%xen(3)
-       do j = ph%xst(2), ph%xen(2)
+
+    nyst = ph%xst(2); nyen = ph%xen(2)
+    nzst = ph%xst(3); nzen = ph%xen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 1, nx/2
              rw1b(2*i-1,j,k) = rw1(i,j,k)
-          enddo
-          do i = 1, nx/2
-             rw1b(2*i,j,k) = rw1(nx-i+1,j,k)
+             rw1b(2*i  ,j,k) = rw1(nx-i+1,j,k)
           enddo
        enddo
     end do
+    !$acc end parallel loop
+
     call transpose_x_to_y(rw1b,rw2,ph)
     call transpose_y_to_z(rw2,rhs,ph)
 
@@ -2744,86 +3115,81 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Solving 3D Poisson equation: Neumann in X, Y; Neumann/periodic in Z
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson_11x_yskip(rhs)
+  subroutine poisson_11x_yskip(rhs, fl)
     use tridiagonal_matrix_algorithm
+    use udf_type_mod
     !use dbg_schemes, only: abs_prec
-    use math_mod, only: cx, rl, iy!, only: abs_prec
+    use math_mod, only: cx, rl, iy, abs_prec
+
     implicit none
 
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(in) :: fl
 
     complex(mytype) :: xyzk
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
-    !integer :: nx,ny,nz, 
     integer :: i,j,k
 
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    integer :: nxsz, nysz, nzsz
+    real(mytype) :: bbb_real(ny), bbb_imag(ny), ty_real(ny), ty_imag(ny)
+    real(mytype),    pointer, dimension(:,:,:)   :: rw1, rw1b, rw2, rw3
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw1b, cw2b
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw1b, tcw2b
+    type(c_ptr) :: cptr
+
 #ifdef DEBUG_FFT
     real(mytype) avg_param
 #endif
 
 100 format(1x,a8,3I4,2F12.6)
 
-    ! nx = nx_global - 1
-    ! ny = ny_global - 1
-    ! !write(*,*) 'Poisson_11x'
-    ! if (bcz == 1) then
-    !    nz = nz_global - 1
-    ! else if (bcz == 0) then
-    !    nz = nz_global
-    ! end if
+    rw1 (1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk1
+    rw1b(1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk2
+    rw2 (ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk3
+    rw3 (ph%zst(1):ph%zen(1),ph%zst(2):ph%zen(2),1:nz) => fl%wk4
 
-    if (bcz == 1) then  
-       do j = 1, ph%zsz(2)
-          do i = 1, ph%zsz(1)
-             do k = 1, nz/2
-                rw3(i,j,k) = rhs(i,j,2*(k-1)+1)
-             end do
-             do k = nz/2 + 1, nz
-                rw3(i,j,k) = rhs(i,j,2*nz-2*k+2)
+    if (bcz == 1) then
+      nxsz = ph%zsz(1); nysz = ph%zsz(2)
+      !$acc parallel loop collapse(3) default(present)
+       do j = 1, nysz
+          do i = 1, nxsz
+             do k = 1, nz
+                if(k < nz/2+1) then
+                   rw3(i,j,k) = rhs(i,j,2*(k-1)+1)
+                else
+                   rw3(i,j,k) = rhs(i,j,2*nz-2*k+2)
+                end if
              end do
           end do
        end do
+       !$acc end parallel loop
        call transpose_z_to_y(rw3,rw2,ph)
     else if (bcz == 0) then
        call transpose_z_to_y(rhs,rw2,ph)
     end if
 
+    ! the global operations in X
+    call transpose_y_to_x(rw2,rw1,ph)
 
-!     do k = ph%yst(3), ph%yen(3)
-!        do i = ph%yst(1), ph%yen(1)
-!           do j = 1, ny/2
-!              rw2b(i,j,k) = rw2(i,2*(j-1)+1,k)
-!           end do
-!           do j = ny/2 + 1, ny
-!              rw2b(i,j,k) = rw2(i,2*ny-2*j+2,k)
-!           end do
-!        end do
-!     end do
-! #ifdef DEBUG_FFT
-!     avg_param = zero
-!     call avg3d (rw2b, avg_param)
-!     if (nrank == 0) write(*,*)'## Poisson11X Start rw2 ', avg_param
-! #endif
-
-!     ! the global operations in X
-!     call transpose_y_to_x(rw2b,rw1,ph)
-      call transpose_y_to_x(rw2,rw1,ph)
-
-    do k = ph%xst(3), ph%xen(3)
-       do j = ph%xst(2), ph%xen(2)
-          do i = 1, nx/2
-             rw1b(i,j,k) = rw1(2*(i-1)+1,j,k)
-          end do
-          do i = nx/2 + 1, nx
-             rw1b(i,j,k) = rw1(2*nx-2*i+2,j,k)
-          end do
-       end do
+    nyst = ph%xst(2); nyen = ph%xen(2)
+    nzst = ph%xst(3); nzen = ph%xen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = 1, nx
+             if(i < nx/2+1) then
+                rw1b(i,j,k) = rw1(2*(i-1)+1,j,k)
+             else
+                rw1b(i,j,k) = rw1(2*nx-2*i+2,j,k)
+             end if
+          enddo
+       enddo
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (rw1b, avg_param)
@@ -2839,35 +3205,52 @@ contains
        fft_initialised = .true.
     end if
 
-    ! compute r2c transform 
+    ! compute r2c transform
+    cptr = c_loc(fl%wk1(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
 
     call decomp_2d_fft_3d(rhs,cw1)
 
     ! normalisation
-    ! cw1 = cw1 / real(nx, kind=mytype) /real(ny, kind=mytype) &
-    !      / real(nz, kind=mytype)
-    if (.not. skip_c2c(1)) cw1 = cw1 / real(nx, kind=mytype)
-    if (.not. skip_c2c(2)) cw1 = cw1 / real(ny, kind=mytype)
-    if (.not. skip_c2c(3)) cw1 = cw1 / real(nz, kind=mytype)
+    if (.not. skip_c2c(1)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype)
+      !$acc end kernels
+    end if
+    if (.not. skip_c2c(2)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(ny, kind=mytype)
+      !$acc end kernels
+    end if
+    if (.not. skip_c2c(3)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(nz, kind=mytype)
+      !$acc end kernels
+    end if
 
-! #ifdef DEBUG_FFT
-    ! do k = sp%xst(3),sp%xen(3)
-    !    do j = sp%xst(2),sp%xen(2)
-    !       do i = sp%xst(1),sp%xen(1)
-    !          if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) then
-    !             write(*,100) 'START',i,j,k,cw1(i,j,k)
-    !          end if
-    !       end do
-    !    end do
-    ! end do
-! #endif
+#ifdef DEBUG_FFT
+    do k = sp%xst(3),sp%xen(3)
+       do j = sp%xst(2),sp%xen(2)
+          do i = sp%xst(1),sp%xen(1)
+             if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) then
+                write(*,100) 'START',i,j,k,cw1(i,j,k)
+             end if
+          end do
+       end do
+    end do
+#endif
 
     ! post-processing in spectral space
 
     ! POST PROCESSING IN Z ! WW: check why not seperate z=0 and z=1?
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) + tmp2 * az(k), &
@@ -2879,64 +3262,27 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw1), avg_param)
     if (nrank == 0) write(*,*)'## Poisson11X Post in Z cw1 ', avg_param
 #endif
 
-    ! POST PROCESSING IN Y
-    ! WE HAVE TO BE IN Y PENCILS
-!     call transpose_x_to_y(cw1,cw2,sp)
-!     do k = sp%yst(3), sp%yen(3)
-!        do i = sp%yst(1), sp%yen(1)
-!           cw2b(i,1,k) = cw2(i,1,k)
-!           do j = 2, ny 
-!              tmp1 = rl(cw2(i,j,k))
-!              tmp2 = iy(cw2(i,j,k))
-!              tmp3 = rl(cw2(i,ny-j+2,k))
-!              tmp4 = iy(cw2(i,ny-j+2,k))
-!              xx1 = tmp1 * by(j) * half
-!              xx2 = tmp1 * ay(j) * half
-!              xx3 = tmp2 * by(j) * half
-!              xx4 = tmp2 * ay(j) * half
-!              xx5 = tmp3 * by(j) * half
-!              xx6 = tmp3 * ay(j) * half
-!              xx7 = tmp4 * by(j) * half
-!              xx8 = tmp4 * ay(j) * half
-!              cw2b(i,j,k) = cx(xx1+xx4+xx5-xx8, &
-!                              -xx2+xx3+xx6+xx7)
-!           end do
-!        end do
-!     end do
-! #ifdef DEBUG_FFT
-!     avg_param = zero
-!     call avg3d (abs_prec(cw2), avg_param)
-!     if (nrank == 0) write(*,*)'## Poisson11X Post in Y cw2 ', avg_param
-! #endif
-
-    ! back to X-pencil
-   ! call transpose_y_to_x(cw2b,cw1,sp)
-! #ifdef DEBUG_FFT
-!     do k = sp%xst(3), sp%xen(3)
-!        do j = sp%xst(2), sp%xen(2)
-!           do i = sp%xst(1), sp%xen(1)
-!              if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) then
-!                 write(*,100) 'after y',i,j,k,cw1(i,j,k)
-!              end if
-!           end do
-!        end do
-!     end do
-!     avg_param = zero
-!     call avg3d (abs_prec(cw1), avg_param)
-!     if (nrank == 0) write(*,*)'## Poisson11X Back to X cw1 ', avg_param
-! #endif
+    cptr = c_loc(fl%wk2(1))
+    call c_f_pointer(cptr, tcw1b, sp%xsz)
+    cw1b(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1b
 
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          cw1b(1,j,k) = cw1(1,j,k)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 2, nx
+             if(i==2) cw1b(1,j,k) = cw1(1,j,k)
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              tmp3 = rl(cw1(nx-i+2,j,k))
@@ -2954,6 +3300,7 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
 
 #ifdef DEBUG_FFT
     do k = sp%xst(3), sp%xen(3)
@@ -2970,156 +3317,24 @@ contains
     if (nrank == 0) write(*,*)'## Poisson11X Back to X cw1b ', avg_param
 #endif
 
-!     if (istret == 0) then
-
-!        ! Solve Poisson
-!        do k = sp%xst(3), sp%xen(3)
-!           do j = sp%xst(2), sp%xen(2)
-!              do i = sp%xst(1), sp%xen(1)
-!                 tmp1 = rl(kxyz(i,j,k))
-!                 tmp2 = iy(kxyz(i,j,k))
-!                 !CANNOT DO A DIVISION BY ZERO
-!                 if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) < epsilon)) then    
-!                    cw1b(i,j,k) = cx(zero, zero)
-!                 end if
-!                 if ((abs_prec(tmp1) < epsilon).and.(abs_prec(tmp2) >= epsilon)) then
-!                    cw1b(i,j,k) = cx(zero, iy(cw1b(i,j,k)) / (-tmp2))
-!                 end if
-!                 if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) < epsilon)) then    
-!                    cw1b(i,j,k) = cx(rl(cw1b(i,j,k)) / (-tmp1), zero)
-!                 end if
-!                 if ((abs_prec(tmp1) >= epsilon).and.(abs_prec(tmp2) >= epsilon)) then
-!                    cw1b(i,j,k) = cx(real(cw1b(i,j,k)) / (-tmp1), iy(cw1b(i,j,k)) / (-tmp2))
-!                 end if
-!              end do
-!           end do
-!        end do
-! #ifdef DEBUG_FFT
-!        avg_param = zero
-!        call avg3d (abs_prec(cw1b), avg_param)
-!        if (nrank == 0) write(*,*)'## Poisson11X Solve Pois istret 0 ', avg_param
-! #endif
-
-!     else
-!        call matrice_refinement()
-!        !write(*,*) 'PO_11X ii1 arl ', rl(a(1,1,1,1)),rl(a(1,1,1,2)),rl(a(1,1,1,3)),&
-!        !                              rl(a(1,1,1,4)),rl(a(1,1,1,5))
-!        !write(*,*) 'PO_11X ii1 aiy ', iy(a(1,1,1,1)),iy(a(1,1,1,2)),iy(a(1,1,1,3)),&
-!        !                              iy(a(1,1,1,4)),iy(a(1,1,1,5))
-!        !!                 
-!        !write(*,*) 'PO_11X ii5 arl ', rl(a(5,5,5,1)),rl(a(5,5,5,2)),rl(a(5,5,5,3)),&
-!        !                              rl(a(5,5,5,4)),rl(a(5,5,5,5))
-!        !write(*,*) 'PO_11X ii5 aiy ', iy(a(5,5,5,1)),iy(a(5,5,5,2)),iy(a(5,5,5,3)),&
-!        !                              iy(a(5,5,5,4)),iy(a(5,5,5,5))
-!        !!
-!        !write(*,*) 'PO_11X ii1 a2rl ', rl(a2(1,1,1,1)),rl(a2(1,1,1,2)),rl(a2(1,1,1,3)),&
-!        !                               rl(a2(1,1,1,4)),rl(a2(1,1,1,5))
-!        !write(*,*) 'PO_11X ii1 a2iy ', iy(a2(1,1,1,1)),iy(a2(1,1,1,2)),iy(a2(1,1,1,3)),&
-!        !                               iy(a2(1,1,1,4)),iy(a2(1,1,1,5))
-!        !!                 
-!        !write(*,*) 'PO_11X ii5 a2rl ', rl(a2(5,5,5,1)),rl(a2(5,5,5,2)),rl(a2(5,5,5,3)),&
-!        !                               rl(a2(5,5,5,4)),rl(a2(5,5,5,5))
-!        !write(*,*) 'PO_11X ii5 a2iy ', iy(a2(5,5,5,1)),iy(a2(5,5,5,2)),iy(a2(5,5,5,3)),&
-!        !                               iy(a2(5,5,5,4)),iy(a2(5,5,5,5))
-!        !!!
-!        !write(*,*) 'PO_11X ii1 rl ', rl(a3(1,1,1,1)),rl(a3(1,1,1,2)),rl(a3(1,1,1,3)),&
-!        !                             rl(a3(1,1,1,4)),rl(a3(1,1,1,5))
-!        !write(*,*) 'PO_11X ii1 iy ', iy(a3(1,1,1,1)),iy(a3(1,1,1,2)),iy(a3(1,1,1,3)),&
-!        !                             iy(a3(1,1,1,4)),iy(a3(1,1,1,5))
-!        !!
-!        !write(*,*) 'PO_11X ii1 rl ', rl(a3(5,5,5,1)),rl(a3(5,5,5,2)),rl(a3(5,5,5,3)),&
-!        !                             rl(a3(5,5,5,4)),rl(a3(5,5,5,5))
-!        !write(*,*) 'PO_11X ii1 iy ', iy(a3(5,5,5,1)),iy(a3(5,5,5,2)),iy(a3(5,5,5,3)),&
-!        !                             iy(a3(5,5,5,4)),iy(a3(5,5,5,5))
-!        ! the stretching is only working in Y pencils
-
-!        call transpose_x_to_y(cw1b,cw2b,sp)
-
-!        !we are now in Y pencil
-
-!        if (istret /= 3) then
-!           cw2 = zero
-!           cw2c = zero
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = 1, ny/2
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2(i,j,k) = cw2b(i,2*j-1,k) 
-!                    cw2c(i,j,k) = cw2b(i,2*j,k)
-!                 enddo
-!              enddo
-!           enddo
-
-!           call inversion5_v1(a,cw2,sp)
-!           call inversion5_v1(a2,cw2c,sp)
-
-!           cw2b = zero
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = 1, ny-1, 2
-!                 do i=sp%yst(1), sp%yen(1)
-!                    cw2b(i,j,k) = cw2(i,(j+1)/2,k)
-!                 enddo
-!              enddo
-!              do j = 2, ny, 2
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2b(i,j,k) = cw2c(i,j/2,k)
-!                 enddo
-!              enddo
-!           enddo
-! #ifdef DEBUG_FFT
-!           avg_param = zero
-!           call avg3d (abs_prec(cw2b), avg_param)
-!           if (nrank == 0) write(*,*)'## Poisson11X Solve Pois istret < 3 ', avg_param
-! #endif
-!        else
-!           cw2 = zero
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = sp%yst(2), sp%yen(2)
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2(i,j,k) = cw2b(i,j,k) 
-!                 enddo
-!              enddo
-!           enddo
-
-!           call inversion5_v2(a3,cw2,sp)
-
-!           do k = sp%yst(3), sp%yen(3)
-!              do j = sp%yst(2), sp%yen(2)
-!                 do i = sp%yst(1), sp%yen(1)
-!                    cw2b(i,j,k) = cw2(i,j,k) 
-!                 enddo
-!              enddo
-!           enddo
-!        endif
-! #ifdef DEBUG_FFT
-!           avg_param = zero
-!           call avg3d (abs_prec(cw2b), avg_param)
-!           if (nrank == 0) write(*,*)'## Poisson11X Solve Pois istret = 3 ', avg_param
-! #endif
-!        !we have to go back in X pencils
-!        call transpose_y_to_x(cw2b,cw1b,sp)
-!     endif
-
-! #ifdef DEBUG_FFT
-!     do k = sp%xst(3),sp%xen(3)
-!        do j = sp%xst(2),sp%xen(2)
-!           do i = sp%xst(1),sp%xen(1)
-!              if (abs_prec(cw1b(i,j,k)) > 1.0e-6) then
-!                 write(*,*) 'AFTER',i,j,k,cw1b(i,j,k)
-!              end if
-!           end do
-!        end do
-!     end do
-!     avg_param = zero
-!     call avg3d (abs_prec(cw1b), avg_param)
-!     if (nrank == 0) write(*,*)'## Poisson11X Solve Pois AFTER ', avg_param
-! #endif
 !-----------------------------------------------------------
 ! TMDA in the Y direction (stretching grids direction)
 !-----------------------------------------------------------
+    cptr = c_loc(fl%wk3(1))
+    call c_f_pointer(cptr, tcw2b, sp%ysz)
+    cw2b(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2b
+
     call transpose_x_to_y(cw1b,cw2b,sp)
-    do i = sp%yst(1), sp%yen(1)
-      do k = sp%yst(3), sp%yen(3)
-        do j = sp%yst(2), sp%yen(2)
+
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nyst = sp%yst(2); nyen = sp%yen(2)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(2) default(present) &
+    !$acc&         private(bbb_real, bbb_imag, ty_real, ty_imag)
+    do k = nzst, nzen
+      do i = nxst, nxen
+        !$acc loop seq
+        do j = nyst, nyen
           bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
           bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
           ty_imag(j) = iy(cw2b(i, j, k))
@@ -3129,21 +3344,29 @@ contains
         !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
         call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
         call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
-        do j =sp%yst(2), sp%yen(2)
+        !$acc loop seq
+        do j = nyst, nyen
           cw2b(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
-        end do  
-      end do 
+        end do
+      end do
     end do
+    !$acc end parallel loop
+
     call transpose_y_to_x(cw2b,cw1b,sp)
+
 !-----------------------------------------------------------
 ! post-processing backward
 !-----------------------------------------------------------
     ! POST PROCESSING IN X
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          cw1(1,j,k) = cw1b(1,j,k)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1,tmp2,tmp3,tmp4, &
+    !$acc&                          xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 2, nx
+             if(i==2) cw1(1,j,k) = cw1b(1,j,k)
              tmp1 = rl(cw1b(i,j,k))
              tmp2 = iy(cw1b(i,j,k))
              tmp3 = rl(cw1b(nx-i+2,j,k))
@@ -3157,70 +3380,35 @@ contains
              xx7 = tmp4 * bx(i)
              xx8 = tmp4 * ax(i)
              cw1(i,j,k) = cx(xx1-xx4+xx6+xx7, &
-                          -(-xx2-xx3+xx5-xx8))
+                           -(-xx2-xx3+xx5-xx8))
           end do
        end do
     end do
-!#ifdef DEBUG_FFT
-    ! do k = sp%xst(3), sp%xen(3)
-    !    do j = sp%xst(2), sp%xen(2)
-    !       do i = sp%xst(1), sp%xen(1)
-    !          if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) then
-    !             write(*,100) 'AFTER X',i,j,k,cw1(i,j,k)
-    !          end if
-    !       end do
-    !    end do
-    ! end do
-    ! avg_param = zero
-    ! call avg3d (abs_prec(cw1), avg_param)
-    ! if (nrank == 0) write(*,*)'## Poisson11X Solve Pois POSTPR X ', avg_param
-!#endif
+    !$acc end parallel loop
 
-!     ! POST PROCESSING IN Y
-!     ! NEED to be in Y-pencil
-!     call transpose_x_to_y(cw1,cw2,sp)
-!     do k = sp%yst(3), sp%yen(3)
-!        do i = sp%yst(1), sp%yen(1)
-!           cw2b(i,1,k) = cw2(i,1,k)
-!           do j = 2, ny
-!              tmp1 = rl(cw2(i,j,k))
-!              tmp2 = iy(cw2(i,j,k))
-!              tmp3 = rl(cw2(i,ny-j+2,k))
-!              tmp4 = iy(cw2(i,ny-j+2,k))
-!              xx1 = tmp1 * by(j)
-!              xx2 = tmp1 * ay(j)
-!              xx3 = tmp2 * by(j)
-!              xx4 = tmp2 * ay(j)
-!              xx5 = tmp3 * by(j)
-!              xx6 = tmp3 * ay(j)
-!              xx7 = tmp4 * by(j)
-!              xx8 = tmp4 * ay(j)
-!              cw2b(i,j,k) = cx(xx1-xx4+xx6+xx7, &
-!                            -(-xx2-xx3+xx5-xx8))
-!           end do
-!        end do
-!     end do
-! #ifdef DEBUG_FFT
-!     do k = sp%yst(3), sp%yen(3)
-!        do j = sp%yst(2), sp%yen(2)
-!           do i = sp%yst(1), sp%yen(1)
-!              if (abs_prec(cw2b(i,j,k)) > 1.0e-4_mytype) then
-!                 write(*,100) 'AFTER Y',i,j,k,cw2b(i,j,k)
-!              end if
-!           end do
-!        end do
-!     end do
-!    avg_param = zero
-!    call avg3d (abs_prec(cw2b), avg_param)
-!    if (nrank == 0) write(*,*)'## Poisson11X Solve Pois POSTPR Y ', avg_param
-! #endif
-    ! back to X-pencil
-    ! call transpose_y_to_x(cw2b,cw1,sp)
+#ifdef DEBUG_FFT
+     do k = sp%xst(3), sp%xen(3)
+        do j = sp%xst(2), sp%xen(2)
+           do i = sp%xst(1), sp%xen(1)
+              if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) then
+                 write(*,100) 'AFTER X',i,j,k,cw1(i,j,k)
+              end if
+           end do
+        end do
+     end do
+     avg_param = zero
+     call avg3d (abs_prec(cw1), avg_param)
+     if (nrank == 0) write(*,*)'## Poisson11X Solve Pois POSTPR X ', avg_param
+#endif
 
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) - tmp2 * az(k), &
@@ -3232,6 +3420,8 @@ contains
           end do
        end do
     end do
+    !$acc end parallel loop
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (abs_prec(cw1), avg_param)
@@ -3240,49 +3430,50 @@ contains
 
     ! compute c2r transform, back to physical space
     call decomp_2d_fft_3d(cw1,rhs)
+
 #ifdef DEBUG_FFT
     avg_param = zero
     call avg3d (rhs, avg_param)
     if (nrank == 0) write(*,*)'## Poisson11X Solve Pois Back Phy RHS ', avg_param
 #endif
 
-    if (bcz == 1) then 
-       do j = 1, ph%zsz(2)
-          do i = 1, ph%zsz(1)
+    rw1 (1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk1
+    rw1b(1:nx,ph%xst(2):ph%xen(2),ph%xst(3):ph%xen(3)) => fl%wk2
+    rw2 (ph%yst(1):ph%yen(1),1:ny,ph%yst(3):ph%yen(3)) => fl%wk3
+    rw3 (ph%zst(1):ph%zen(1),ph%zst(2):ph%zen(2),1:nz) => fl%wk4
+
+    if (bcz == 1) then
+      nxsz = ph%zsz(1); nysz = ph%zsz(2)
+      !$acc parallel loop collapse(3) default(present)
+       do j = 1, nysz
+          do i = 1, nxsz
              do k = 1, nz/2
                 rw3(i,j,2*k-1) = rhs(i,j,k)
-             end do
-             do k = 1, nz/2
                 rw3(i,j,2*k) = rhs(i,j,nz-k+1)
              end do
           end do
        end do
+       !$acc end parallel loop
        call transpose_z_to_y(rw3,rw2,ph)
-    else if (bcz == 0) then 
-       call transpose_z_to_y(rhs,rw2,ph)   
+    else if (bcz == 0) then
+       call transpose_z_to_y(rhs,rw2,ph)
     end if
 
-    ! do k = ph%yst(3), ph%yen(3)
-    !    do i = ph%yst(1), ph%yen(1)
-    !       do j = 1, ny/2
-    !          rw2b(i,2*j-1,k) = rw2(i,j,k)
-    !       end do
-    !       do j = 1, ny/2
-    !          rw2b(i,2*j,k) = rw2(i,ny-j+1,k)
-    !       end do
-    !    enddo
-    ! end do
     call transpose_y_to_x(rw2,rw1,ph)
-    do k = ph%xst(3), ph%xen(3)
-       do j = ph%xst(2), ph%xen(2)
+
+    nyst = ph%xst(2); nyen = ph%xen(2)
+    nzst = ph%xst(3); nzen = ph%xen(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = nzst, nzen
+       do j = nyst, nyen
           do i = 1, nx/2
              rw1b(2*i-1,j,k) = rw1(i,j,k)
-          enddo
-          do i = 1, nx/2
-             rw1b(2*i,j,k) = rw1(nx-i+1,j,k)
+             rw1b(2*i  ,j,k) = rw1(nx-i+1,j,k)
           enddo
        enddo
     end do
+    !$acc end parallel loop
+
     call transpose_x_to_y(rw1b,rw2,ph)
     call transpose_y_to_z(rw2,rhs,ph)
 
@@ -3294,78 +3485,126 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Solving 3D Poisson equation: Neumann in X, Y; Neumann/periodic in Z
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson_11x_xyskip(rhs)
+  subroutine poisson_11x_xyskip(rhs, fl)
+    use udf_type_mod
     use tridiagonal_matrix_algorithm
     !use dbg_schemes, only: abs_prec
-    use math_mod, only: cx, rl, iy!, only: abs_prec
+    use math_mod, only: cx, rl, iy, abs_prec
     implicit none
 
     real(mytype), dimension(:,:,:), intent(INOUT) :: rhs
+    type(t_flow), intent(in) :: fl
 
     complex(mytype) :: xyzk
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
-    !integer :: nx,ny,nz, 
     integer :: i,j,k
 
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
+    integer :: nxsz, nysz, nzsz
+    real(mytype) :: bbb_real(ny), bbb_imag(ny), ty_real(ny), ty_imag(ny)
+    real(mytype),    pointer, dimension(:,:,:)   :: rw3
+    complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw2b
+    complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw2b
+    type(c_ptr) :: cptr
+
 #ifdef DEBUG_FFT
     real(mytype) avg_param
 #endif
 
 100 format(1x,a8,3I4,2F12.6)
 
-    if (bcz == 1) then  
-       do j = 1, ph%zsz(2)
-          do i = 1, ph%zsz(1)
-             do k = 1, nz/2
-                rw3(i,j,k) = rhs(i,j,2*(k-1)+1)
-             end do
-             do k = nz/2 + 1, nz
-                rw3(i,j,k) = rhs(i,j,2*nz-2*k+2)
+    ! TODO: not needed, check?
+    rw3 (ph%zst(1):ph%zen(1),ph%zst(2):ph%zen(2),1:nz) => fl%wk1
+    if (bcz == 1) then
+      nxsz = ph%zsz(1); nysz = ph%zsz(2)
+      !$acc parallel loop collapse(3) default(present)
+       do j = 1, nysz
+          do i = 1, nxsz
+             do k = 1, nz
+                if(k < nz/2+1) then
+                   rw3(i,j,k) = rhs(i,j,2*(k-1)+1)
+                else
+                   rw3(i,j,k) = rhs(i,j,2*nz-2*k+2)
+                end if
              end do
           end do
        end do
-       !call transpose_z_to_y(rw3,rw2,ph)
+       !$acc end parallel loop
     else if (bcz == 0) then
-       !call transpose_z_to_y(rhs,rw2,ph)
     end if
+
     ! init FFT
     if (.not. fft_initialised) then
        call decomp_2d_fft_init(PHYSICAL_IN_Z,nx,ny,nz,opt_skip_XYZ_c2c=skip_c2c)
        fft_initialised = .true.
     end if
 
-    ! compute r2c fft transform 
+    ! compute r2c fft transform
+    cptr = c_loc(fl%wk2(1))
+    call c_f_pointer(cptr, tcw1, sp%xsz)
+    cw1(sp%xst(1):sp%xen(1), sp%xst(2):sp%xen(2), sp%xst(3):sp%xen(3)) => tcw1
+
     call decomp_2d_fft_3d(rhs,cw1)
-    if (.not. skip_c2c(1)) cw1 = cw1 / real(nx, kind=mytype)
-    if (.not. skip_c2c(2)) cw1 = cw1 / real(ny, kind=mytype)
-    if (.not. skip_c2c(3)) cw1 = cw1 / real(nz, kind=mytype)
+
+    if (.not. skip_c2c(1)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(nx, kind=mytype)
+      !$acc end kernels
+    end if
+    if (.not. skip_c2c(2)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(ny, kind=mytype)
+      !$acc end kernels
+    end if
+    if (.not. skip_c2c(3)) then
+      !$acc kernels default(present)
+      cw1(:,:,:) = cw1(:,:,:) / real(nz, kind=mytype)
+      !$acc end kernels
+    end if
 
     ! post-processing in spectral space
     ! POST PROCESSING IN Z ! WW: check why not seperate z=0 and z=1?
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) + tmp2 * az(k), &
                              tmp2 * bz(k) - tmp1 * az(k))
+#ifdef DEBUG_FFT
+             if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) &
+                  write(*,100) 'after z',i,j,k,cw1(i,j,k)
+#endif
           end do
        end do
     end do
+    !$acc end parallel loop
 
 !-----------------------------------------------------------
 ! Iterative ADI method
 !-----------------------------------------------------------
     ! sweep TMDA in the Y direction (stretching grids direction)
-    call transpose_x_to_y(cw1,cw2,sp)
-    do i = sp%yst(1), sp%yen(1)
-      do k = sp%yst(3), sp%yen(3)
-        do j = sp%yst(2), sp%yen(2)
+    cptr = c_loc(fl%wk3(1))
+    call c_f_pointer(cptr, tcw2b, sp%ysz)
+    cw2b(sp%yst(1):sp%yen(1), sp%yst(2):sp%yen(2), sp%yst(3):sp%yen(3)) => tcw2b
+
+    call transpose_x_to_y(cw1,cw2b,sp)
+
+    nxst = sp%yst(1); nxen = sp%yen(1)
+    nyst = sp%yst(2); nyen = sp%yen(2)
+    nzst = sp%yst(3); nzen = sp%yen(3)
+    !$acc parallel loop collapse(2) default(present) &
+    !$acc&         private(bbb_real, bbb_imag, ty_real, ty_imag)
+    do k = nzst, nzen
+      do i = nxst, nxen
+        !$acc loop seq
+        do j = nyst, nyen
           bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
           bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
           ty_imag(j) = iy(cw2b(i, j, k))
@@ -3375,48 +3614,58 @@ contains
         !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
         call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
         call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
-        do j =sp%yst(2), sp%yen(2)
+        !$acc loop seq
+        do j = nyst, nyen
           cw2b(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
-        end do  
-      end do 
+        end do
+      end do
     end do
-    call transpose_y_to_x(cw2b,cw1b,sp)
+
+    call transpose_y_to_x(cw2b,cw1,sp)
     ! sweep TMDA in the x direction (stretching grids direction)
     ! to do , to add
-    !
+
 !-----------------------------------------------------------
 ! post-processing backward
 !-----------------------------------------------------------
     ! POST PROCESSING IN Z
-    do k = sp%xst(3), sp%xen(3)
-       do j = sp%xst(2), sp%xen(2)
-          do i = sp%xst(1), sp%xen(1)
+    nxst = sp%xst(1); nxen = sp%xen(1)
+    nyst = sp%xst(2); nyen = sp%xen(2)
+    nzst = sp%xst(3); nzen = sp%xen(3)
+    !$acc parallel loop collapse(3) default(present) private(tmp1, tmp2)
+    do k = nzst, nzen
+       do j = nyst, nyen
+          do i = nxst, nxen
              tmp1 = rl(cw1(i,j,k))
              tmp2 = iy(cw1(i,j,k))
              cw1(i,j,k) = cx(tmp1 * bz(k) - tmp2 * az(k), &
                              tmp2 * bz(k) + tmp1 * az(k))
+#ifdef DEBUG_FFT
+             if (abs_prec(cw1(i,j,k)) > 1.0e-4_mytype) &
+                  write(*,100) 'END',i,j,k,cw1(i,j,k)
+#endif
           end do
        end do
     end do
+    !$acc end parallel loop
 
     ! compute c2r transform, back to physical space
     call decomp_2d_fft_3d(cw1,rhs)
 
-    if (bcz == 1) then 
-       do j = 1, ph%zsz(2)
-          do i = 1, ph%zsz(1)
+    if (bcz == 1) then
+      nxsz = ph%zsz(1); nysz = ph%zsz(2)
+      !$acc parallel loop collapse(3) default(present)
+       do j = 1, nysz
+          do i = 1, nxsz
              do k = 1, nz/2
                 rw3(i,j,2*k-1) = rhs(i,j,k)
-             end do
-             do k = 1, nz/2
                 rw3(i,j,2*k) = rhs(i,j,nz-k+1)
              end do
           end do
        end do
-       !call transpose_z_to_y(rw3,rw2,ph)
-    else if (bcz == 0) then 
-       !call transpose_z_to_y(rhs,rw2,ph)   
+       !$acc end parallel loop
+    else if (bcz == 0) then
     end if
 
     return
@@ -3503,7 +3752,7 @@ contains
     implicit none
 
     integer :: i,j,k
-    real(mytype) :: w,wp,w1,w1p 
+    real(mytype) :: w,wp,w1,w1p
     complex(mytype) :: xyzk
     complex(mytype) :: ytt,xtt,ztt,yt1,xt1,yt2,xt2
     complex(mytype) :: xtt1,ytt1,ztt1,zt1,zt2,tmp1,tmp2,tmp3
@@ -3516,9 +3765,6 @@ contains
     real(mytype) :: ytt_rl,xtt_rl,ztt_rl,yt1_rl,xt1_rl,zt1_rl
     real(mytype) :: xtt1_rl,ytt1_rl,ztt1_rl
 
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
     logical :: ftr = .false.
 
     xkx = zero
@@ -3798,9 +4044,7 @@ contains
   end subroutine waves
 
   !**************************************************************************
-  !
-  subroutine matrice_refinement()
-    !
+  subroutine matrice_refinement(cw2, cw22)
     !**************************************************************************
 
     use decomp_2d
@@ -3813,9 +4057,18 @@ contains
     !use derivZ 
     !use dbg_schemes, only: cos_prec
     use math_mod, only: cx, rl, iy
+#ifdef PROFILING
+    use nvtx
+#endif
+
     implicit none
 
+    complex(mytype),intent(INOUT),dimension(sp%yst(1):sp%yen(1), &
+                                            sp%yst(2):sp%yen(2), &
+                                            sp%yst(3):sp%yen(3)) :: cw2, cw22
+
     integer :: i,j,k
+    integer :: nxst, nxen, nyst, nyen, nzst, nzen
 
     complex(mytype),dimension(sp%yst(1):sp%yen(1)) :: transx
     complex(mytype),dimension(sp%yst(2):sp%yen(2)) :: transy
@@ -3825,14 +4078,9 @@ contains
     real(mytype),dimension(sp%yst(2):sp%yen(2)) :: transy_rl, transy_rl2
     real(mytype),dimension(sp%yst(3):sp%yen(3)) :: transz_rl, transz_iy, transz_rl2, transz_iy2
 
-    real(mytype) :: xa0,xa1,rlx, rlz
+    real(mytype) :: xa0,xa1,rlx,rlz
     complex(mytype) :: ytt,xtt,ztt,yt1,xt1,yt2,xt2
     complex(mytype) :: xtt1,ytt1,ztt1,zt1,zt2,tmp1,tmp2,tmp3
-    
-
-    ! complex(mytype) :: cx
-    ! real(mytype) :: rl, iy
-    ! external cx, rl, iy
 
     real(mytype) :: xtt_rl, xtt1_rl, xt1_rl
     real(mytype) :: rlexs
@@ -3842,66 +4090,70 @@ contains
 
     real(mytype) :: ztt_rl, ztt1_rl, zt1_rl
     real(mytype) :: rlezs, iyezs
-!
+
     real(mytype) :: xa0_2, xa1_2, xa01, xa0p1_2
     logical :: ftr = .false.
-!
+
+    !$acc data create(transx, transy, transz, transx_rl, transx_rl2, transy_rl, transy_rl2, &
+    !$acc&            transz_rl, transz_iy, transz_rl2, transz_iy2)
+
+    !$acc parallel loop default(present)
     do i = sp%yst(1),sp%yen(1)
-       if(ftr) then
-       rlexs = rl(exs(i)) * dx
-       xtt_rl=two * (bicix6 * cos_prec(rlexs * onepfive) + cicix6 * cos_prec(rlexs * twopfive) + dicix6 * cos_prec(rlexs * threepfive))
-       xtt1_rl=two * aicix6 * cos_prec(rlexs * half)
-       xt1_rl= one + two * ailcaix6 * cos_prec(rlexs)
-       !
-       transx_rl(i) = (xtt1_rl + xtt_rl) / xt1_rl
-       else
-       transx_rl(i) = one 
-       end if
-       transx_rl2(i) = transx_rl(i)**2
-!
-       transx(i) = cx_one_one * transx_rl(i)
-!
+      if(ftr) then
+        rlexs = rl(exs(i)) * dx
+        xtt_rl= two * (bicix6 * cos_prec(rlexs * onepfive) + cicix6 * cos_prec(rlexs * twopfive) &
+                       + dicix6 * cos_prec(rlexs * threepfive))
+        xtt1_rl = two * aicix6 * cos_prec(rlexs * half)
+        xt1_rl  = one + two * ailcaix6 * cos_prec(rlexs)
+        transx_rl(i) = (xtt1_rl + xtt_rl) / xt1_rl
+      else
+        transx_rl(i) = one 
+      end if
+      transx_rl2(i) = transx_rl(i)**2
+      transx(i) = cx_one_one * transx_rl(i)
     enddo
-!
+    !$acc end parallel loop
+
+    !$acc parallel loop default(present)
     do j = sp%yst(2),sp%yen(2)
       if(ftr) then
-      rleys = rl(eys(j)) * dy
-      ytt_rl=two * (biciy6 * cos_prec(rleys * onepfive) + ciciy6 * cos_prec(rleys * twopfive) + diciy6 * cos_prec(rleys * threepfive))
-      ytt1_rl=two * aiciy6 * cos_prec(rleys * half)
-      yt1_rl=one + two * ailcaiy6 * cos_prec(rleys)
-      transy_rl(j) = (ytt1_rl + ytt_rl) / yt1_rl
+        rleys = rl(eys(j)) * dy
+        ytt_rl= two * (biciy6 * cos_prec(rleys * onepfive) + ciciy6 * cos_prec(rleys * twopfive) &
+                       + diciy6 * cos_prec(rleys * threepfive))
+        ytt1_rl = two * aiciy6 * cos_prec(rleys * half)
+        yt1_rl  = one + two * ailcaiy6 * cos_prec(rleys)
+        transy_rl(j) = (ytt1_rl + ytt_rl) / yt1_rl
       else
-       transy_rl(j) = one !(ytt1_rl + ytt_rl) / yt1_rl
+        transy_rl(j) = one !(ytt1_rl + ytt_rl) / yt1_rl
       end if
-       transy_rl2(j) = transy_rl(j)**2
-!
-       transy(j) = cx_one_one * transy_rl(j)
-!
+      transy_rl2(j) = transy_rl(j)**2
+      transy(j) = cx_one_one * transy_rl(j)
     enddo
-!
+    !$acc end parallel loop
+
     if (bcz == 0) then
-       do k = sp%yst(3),sp%yen(3)
-      if(ftr) then   
-          rlezs = rl(ezs(k)) * dz
-       ztt_rl=two * (biciz6 * cos_prec(rlezs * onepfive) + ciciz6 * cos_prec(rlezs * twopfive) + diciz6 * cos_prec(rlezs * threepfive))
-       ztt1_rl=two * aiciz6 * cos_prec(rlezs * half)
-       zt1_rl=one + two * ailcaiz6 * cos_prec(rlezs)
-!
-       transz_rl(k) = (ztt1_rl + ztt_rl) / zt1_rl
-       else
-       transz_rl(k) = one
-       end if
-       transz_rl2(k) = transz_rl(k)**2
-!
-       transz_iy(k) = transz_rl(k)
-       transz_iy2(k) = transz_rl2(k)
-!
-       transz(k) = cx_one_one * transz_rl(k)
-!
-       enddo
+      !$acc parallel loop default(present)
+      do k = sp%yst(3),sp%yen(3)
+        if(ftr) then
+          rlezs  = rl(ezs(k)) * dz
+          ztt_rl = two * (biciz6 * cos_prec(rlezs * onepfive) + ciciz6 * cos_prec(rlezs * twopfive) &
+                          + diciz6 * cos_prec(rlezs * threepfive))
+          ztt1_rl = two * aiciz6 * cos_prec(rlezs * half)
+          zt1_rl  = one + two * ailcaiz6 * cos_prec(rlezs)
+          transz_rl(k) = (ztt1_rl + ztt_rl) / zt1_rl
+        else
+          transz_rl(k) = one
+        end if
+        transz_rl2(k) = transz_rl(k)**2
+        transz_iy(k)  = transz_rl(k)
+        transz_iy2(k) = transz_rl2(k)
+        transz(k) = cx_one_one * transz_rl(k)
+      enddo
+      !$acc end parallel loop
     else
-       do k = sp%yst(3),sp%yen(3)
-         if(ftr) then   
+      !$acc parallel loop default(present)
+      do k = sp%yst(3),sp%yen(3)
+        if(ftr) then
           rlezs = rl(ezs(k)) * dz
           iyezs = iy(ezs(k)) * dz
           ztt = two * cx(biciz6 * cos_prec(rlezs * onepfive) + ciciz6 * cos_prec(rlezs * twopfive), &
@@ -3910,354 +4162,578 @@ contains
                           aiciz6 * cos_prec(iyezs * half))
           zt1 = cx(one + two * ailcaiz6 * cos_prec(rlezs),&
                    one + two * ailcaiz6 * cos_prec(iyezs))
-!
           transz_rl(k) = rl(ztt1 + ztt) / rl(zt1)
           transz_iy(k) = iy(ztt1 + ztt) / iy(zt1)
-          else
+        else
           transz_rl(k) = one
           transz_iy(k) = one
-          end if
-          transz_rl2(k) = transz_rl(k)**2
-
-          transz_iy2(k) = transz_iy(k)**2
-!      
-          transz(k) = cx(transz_rl(k), transz_iy(k))
-!
-       enddo
+        end if
+        transz_rl2(k) = transz_rl(k)**2
+        transz_iy2(k) = transz_iy(k)**2
+        transz(k) = cx(transz_rl(k), transz_iy(k))
+      enddo
+      !$acc end parallel loop
     endif
-!
-    if ((istret == 1).or.(istret == 2)) then
-!
-       xa0 = alpha / pi + half / beta / pi
-       if (istret == 1) xa1 = +one / four / beta / pi
-       if (istret == 2) xa1 = -one / four / beta / pi
 
-       ! below 2 lines added by WW
+    if ((istret == 1).or.(istret == 2)) then
+      xa0 = alpha / pi + half / beta / pi
+      if (istret == 1) xa1 = +one / four / beta / pi
+      if (istret == 2) xa1 = -one / four / beta / pi
+
+      ! below 2 lines added by WW
       xa0 = xa0 /yly
       xa1 = xa1 /yly
 
-       xa0_2 = xa0**2
-       xa1_2 = xa1**2
-       xa01 = xa0 * xa1
-       xa0p1_2 = (xa0 + xa1)**2
-!
-!      construction of the pentadiagonal matrice
-!
-       do k = sp%yst(3), sp%yen(3)
-          do j = 1, ny/2
-             do i = sp%yst(1), sp%yen(1)
-!
-                cw22(i,j,k) = transx_rl(i) * cx(rl(yky(2*j-1)) * rl(transz(k)),&
-                                                iy(yky(2*j-1)) * iy(transz(k)))
-                cw2(i,j,k) = transx_rl(i) * cx(rl(yky(2*j)) * rl(transz(k)),&
-                                               iy(yky(2*j)) * iy(transz(k)))
-!
-             enddo
-          enddo
-       enddo
+      xa0_2 = xa0**2
+      xa1_2 = xa1**2
+      xa01 = xa0 * xa1
+      xa0p1_2 = (xa0 + xa1)**2
 
-       !main diagonal 
-       do k = sp%yst(3), sp%yen(3)
-          do j = 2, ny/2 - 1
-             do i = sp%yst(1), sp%yen(1)
-!
-                a(i,j,k,3)=-cx(rl(xk2(i)) * transy_rl2(2*j-1) * transz_rl2(k) &
-                              +rl(zk2(k)) * transy_rl2(2*j-1) * transx_rl2(i) &
-                              +xa0_2 * rl(cw22(i,j,k))**2 &
-                              +xa1_2 * rl(cw22(i,j,k)) * (rl(cw22(i,j-1,k)) + rl(cw22(i,j+1,k))), &
-!
-                               iy(xk2(i)) * transy_rl2(2*j-1) * transz_iy2(k) &
-                              +iy(zk2(k)) * transy_rl2(2*j-1) * transx_rl2(i) &
-                              +xa0_2 * iy(cw22(i,j,k))**2 &
-                              +xa1_2 * iy(cw22(i,j,k)) * (iy(cw22(i,j-1,k)) + iy(cw22(i,j+1,k))))
-!
-                a2(i,j,k,3)=-cx(rl(xk2(i)) * transy_rl2(2*j) * transz_rl2(k) &
-                               +rl(zk2(k)) * transy_rl2(2*j) * transx_rl2(i) &
-                               +xa0_2 * rl(cw2(i,j,k))**2 &
-                               +xa1_2 * rl(cw2(i,j,k)) * (rl(cw2(i,j-1,k)) + rl(cw2(i,j+1,k))),&
-!
-                                iy(xk2(i)) * transy_rl2(2*j) * transz_iy2(k) &
-                               +iy(zk2(k)) * transy_rl2(2*j) * transx_rl2(i) &
-                               +xa0_2 * iy(cw2(i,j,k))**2 &
-                               +xa1_2 * iy(cw2(i,j,k)) * (iy(cw2(i,j-1,k)) + iy(cw2(i,j+1,k))))
-! 
-            enddo
+!     construction of the pentadiagonal matrice
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, ny/2
+          do i = nxst, nxen
+            cw22(i,j,k) = transx_rl(i) * cx(rl(yky(2*j-1)) * rl(transz(k)),&
+                                            iy(yky(2*j-1)) * iy(transz(k)))
+            cw2(i,j,k)  = transx_rl(i) * cx(rl(yky(2*j)) * rl(transz(k)),&
+                                            iy(yky(2*j)) * iy(transz(k)))
           enddo
-!
-          do i=sp%yst(1), sp%yen(1)
-!
-             a(i,1,k,3)=-cx(rl(xk2(i)) * transy_rl2(1) * transz_rl2(k) &
-                           +rl(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
-                           +xa0_2 * rl(cw22(i,1,k))**2 & 
-                           +xa1_2 * rl(cw22(i,1,k)) * rl(cw22(i,2,k)),&
-!
-                            iy(xk2(i)) * transy_rl2(1) * transz_iy2(k) &
-                           +iy(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
-                           +xa0_2 * iy(cw22(i,1,k))**2 &
-                           +xa1_2 * iy(cw22(i,1,k)) * iy(cw22(i,2,k)))
-!
-             a(i,ny/2,k,3)=-cx(rl(xk2(i)) * transy_rl2(ny-2) * transz_rl2(k) &
-                              +rl(zk2(k)) * transy_rl2(ny-2) * transx_rl2(i) &
-                              +xa0_2 * rl(cw22(i,ny/2,k))**2 &
-                              +xa1_2 * rl(cw22(i,ny/2,k)) * rl(cw22(i,ny/2-1,k)), &
-!
-                               iy(xk2(i)) * transy_rl2(ny-2) * transz_iy2(k) &
-                              +iy(zk2(k)) * transy_rl2(ny-2) * transx_rl2(i) &
-                              +xa0_2 * iy(cw22(i,ny/2,k))**2 &
-                              +xa1_2 * iy(cw22(i,ny/2,k)) * iy(cw22(i,ny/2-1,k)))
-!
-             a2(i,1,k,3)=-cx(rl(xk2(i)) * transy_rl2(2) * transz_rl2(k) &
-                            +rl(zk2(k)) * transy_rl2(2) * transx_rl2(i) &
-                            +(xa0_2 - xa1_2) * rl(cw2(i,1,k))**2 &
-                            +xa1_2 * rl(cw2(i,1,k)) * rl(cw2(i,2,k)),&
-!
-                             iy(xk2(i)) * transy_rl2(2) * transz_iy2(k) &
-                            +iy(zk2(k)) * transy_rl2(2) * transx_rl2(i) &
-                            +(xa0_2 - xa1_2) * iy(cw2(i,1,k))**2 &
-                            +xa1_2  * iy(cw2(i,1,k)) * iy(cw2(i,2,k)))
-!
-             a2(i,ny/2,k,3)=-cx(rl(xk2(i)) * transy_rl2(ny-1) * transz_rl2(k) &
-                               +rl(zk2(k)) * transy_rl2(ny-1) * transx_rl2(i) &
-                               +xa0p1_2 * rl(cw2(i,ny/2,k))**2 &
-                               +xa1_2 * rl(cw2(i,ny/2,k)) * rl(cw2(i,ny/2-1,k)), &
-!
-                                iy(xk2(i)) * transy_rl2(ny-1) * transz_iy2(k) &
-                               +iy(zk2(k)) * transy_rl2(ny-1) * transx_rl2(i) &
-                               +xa0p1_2 * iy(cw2(i,ny/2,k))**2 &
-                               +xa1_2 * iy(cw2(i,ny/2,k)) * iy(cw2(i,ny/2-1,k)))
-!
-          enddo
-       enddo
+        enddo
+      enddo
+      !$acc end parallel loop
 
-       !sup diag +1
-       do k = sp%yst(3), sp%yen(3)
-          do j = 2, ny/2 - 1
-             do i = sp%yst(1), sp%yen(1)   
-!
-                a(i,j,k,4)=xa01 * cx(rl(cw22(i,j+1,k)) * (rl(cw22(i,j,k)) + rl(cw22(i,j+1,k))), &
-                                     iy(cw22(i,j+1,k)) * (iy(cw22(i,j,k)) + iy(cw22(i,j+1,k))))
-!
-                a2(i,j,k,4)=xa01 * cx(rl(cw2(i,j+1,k)) * (rl(cw2(i,j,k)) + rl(cw2(i,j+1,k))), &
-                                      iy(cw2(i,j+1,k)) * (iy(cw2(i,j,k)) + iy(cw2(i,j+1,k))))
-!
-             enddo
-          enddo
-!
-          do i=sp%yst(1), sp%yen(1)
-!
-             a(i,1,k,4)=two*xa01*cx(rl(cw22(i,1,k))*rl(cw22(i,2,k))+rl(cw22(i,2,k))*rl(cw22(i,2,k)), &
-                                    iy(cw22(i,1,k))*iy(cw22(i,2,k))+iy(cw22(i,2,k))*iy(cw22(i,2,k)))
-!
-             a2(i,1,k,4)=cx((xa0-xa1)*xa1*(rl(cw2(i,1,k))*rl(cw2(i,2,k)))+xa0*xa1*(rl(cw2(i,2,k))*rl(cw2(i,2,k))), &
-                            (xa0-xa1)*xa1*(iy(cw2(i,1,k))*iy(cw2(i,2,k)))+xa0*xa1*(iy(cw2(i,2,k))*iy(cw2(i,2,k))))
-!
-             a2(i,ny/2-1,k,4)=cx(xa0*xa1*rl(cw2(i,ny/2-1,k))*rl(cw2(i,ny/2,k))+(xa0+xa1)*xa1*(rl(cw2(i,ny/2,k))**2), &
-                                 xa0*xa1*iy(cw2(i,ny/2-1,k))*iy(cw2(i,ny/2,k))+(xa0+xa1)*xa1*(iy(cw2(i,ny/2,k))**2))
-!
-             a2(i,ny/2,k,4) = zero
-!
-          enddo
-       enddo
-!
-       !sup diag +2
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)   
-             do j = 1, ny/2 - 2
-!
-                a(i,j,k,5)=xa1_2*cx(-rl(cw22(i,j+1,k))*rl(cw22(i,j+2,k)),&
-                                    -iy(cw22(i,j+1,k))*iy(cw22(i,j+2,k)))
-                a2(i,j,k,5)=xa1_2*cx(-rl(cw2(i,j+1,k))*rl(cw2(i,j+2,k)),&
-                                     -iy(cw2(i,j+1,k))*iy(cw2(i,j+2,k)))
-!
-             enddo
-!
-             a(i,1,k,5)=two * cx(rl(a(i,1,k,5)),iy(a(i,1,k,5)))
-             a(i,ny/2-1,k,5) = zero
-             a(i,ny/2,k,5) = zero
-             a2(i,ny/2-1,k,5) = zero
-             a2(i,ny/2,k,5) = zero 
-!
-          enddo
-       enddo
+       !main diagonal
+!!    Note: two-kernel version by spliting the loop into interior and boundary
+!!          single-kernel version by using if-else conditions within the loop
+!!          for large mesh partitions, the two versions have similar performance
+!#ifdef PROFILING
+!      call nvtxStartRange("two kernels")
+!#endif
+!      nxst = sp%yst(1); nxen = sp%yen(1)
+!      nzst = sp%yst(3); nzen = sp%yen(3)
+!      !$acc parallel loop gang collapse(3) default(present)
+!      do k = nzst, nzen
+!        do j = 2, ny/2 - 1
+!          do i = nxst, nxen
+!            a(i,j,k,3) = -cx(rl(xk2(i)) * transy_rl2(2*j-1) * transz_rl2(k) &
+!                           + rl(zk2(k)) * transy_rl2(2*j-1) * transx_rl2(i) &
+!                           + xa0_2 * rl(cw22(i,j,k))**2 &
+!                           + xa1_2 * rl(cw22(i,j,k)) * (rl(cw22(i,j-1,k)) + rl(cw22(i,j+1,k))), &
 
-       !inf diag -1
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)   
-             do j = 2, ny/2
-!
-                a(i,j,k,2)=xa01*cx(rl(cw22(i,j-1,k))*(rl(cw22(i,j,k))+rl(cw22(i,j-1,k))), &
-                                   iy(cw22(i,j-1,k))*(iy(cw22(i,j,k))+iy(cw22(i,j-1,k))))
-!
-                a2(i,j,k,2)=xa01*cx(rl(cw2(i,j-1,k))*(rl(cw2(i,j,k))+rl(cw2(i,j-1,k))), &
-                                    iy(cw2(i,j-1,k))*(iy(cw2(i,j,k))+iy(cw2(i,j-1,k))))
-!
-             enddo
-             a(i,1,k,2) = zero
-             a2(i,1,k,2) = zero
-!
-             a2(i,2,k,2)=cx(xa0*xa1*(rl(cw2(i,2,k))*rl(cw2(i,1,k)))&
-                          +(xa0+xa1)*xa1*(rl(cw2(i,1,k))*rl(cw2(i,1,k))),&
-!
-                            xa0*xa1*(iy(cw2(i,2,k))*iy(cw2(i,1,k)))&
-                          +(xa0+xa1)*xa1*(iy(cw2(i,1,k))*iy(cw2(i,1,k))))
-!
-             a2(i,ny/2,k,2)=cx((xa0+xa1)*xa1*(rl(cw2(i,ny/2,k))*rl(cw2(i,ny/2-1,k)))&
-                               +xa0*xa1*(rl(cw2(i,ny/2-1,k))*rl(cw2(i,ny/2-1,k))),&
-!
-                               (xa0+xa1)*xa1*(iy(cw2(i,ny/2,k))*iy(cw2(i,ny/2-1,k)))&
-                               +xa0*xa1*(iy(cw2(i,ny/2-1,k))*iy(cw2(i,ny/2-1,k))))
-!
-          enddo
-       enddo
-       !inf diag -2
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)  
-             do j = 3, ny/2
-                a(i,j,k,1)=xa1_2 * cx(-rl(cw22(i,j-1,k))*rl(cw22(i,j-2,k)),&
-                                      -iy(cw22(i,j-1,k))*iy(cw22(i,j-2,k)))
-                a2(i,j,k,1)=xa1_2 * cx(-rl(cw2(i,j-1,k))*rl(cw2(i,j-2,k)),&
-                                       -iy(cw2(i,j-1,k))*iy(cw2(i,j-2,k)))
-             enddo
-             a(i,1,k,1) = zero
-             a(i,2,k,1) = zero
-             a2(i,1,k,1) = zero
-             a2(i,2,k,1) = zero
-          enddo
-       enddo
-       !not to have a singular matrice
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)
-            rlx = rl(xk2(i))
-            rlz = rl(zk2(k))
-             if ((dabs(rlx) < MINP).and.(dabs(rlz) < MINP)) then
-                a(i,1,k,3)=cx_one_one
-                a(i,1,k,4) = zero
-                a(i,1,k,5) = zero
-             endif
-          enddo
-       enddo
-!
+!                             iy(xk2(i)) * transy_rl2(2*j-1) * transz_iy2(k) &
+!                           + iy(zk2(k)) * transy_rl2(2*j-1) * transx_rl2(i) &
+!                           + xa0_2 * iy(cw22(i,j,k))**2 &
+!                           + xa1_2 * iy(cw22(i,j,k)) * (iy(cw22(i,j-1,k)) + iy(cw22(i,j+1,k))))
+
+!            a2(i,j,k,3) = -cx(rl(xk2(i)) * transy_rl2(2*j) * transz_rl2(k) &
+!                            + rl(zk2(k)) * transy_rl2(2*j) * transx_rl2(i) &
+!                            + xa0_2 * rl(cw2(i,j,k))**2 &
+!                            + xa1_2 * rl(cw2(i,j,k)) * (rl(cw2(i,j-1,k)) + rl(cw2(i,j+1,k))),&
+
+!                              iy(xk2(i)) * transy_rl2(2*j) * transz_iy2(k) &
+!                            + iy(zk2(k)) * transy_rl2(2*j) * transx_rl2(i) &
+!                            + xa0_2 * iy(cw2(i,j,k))**2 &
+!                            + xa1_2 * iy(cw2(i,j,k)) * (iy(cw2(i,j-1,k)) + iy(cw2(i,j+1,k))))
+!          enddo
+!        enddo
+!      end do
+!      !$acc end parallel loop
+
+!      nxst = sp%yst(1); nxen = sp%yen(1)
+!      nzst = sp%yst(3); nzen = sp%yen(3)
+!      !$acc parallel loop gang collapse(2) default(present)
+!      do k = nzst, nzen
+!        do i = nxst, nxen
+!          a(i,1,k,3) = -cx(rl(xk2(i)) * transy_rl2(1) * transz_rl2(k) &
+!                         + rl(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
+!                         + xa0_2 * rl(cw22(i,1,k))**2 & 
+!                         + xa1_2 * rl(cw22(i,1,k)) * rl(cw22(i,2,k)),&
+
+!                           iy(xk2(i)) * transy_rl2(1) * transz_iy2(k) &
+!                         + iy(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
+!                         + xa0_2 * iy(cw22(i,1,k))**2 &
+!                         + xa1_2 * iy(cw22(i,1,k)) * iy(cw22(i,2,k)))
+
+!          a(i,ny/2,k,3) = -cx(rl(xk2(i)) * transy_rl2(ny-2) * transz_rl2(k) &
+!                            + rl(zk2(k)) * transy_rl2(ny-2) * transx_rl2(i) &
+!                            + xa0_2 * rl(cw22(i,ny/2,k))**2 &
+!                            + xa1_2 * rl(cw22(i,ny/2,k)) * rl(cw22(i,ny/2-1,k)), &
+
+!                              iy(xk2(i)) * transy_rl2(ny-2) * transz_iy2(k) &
+!                            + iy(zk2(k)) * transy_rl2(ny-2) * transx_rl2(i) &
+!                            + xa0_2 * iy(cw22(i,ny/2,k))**2 &
+!                            + xa1_2 * iy(cw22(i,ny/2,k)) * iy(cw22(i,ny/2-1,k)))
+
+!          a2(i,1,k,3) = -cx(rl(xk2(i)) * transy_rl2(2) * transz_rl2(k) &
+!                          + rl(zk2(k)) * transy_rl2(2) * transx_rl2(i) &
+!                          + (xa0_2 - xa1_2) * rl(cw2(i,1,k))**2 &
+!                          + xa1_2 * rl(cw2(i,1,k)) * rl(cw2(i,2,k)),&
+
+!                            iy(xk2(i)) * transy_rl2(2) * transz_iy2(k) &
+!                          + iy(zk2(k)) * transy_rl2(2) * transx_rl2(i) &
+!                          + (xa0_2 - xa1_2) * iy(cw2(i,1,k))**2 &
+!                          + xa1_2  * iy(cw2(i,1,k)) * iy(cw2(i,2,k)))
+
+!          a2(i,ny/2,k,3) = -cx(rl(xk2(i)) * transy_rl2(ny-1) * transz_rl2(k) &
+!                             + rl(zk2(k)) * transy_rl2(ny-1) * transx_rl2(i) &
+!                             + xa0p1_2 * rl(cw2(i,ny/2,k))**2 &
+!                             + xa1_2 * rl(cw2(i,ny/2,k)) * rl(cw2(i,ny/2-1,k)), &
+
+!                               iy(xk2(i)) * transy_rl2(ny-1) * transz_iy2(k) &
+!                             + iy(zk2(k)) * transy_rl2(ny-1) * transx_rl2(i) &
+!                             + xa0p1_2 * iy(cw2(i,ny/2,k))**2 &
+!                             + xa1_2 * iy(cw2(i,ny/2,k)) * iy(cw2(i,ny/2-1,k)))
+!        enddo
+!      enddo
+!      !$acc end parallel loop
+!#ifdef PROFILING
+!      call nvtxEndRange
+!#endif
+
+#ifdef PROFILING
+      call nvtxStartRange("single kernel")
+#endif
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop gang collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, ny/2
+          do i = nxst, nxen
+
+            if (j == 1) then
+              a(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(1) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
+                + xa0_2 * rl(cw22(i,1,k))**2 &
+                + xa1_2 * rl(cw22(i,1,k)) * rl(cw22(i,2,k)), &
+
+                  iy(xk2(i)) * transy_rl2(1) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
+                + xa0_2 * iy(cw22(i,1,k))**2 &
+                + xa1_2 * iy(cw22(i,1,k)) * iy(cw22(i,2,k)) )
+
+              a2(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(2) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(2) * transx_rl2(i) &
+                + (xa0_2 - xa1_2) * rl(cw2(i,1,k))**2 &
+                + xa1_2 * rl(cw2(i,1,k)) * rl(cw2(i,2,k)), &
+
+                  iy(xk2(i)) * transy_rl2(2) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(2) * transx_rl2(i) &
+                + (xa0_2 - xa1_2) * iy(cw2(i,1,k))**2 &
+                + xa1_2 * iy(cw2(i,1,k)) * iy(cw2(i,2,k)) )
+
+            else if (j == ny/2) then
+              a(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(ny-2) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(ny-2) * transx_rl2(i) &
+                + xa0_2 * rl(cw22(i,j,k))**2 &
+                + xa1_2 * rl(cw22(i,j,k)) * rl(cw22(i,j-1,k)), &
+
+                  iy(xk2(i)) * transy_rl2(ny-2) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(ny-2) * transx_rl2(i) &
+                + xa0_2 * iy(cw22(i,j,k))**2 &
+                + xa1_2 * iy(cw22(i,j,k)) * iy(cw22(i,j-1,k)) )
+
+              a2(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(ny-1) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(ny-1) * transx_rl2(i) &
+                + xa0p1_2 * rl(cw2(i,j,k))**2 &
+                + xa1_2 * rl(cw2(i,j,k)) * rl(cw2(i,j-1,k)), &
+
+                  iy(xk2(i)) * transy_rl2(ny-1) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(ny-1) * transx_rl2(i) &
+                + xa0p1_2 * iy(cw2(i,j,k))**2 &
+                + xa1_2 * iy(cw2(i,j,k)) * iy(cw2(i,j-1,k)) )
+
+            else
+              a(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(2*j-1) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(2*j-1) * transx_rl2(i) &
+                + xa0_2 * rl(cw22(i,j,k))**2 &
+                + xa1_2 * rl(cw22(i,j,k)) * ( rl(cw22(i,j-1,k)) + rl(cw22(i,j+1,k)) ), &
+
+                  iy(xk2(i)) * transy_rl2(2*j-1) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(2*j-1) * transx_rl2(i) &
+                + xa0_2 * iy(cw22(i,j,k))**2 &
+                + xa1_2 * iy(cw22(i,j,k)) * ( iy(cw22(i,j-1,k)) + iy(cw22(i,j+1,k)) ) )
+
+              a2(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(2*j) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(2*j) * transx_rl2(i) &
+                + xa0_2 * rl(cw2(i,j,k))**2 &
+                + xa1_2 * rl(cw2(i,j,k)) * ( rl(cw2(i,j-1,k)) + rl(cw2(i,j+1,k)) ), &
+
+                  iy(xk2(i)) * transy_rl2(2*j) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(2*j) * transx_rl2(i) &
+                + xa0_2 * iy(cw2(i,j,k))**2 &
+                + xa1_2 * iy(cw2(i,j,k)) * ( iy(cw2(i,j-1,k)) + iy(cw2(i,j+1,k)) ) )
+
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+#ifdef PROFILING
+      call nvtxEndRange
+#endif
+
+      !sup diag +1
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, ny/2
+          do i = nxst, nxen
+
+            if (j == 1) then
+              a(i,1,k,4) = two*xa01 * cx( &
+                  rl(cw22(i,1,k))*rl(cw22(i,2,k)) + rl(cw22(i,2,k))**2, &
+                  iy(cw22(i,1,k))*iy(cw22(i,2,k)) + iy(cw22(i,2,k))**2 )
+
+              a2(i,1,k,4) = cx( &
+                  (xa0-xa1)*xa1 * rl(cw2(i,1,k))*rl(cw2(i,2,k)) &
+                + xa0*xa1       * rl(cw2(i,2,k))**2, &
+                  (xa0-xa1)*xa1 * iy(cw2(i,1,k))*iy(cw2(i,2,k)) &
+                + xa0*xa1       * iy(cw2(i,2,k))**2 )
+
+            else if (j == ny/2-1) then
+              a(i,j,k,4) = xa01 * cx( &
+                  rl(cw22(i,j+1,k)) * ( rl(cw22(i,j,k)) + rl(cw22(i,j+1,k)) ), &
+                  iy(cw22(i,j+1,k)) * ( iy(cw22(i,j,k)) + iy(cw22(i,j+1,k)) ) )
+
+              a2(i,j,k,4) = cx( &
+                  xa0*xa1 * rl(cw2(i,j,k))*rl(cw2(i,j+1,k)) &
+                + (xa0+xa1)*xa1 * rl(cw2(i,j+1,k))**2, &
+                  xa0*xa1 * iy(cw2(i,j,k))*iy(cw2(i,j+1,k)) &
+                + (xa0+xa1)*xa1 * iy(cw2(i,j+1,k))**2 )
+
+            else if (j == ny/2) then
+              a2(i,j,k,4) = zero
+
+            else
+              a(i,j,k,4) = xa01 * cx( &
+                  rl(cw22(i,j+1,k)) * ( rl(cw22(i,j,k)) + rl(cw22(i,j+1,k)) ), &
+                  iy(cw22(i,j+1,k)) * ( iy(cw22(i,j,k)) + iy(cw22(i,j+1,k)) ) )
+
+              a2(i,j,k,4) = xa01 * cx( &
+                  rl(cw2(i,j+1,k)) * ( rl(cw2(i,j,k)) + rl(cw2(i,j+1,k)) ), &
+                  iy(cw2(i,j+1,k)) * ( iy(cw2(i,j,k)) + iy(cw2(i,j+1,k)) ) )
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !sup diag +2
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, ny/2
+          do i = nxst, nxen
+
+            if (j == 1) then
+              a(i,j,k,5) = xa1_2 * cx( &
+                -rl(cw22(i,j+1,k)) * rl(cw22(i,j+2,k)), &
+                -iy(cw22(i,j+1,k)) * iy(cw22(i,j+2,k)) )
+              a(i,j,k,5) = two * cx( rl(a(i,j,k,5)), iy(a(i,j,k,5)) )
+
+              a2(i,j,k,5) = xa1_2 * cx( &
+                -rl(cw2(i,j+1,k)) * rl(cw2(i,j+2,k)), &
+                -iy(cw2(i,j+1,k)) * iy(cw2(i,j+2,k)) )
+
+            else if (j == ny/2 - 1) then
+              a(i,j,k,5) = zero
+              a2(i,j,k,5) = zero
+
+            else if (j == ny/2) then
+              a(i,j,k,5) = zero
+              a2(i,j,k,5) = zero
+
+            else
+              a(i,j,k,5) = xa1_2 * cx( &
+                -rl(cw22(i,j+1,k)) * rl(cw22(i,j+2,k)), &
+                -iy(cw22(i,j+1,k)) * iy(cw22(i,j+2,k)) )
+
+              a2(i,j,k,5) = xa1_2 * cx( &
+                -rl(cw2(i,j+1,k)) * rl(cw2(i,j+2,k)), &
+                -iy(cw2(i,j+1,k)) * iy(cw2(i,j+2,k)) )
+
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !inf diag -1
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, ny/2
+          do i = nxst, nxen
+
+            if (j >= 2) then
+              a(i,j,k,2) = xa01 * cx( &
+                  rl(cw22(i,j-1,k)) * ( rl(cw22(i,j,k)) + rl(cw22(i,j-1,k)) ), &
+                  iy(cw22(i,j-1,k)) * ( iy(cw22(i,j,k)) + iy(cw22(i,j-1,k)) ) )
+
+              a2(i,j,k,2) = xa01 * cx( &
+                  rl(cw2(i,j-1,k)) * ( rl(cw2(i,j,k)) + rl(cw2(i,j-1,k)) ), &
+                  iy(cw2(i,j-1,k)) * ( iy(cw2(i,j,k)) + iy(cw2(i,j-1,k)) ) )
+            end if
+
+            if (j == 1) then
+              a(i,1,k,2) = zero
+              a2(i,1,k,2) = zero
+
+            else if (j == 2) then
+              a2(i,2,k,2) = cx( &
+                  xa0*xa1 * rl(cw2(i,2,k)) * rl(cw2(i,1,k)) &
+                + (xa0+xa1)*xa1 * rl(cw2(i,1,k))**2, &
+                  xa0*xa1 * iy(cw2(i,2,k)) * iy(cw2(i,1,k)) &
+                + (xa0+xa1)*xa1 * iy(cw2(i,1,k))**2 )
+
+            else if (j == ny/2) then
+              a2(i,j,k,2) = cx( &
+                  (xa0+xa1)*xa1 * rl(cw2(i,j,k)) * rl(cw2(i,j-1,k)) &
+                + xa0*xa1       * rl(cw2(i,j-1,k))**2, &
+                  (xa0+xa1)*xa1 * iy(cw2(i,j,k)) * iy(cw2(i,j-1,k)) &
+                + xa0*xa1       * iy(cw2(i,j-1,k))**2 )
+
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !inf diag -2
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, ny/2
+          do i = nxst, nxen
+
+            if (j >= 3) then
+              a(i,j,k,1) = xa1_2 * cx( &
+                  -rl(cw22(i,j-1,k)) * rl(cw22(i,j-2,k)), &
+                  -iy(cw22(i,j-1,k)) * iy(cw22(i,j-2,k)) )
+
+              a2(i,j,k,1) = xa1_2 * cx( &
+                  -rl(cw2(i,j-1,k)) * rl(cw2(i,j-2,k)), &
+                  -iy(cw2(i,j-1,k)) * iy(cw2(i,j-2,k)) )
+
+            else if (j == 1 .or. j == 2) then
+              a(i,j,k,1)  = zero
+              a2(i,j,k,1) = zero
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !not to have a singular matrice
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(2) default(present) private(rlx, rlz)
+      do k = nzst, nzen
+        do i = nxst, nxen
+          rlx = rl(xk2(i))
+          rlz = rl(zk2(k))
+          if ((dabs(rlx) < MINP).and.(dabs(rlz) < MINP)) then
+            a(i,1,k,3) = cx_one_one
+            a(i,1,k,4) = zero
+            a(i,1,k,5) = zero
+          endif
+        enddo
+      enddo
+      !$acc end parallel loop
+
     else
-!
-       xa0 = alpha / pi + half / beta / pi
-       xa1 = -one / four / beta / pi 
-!
-       xa0_2 = xa0**2
-       xa1_2 = xa1**2
-       xa01 = xa0 * xa1
-!
-       !construction of the pentadiagonal matrice
-       !   
-       do k = sp%yst(3), sp%yen(3)
-          do j = 1, nym
-             do i = sp%yst(1), sp%yen(1)
-!
-                cw22(i,j,k) = transx_rl(i) * cx(rl(yky(j)) * rl(transz(k)), &
-                                                iy(yky(j)) * iy(transz(k)))
-!
-             enddo
-          enddo
-       enddo
 
-       !main diagonal 
-       do k = sp%yst(3),sp%yen(3)
-          do j = 2, nym-1
-             do i = sp%yst(1), sp%yen(1)
-!
-                a3(i,j,k,3) = -cx(rl(xk2(i)) * transy_rl2(j) * transz_rl2(k) &
-                                 +rl(zk2(k)) * transy_rl2(j) * transx_rl2(i) &
-                                 +xa0_2 * rl(cw22(i,j,k))**2 &
-                                 +xa1_2 * rl(cw22(i,j,k)) * (rl(cw22(i,j-1,k)) + rl(cw22(i,j+1,k))),&
-!
-                                  iy(xk2(i)) * transy_rl2(j) * transz_iy2(k) &
-                                 +iy(zk2(k)) * transy_rl2(j) * transx_rl2(i) &
-                                 +xa0_2 * iy(cw22(i,j,k))**2 &
-                                 +xa1_2 * iy(cw22(i,j,k)) * (iy(cw22(i,j-1,k))+ iy(cw22(i,j+1,k))))
-!
-             enddo
-          enddo
-       enddo
+      xa0 = alpha / pi + half / beta / pi
+      xa1 = -one / four / beta / pi 
 
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)
-!
-             a3(i,1,k,3) = -cx(rl(xk2(i)) * transy_rl2(1) * transz_rl2(k) &
-                              +rl(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
-                              +xa0_2 * rl(cw22(i,1,k))**2 &
-                              +xa1_2 * rl(cw22(i,1,k)) * rl(cw22(i,2,k)),&
-!
-                               iy(xk2(i)) * transy_rl2(1) * transz_iy2(k) &
-                              +iy(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
-                              +xa0_2 * iy(cw22(i,1,k))**2 &
-                              +xa1_2 * iy(cw22(i,1,k)) * iy(cw22(i,2,k)))
-!
-             a3(i,nym,k,3) = -cx(rl(xk2(i)) * transy_rl2(nym) * transz_rl2(k) &
-                               +rl(zk2(k)) * transy_rl2(nym) * transx_rl2(i) &
-                               +xa0_2 * rl(cw22(i,nym,k))**2 &
-                               +xa1_2 * rl(cw22(i,nym,k)) * rl(cw22(i,nym-1,k)), &
-!
-                                iy(xk2(i)) * transy_rl2(nym) * transz_iy2(k) &
-                               +iy(zk2(k)) * transy_rl2(nym) * transx_rl2(i) &
-                               +xa0_2 * iy(cw22(i,nym,k))**2 &
-                               +xa1_2 * iy(cw22(i,nym,k)) * iy(cw22(i,nym-1,k)))
-!
-          enddo
-       enddo
+      xa0_2 = xa0**2
+      xa1_2 = xa1**2
+      xa01 = xa0 * xa1
 
-       !sup diag +1
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)
-             do j = 2, nym - 1
-                a3(i,j,k,4) = xa01 * cx(rl(cw22(i,j+1,k)) * (rl(cw22(i,j,k)) + rl(cw22(i,j+1,k))), &
-                                        iy(cw22(i,j+1,k)) * (iy(cw22(i,j,k)) + iy(cw22(i,j+1,k))))
-             enddo
-             a3(i,1,k,4) = xa01 * cx(rl(cw22(i,2,k)) * (rl(cw22(i,1,k)) + rl(cw22(i,2,k))), &
-                                     iy(cw22(i,2,k)) * (iy(cw22(i,1,k)) + iy(cw22(i,2,k))))
+      !construction of the pentadiagonal matrice
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, nym
+          do i = nxst, nxen
+            cw22(i,j,k) = transx_rl(i) * cx(rl(yky(j)) * rl(transz(k)), &
+                                            iy(yky(j)) * iy(transz(k)))
           enddo
-       enddo
+        enddo
+      enddo
+      !$acc end parallel loop
 
-       !sup diag +2
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)
-             do j = 1, nym - 2
-                a3(i,j,k,5) = -xa1_2 * cx(rl(cw22(i,j+1,k)) * rl(cw22(i,j+2,k)), &
-                                          iy(cw22(i,j+1,k)) * iy(cw22(i,j+2,k)))
-             enddo
-             a3(i,nym-1,k,5) = zero
-             a3(i,nym,k,5) = zero
-          enddo
-       enddo
+      !main diagonal
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, nym
+          do i = nxst, nxen
 
-       !inf diag -1
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)
-             do j = 2, nym
-                a3(i,j,k,2) = xa01 * cx(rl(cw22(i,j-1,k)) * (rl(cw22(i,j,k)) + rl(cw22(i,j-1,k))), &
-                                        iy(cw22(i,j-1,k)) * (iy(cw22(i,j,k)) + iy(cw22(i,j-1,k))))
-             enddo
-             a3(i,1,k,2) = zero
-          enddo
-       enddo
+            if (j == 1) then
+              a3(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(1) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
+                + xa0_2 * rl(cw22(i,1,k))**2 &
+                + xa1_2 * rl(cw22(i,1,k)) * rl(cw22(i,2,k)), &
 
-       !inf diag -2
-       do k = sp%yst(3), sp%yen(3)
-          do i = sp%yst(1), sp%yen(1)
-             do j = 3, nym
-                a3(i,j,k,1) = -xa1_2 * cx(rl(cw22(i,j-1,k)) * rl(cw22(i,j-2,k)),&
-                                          iy(cw22(i,j-1,k)) * iy(cw22(i,j-2,k)))
-             enddo
-             a3(i,1,k,1) = zero
-             a3(i,2,k,1) = zero
-          enddo
-       enddo
+                  iy(xk2(i)) * transy_rl2(1) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(1) * transx_rl2(i) &
+                + xa0_2 * iy(cw22(i,1,k))**2 &
+                + xa1_2 * iy(cw22(i,1,k)) * iy(cw22(i,2,k)) )
 
-       !not to have a singular matrice
-       if (nrank==0) then
-          a3(1,1,1,3) = cx_one_one
-          a3(1,1,1,4) = zero
-          a3(1,1,1,5) = zero
-       endif
+            else if (j == nym) then
+              a3(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(nym) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(nym) * transx_rl2(i) &
+                + xa0_2 * rl(cw22(i,nym,k))**2 &
+                + xa1_2 * rl(cw22(i,nym,k)) * rl(cw22(i,nym-1,k)), &
+
+                  iy(xk2(i)) * transy_rl2(nym) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(nym) * transx_rl2(i) &
+                + xa0_2 * iy(cw22(i,nym,k))**2 &
+                + xa1_2 * iy(cw22(i,nym,k)) * iy(cw22(i,nym-1,k)) )
+
+            else
+              a3(i,j,k,3) = -cx( &
+                  rl(xk2(i)) * transy_rl2(j) * transz_rl2(k) &
+                + rl(zk2(k)) * transy_rl2(j) * transx_rl2(i) &
+                + xa0_2 * rl(cw22(i,j,k))**2 &
+                + xa1_2 * rl(cw22(i,j,k)) * ( rl(cw22(i,j-1,k)) + rl(cw22(i,j+1,k)) ), &
+
+                  iy(xk2(i)) * transy_rl2(j) * transz_iy2(k) &
+                + iy(zk2(k)) * transy_rl2(j) * transx_rl2(i) &
+                + xa0_2 * iy(cw22(i,j,k))**2 &
+                + xa1_2 * iy(cw22(i,j,k)) * ( iy(cw22(i,j-1,k)) + iy(cw22(i,j+1,k)) ) )
+
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !sup diag +1
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, nym - 1
+          do i = nxst, nxen
+
+            if (j == 1) then
+              a3(i,1,k,4) = xa01 * cx( &
+                  rl(cw22(i,2,k)) * ( rl(cw22(i,1,k)) + rl(cw22(i,2,k)) ), &
+                  iy(cw22(i,2,k)) * ( iy(cw22(i,1,k)) + iy(cw22(i,2,k)) ) )
+
+            else
+              a3(i,j,k,4) = xa01 * cx( &
+                  rl(cw22(i,j+1,k)) * ( rl(cw22(i,j,k)) + rl(cw22(i,j+1,k)) ), &
+                  iy(cw22(i,j+1,k)) * ( iy(cw22(i,j,k)) + iy(cw22(i,j+1,k)) ) )
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, nym
+          do i = nxst, nxen
+
+            if (j <= nym - 2) then
+              a3(i,j,k,5) = -xa1_2 * cx( &
+                  rl(cw22(i,j+1,k)) * rl(cw22(i,j+2,k)), &
+                  iy(cw22(i,j+1,k)) * iy(cw22(i,j+2,k)) )
+
+            else
+              a3(i,j,k,5) = zero
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !inf diag -1
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, nym
+          do i = nxst, nxen
+
+            if (j == 1) then
+              a3(i,1,k,2) = zero
+
+            else
+              a3(i,j,k,2) = xa01 * cx( &
+                  rl(cw22(i,j-1,k)) * ( rl(cw22(i,j,k)) + rl(cw22(i,j-1,k)) ), &
+                  iy(cw22(i,j-1,k)) * ( iy(cw22(i,j,k)) + iy(cw22(i,j-1,k)) ) )
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !inf diag -2
+      nxst = sp%yst(1); nxen = sp%yen(1)
+      nzst = sp%yst(3); nzen = sp%yen(3)
+      !$acc parallel loop collapse(3) default(present)
+      do k = nzst, nzen
+        do j = 1, nym
+          do i = nxst, nxen
+
+            if (j >= 3) then
+              a3(i,j,k,1) = -xa1_2 * cx( &
+                  rl(cw22(i,j-1,k)) * rl(cw22(i,j-2,k)), &
+                  iy(cw22(i,j-1,k)) * iy(cw22(i,j-2,k)) )
+
+            else
+              a3(i,j,k,1) = zero
+            end if
+
+          end do
+        end do
+      end do
+      !$acc end parallel loop
+
+      !not to have a singular matrice
+      if (nrank==0) then
+        !$acc parallel default(present)
+        a3(1,1,1,3) = cx_one_one
+        a3(1,1,1,4) = zero
+        a3(1,1,1,5) = zero
+        !$acc end parallel
+      endif
+
     endif
+
+    !$acc end data
 
     return
   end subroutine matrice_refinement

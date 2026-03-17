@@ -37,14 +37,20 @@ subroutine initialise_chapsim
   use poisson_interface_mod
   use solver_tools_mod
   use thermo_info_mod
-  use io_visualisation_mod
+  use visualisation_field_mod
   use eq_momentum_mod
   use wrt_debug_field_mod
   use mhd_mod
   use io_field_interpolation_mod
+#ifdef PROFILING
+  use nvtx
+#endif
   implicit none
   integer :: i
 
+#ifdef PROFILING
+  call nvtxStartRange("initialisation")
+#endif
 !----------------------------------------------------------------------------------------------------------
 !> initialisation of mpi, nrank, nproc
 !----------------------------------------------------------------------------------------------------------
@@ -67,7 +73,7 @@ subroutine initialise_chapsim
   call Prepare_LHS_coeffs_for_operations
 !----------------------------------------------------------------------------------------------------------
 ! test all the operations.
-!----------------------------------------------------------------------------------------------------------  
+!----------------------------------------------------------------------------------------------------------
 #ifdef DEBUG_ALGO
   call Test_algorithms()
   call Print_warning_msg(" === The solver will stop as per the user's request in <Test_algorithms> === ")
@@ -81,6 +87,7 @@ subroutine initialise_chapsim
 ! build up fft basic info
 !----------------------------------------------------------------------------------------------------------
   do i = 1, nxdomain
+    !$acc update device(domain(i))
     call initialise_fft(domain(i))
   end do
 !----------------------------------------------------------------------------------------------------------
@@ -96,20 +103,26 @@ subroutine initialise_chapsim
 ! build up boundary condition
 !----------------------------------------------------------------------------------------------------------
   do i = 1, nxdomain
+    call copyin_device_geometry(domain(i))
     if(nrank == 0 ) call Print_debug_start_msg("Initialising boundary conditions ...")
     if(domain(i)%is_thermo) then
       call Convert_thermal_input_2undim(thermo(i), domain(i))
-      call allocate_fbc_thermo(domain(i)) 
-      call initialise_fbc_thermo_given(thermo(i), domain(i)) 
+      !$acc update device(domain(i)%fbcx_const)
+      !$acc update device(domain(i)%fbcy_const)
+      !$acc update device(domain(i)%fbcz_const)
+      call allocate_fbc_thermo(domain(i))
+      !$acc update device(thermo(i))
+      call initialise_fbc_thermo_given(thermo(i), domain(i))
     end if
-    call allocate_fbc_flow(domain(i)) 
-    call initialise_fbc_flow_given(domain(i)) 
+    call allocate_fbc_flow(domain(i))
+    call initialise_fbc_flow_given(domain(i))
     if(nrank == 0 ) call Print_debug_end_msg()
   end do
 !----------------------------------------------------------------------------------------------------------
 ! initialise flow and thermo fields
 !----------------------------------------------------------------------------------------------------------
   do i = 1, nxdomain
+    !$acc update device(flow(i))
     call Allocate_flow_variables (flow(i), domain(i))
     if(domain(i)%is_thermo) then
       call Allocate_thermo_variables (thermo(i), domain(i))
@@ -148,11 +161,12 @@ subroutine initialise_chapsim
     if(domain(i)%is_thermo) call update_fbc_2dm_thermo_halo(domain(i), thermo(i), domain(i+1), thermo(i+1))
   end do
 
-#ifdef DEBUG_STEPS  
+#ifdef DEBUG_STEPS
   !call test_poisson(domain(1)) ! debug_ww
   !call Print_warning_msg(" === The solver will stop as per the user's request. === ")
   !stop
 #endif
+
   if(nrank == 0 .and. is_prerun) then
     call Print_debug_start_msg("Pre-run for input variables adjustment")
     if (domain(1)%is_mhd) then
@@ -170,6 +184,10 @@ subroutine initialise_chapsim
 
     stop 'Pre-run is completed.'
   end if
+
+#ifdef PROFILING
+  call nvtxEndRange
+#endif
 
   return
 end subroutine initialise_chapsim
@@ -195,14 +213,14 @@ subroutine Solve_eqs_iteration
   !use poisson_mod
   use eq_energy_mod
   use eq_momentum_mod
-  use flow_thermo_initialiasation 
+  use flow_thermo_initialiasation
   use code_performance_mod
   use thermo_info_mod
   use vars_df_mod
   use input_general_mod
   use mpi_mod
   use wtformat_mod
-  use io_visualisation_mod
+  use visualisation_field_mod
   use io_monitor_mod
   use io_tools_mod
   use io_restart_mod
@@ -211,6 +229,10 @@ subroutine Solve_eqs_iteration
   use boundary_conditions_mod
   use find_max_min_ave_mod
   use mhd_mod
+#ifdef PROFILING
+  use nvtx
+#endif
+
   implicit none
 
   logical, allocatable :: is_flow  (:)
@@ -236,11 +258,10 @@ subroutine Solve_eqs_iteration
      !call Check_cfl_diffusion (flow(i), opt_tm=thermo(i), domain(i))
   end do
 
-  allocate(is_flow  (nxdomain)) 
-  allocate(is_thermo(nxdomain)) 
+  allocate(is_flow  (nxdomain))
+  allocate(is_thermo(nxdomain))
   is_flow   = .false.
   is_thermo = .false.
-
 
   call call_cpu_time(CPU_TIME_STEP_START, iteration, niter)
 
@@ -291,7 +312,7 @@ subroutine Solve_eqs_iteration
       !      check numerical stability
       !----------------------------------------------------------------------------------------------------------
       if (.not. is_IO_off) then
-        call Check_cfl_convection(flow(i)%qx, flow(i)%qy, flow(i)%qz, domain(i))
+        call Check_cfl_convection(flow(i)%qx, flow(i)%qy, flow(i)%qz, flow(i), domain(i))
         if(domain(i)%is_thermo) then
           call Check_cfl_diffusion (fl=flow(i), dm=domain(i), opt_tm=thermo(i))
         else
@@ -307,7 +328,7 @@ subroutine Solve_eqs_iteration
       !----------------------------------------------------------------------------------------------------------
       ! to read instantaneous inlet from database, real, not sub-RK
       !----------------------------------------------------------------------------------------------------------
-      if(domain(i)%is_read_xinlet) call read_instantaneous_xinlet(flow(i), domain(i))     
+      if(domain(i)%is_read_xinlet) call read_instantaneous_xinlet(flow(i), domain(i))
     end do
     !==========================================================================================================
     !  main solver, domain coupling in each sub-iteration (check)
@@ -318,13 +339,35 @@ subroutine Solve_eqs_iteration
         if(is_thermo(i)) call update_fbc_2dm_thermo_halo(domain(i), thermo(i), domain(i+1), thermo(i+1))
       end do
       do i = 1, nxdomain
-        if(is_thermo(i)) call Solve_energy_eq  (flow(i), thermo(i), domain(i), isub)
-        if(domain(i)%is_mhd) call compute_Lorentz_force(flow(i), mhd(i), domain(i))
+        if(is_thermo(i)) then
+#ifdef PROFILING
+          call nvtxStartRange("Solve Energy - RK substep")
+#endif
+          call Solve_energy_eq  (flow(i), thermo(i), domain(i), isub)
+#ifdef PROFILING
+          call nvtxEndRange
+#endif
+        end if
+        if(domain(i)%is_mhd) then
+#ifdef PROFILING
+          call nvtxStartRange("Solve MHD - RK substep")
+#endif
+          call compute_Lorentz_force(flow(i), mhd(i), domain(i))
+#ifdef PROFILING
+          call nvtxEndRange
+#endif
+        end if
+#ifdef PROFILING
+        call nvtxStartRange("Solve Momentum - RK substep")
+#endif
         if(is_flow(i) .and. (.not. is_thermo(i)))  then
           call Solve_momentum_eq(flow(i), domain(i), isub)
         else if (is_flow(i) .and. is_thermo(i)) then
           call Solve_momentum_eq(flow(i), domain(i), isub)
         end if
+#ifdef PROFILING
+        call nvtxEndRange
+#endif
       end do
     end do
 
@@ -363,7 +406,7 @@ subroutine Solve_eqs_iteration
       end if
       if(domain(i)%is_mhd .and. is_flow(i)) then
         if (iter > domain(i)%stat_istart) then
-          call update_stats_mhd(mhd(i), domain(i))
+          call update_stats_mhd(mhd(i), flow(i), domain(i))
         end if
       end if
       !----------------------------------------------------------------------------------------------------------
@@ -386,7 +429,7 @@ subroutine Solve_eqs_iteration
         if(nrank==0) call Print_debug_mid_msg("Field Info") 
         call Check_element_mass_conservation(flow(i), domain(i), iter)
         if(domain(1)%is_mhd) then
-          call check_current_conservation(mhd(i), domain(i))
+          call check_current_conservation(mhd(i), flow(i), domain(i))
           call Find_max_min_3d(mhd(i)%ep, opt_name="ep =")
         end if
         if(is_thermo(i)) then
@@ -440,7 +483,7 @@ subroutine Solve_eqs_iteration
   end do ! iteration
 
   call call_cpu_time(CPU_TIME_STEP_END, iteration, niter)
-  
+
   return
 end subroutine Solve_eqs_iteration
 
@@ -450,7 +493,44 @@ subroutine Finalise_chapsim
   use code_performance_mod
   implicit none
 
+  call cleanup_device_mem()
   call call_cpu_time(CPU_TIME_CODE_END, 0, 0)
   call Finalise_mpi()
+  return
+end subroutine
+
+subroutine cleanup_device_mem
+  use operations
+  use mpi_mod
+  use flow_thermo_initialiasation
+  use boundary_conditions_mod
+  use geometry_mod
+  use mhd_mod
+
+  implicit none
+
+  integer :: i
+
+  call cleanup_device_mem_operation()
+
+  do i = 1, nxdomain
+    call cleanup_device_mem_fbc_flow(domain(i))
+    call cleanup_device_mem_fbc_thermo(domain(i))
+    call cleanup_device_mem_geometry(domain(i))
+    call cleanup_device_mem_flow_var(flow(i), domain(i))
+
+    !$acc exit data delete(domain(i))
+    !$acc exit data delete(flow(i))
+    if(domain(i)%is_thermo) then
+      call cleanup_device_mem_thermo_var(thermo(i), domain(i))
+      !$acc exit data delete(thermo(i))
+    end if
+    if(domain(i)%is_mhd) then
+      call cleanup_device_mem_mhd(flow(i), mhd(i), domain(i))
+      !$acc exit data delete(mhd(i))
+    end if
+
+  end do
+
   return
 end subroutine

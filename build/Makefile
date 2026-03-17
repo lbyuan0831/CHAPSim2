@@ -24,6 +24,10 @@ ifeq ($(cfg),)
     cfg := default
 endif
 
+ifeq ($(mem),)
+    mem := default
+endif
+
 # Detect architecture and platform
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
@@ -81,6 +85,12 @@ else ifeq ($(cfg), gnu-o3)
   FC     = mpif90
   FOPTS  = -O3 $(COMMON_FOPTS)
   FDEBG  = 
+else ifeq ($(cfg), gpu)
+  FC     = mpif90
+  FOPTS  = -O3 -Mfreeform -Mextend -cpp -acc -gpu=cc80,lineinfo -Minfo=accel \
+           -Kieee -target=gpu -traceback -cuda
+  FOPTS  += -DDOUBLE_PREC -DUSE_GPU -DPROFILING
+  FDEBG  = 
 else
   FC     = mpif90
   FOPTS  = -O3 $(COMMON_FOPTS)
@@ -116,7 +126,39 @@ ifneq ($(LIB_CHECK),OK)
 endif
 
 # Use the library file directly instead of -L/-l flags
-LIBS = $(DECOMP_LIB) $(HDF5_LIB)
+ifeq ($(cfg), gpu)
+    LIBS = $(DECOMP_LIB) $(HDF5_LIB) -cudalib=cufft,nccl -lnvhpcwrapnvtx
+else
+    LIBS = $(DECOMP_LIB) $(HDF5_LIB)
+endif
+
+# Place all .mod files in DIR_OBJ
+# Module output directory flag depends on compiler
+ifeq ($(cfg), gnu)
+  MODFLAG = -J$(DIR_OBJ)
+else ifeq ($(cfg), intel)
+  MODFLAG = -module $(DIR_OBJ)
+else ifeq ($(cfg), cray)
+  MODFLAG = -J$(DIR_OBJ)
+else ifeq ($(cfg), gpu)
+  MODFLAG = -module $(DIR_OBJ)
+else
+  MODFLAG = -J$(DIR_OBJ)
+endif
+
+FOPTS += $(MODFLAG)
+
+# Enable memory-saving mode or not (default)
+ifeq ($(mem), memsave)
+  eq_momentum2 = eq_momentum2_memsave
+else
+  eq_momentum2 = eq_momentum2
+endif
+
+# memory-saving mode is used by default for GPUs at present
+ifeq ($(cfg), gpu)
+  eq_momentum2 = eq_momentum2_memsave
+endif
 
 # Object file lists
 OBJS1 = $(addprefix $(DIR_OBJ)/, \
@@ -145,7 +187,7 @@ OBJS1 = $(addprefix $(DIR_OBJ)/, \
       eq_energy.o \
       eq_mhd.o \
       io_restart.o \
-      eq_momentum2.o \
+      $(eq_momentum2).o \
       initialisation.o \
       test_algrithms.o \
       chapsim.o)
@@ -153,7 +195,11 @@ OBJS1 = $(addprefix $(DIR_OBJ)/, \
 OBJS2 = $(addprefix $(DIR_OBJ)/, fftpack.o)
 
 # Compilation flags for FFT library (Fortran 77 files)
-F77_OPTS = $(ARCH_FLAGS) -O2 -w -fdefault-real-8 -fdefault-double-8 -fallow-argument-mismatch
+ifeq ($(cfg), gpu)
+    F77_OPTS = $(ARCH_FLAGS) -O2 -Mfixed -Mextend
+else
+    F77_OPTS = $(ARCH_FLAGS) -O2 -w -fdefault-real-8 -fdefault-double-8 -fallow-argument-mismatch
+endif
 
 # Total number of object files for progress display
 TOTAL_OBJS := $(words $(OBJS1) $(OBJS2))

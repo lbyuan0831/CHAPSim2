@@ -57,6 +57,9 @@ module boundary_conditions_mod
 
   private :: get_name_bc
 
+  public  :: cleanup_device_mem_fbc_flow
+  public  :: cleanup_device_mem_fbc_thermo
+
 contains
 !==========================================================================================================
 function get_name_bc(ibc) result(str)
@@ -308,14 +311,20 @@ end function
     allocate( dm%fbcy_pr(dm%dccc%ysz(1),              4, dm%dccc%ysz(3)) )! default y pencil
     allocate( dm%fbcz_pr(dm%dccc%zsz(1), dm%dccc%zsz(2),              4) )! default z pencil
 
+    !$acc enter data create(dm%fbcx_qx, dm%fbcy_qx, dm%fbcz_qx, dm%fbcx_qy, dm%fbcy_qy, dm%fbcz_qy, &
+    !$acc&                  dm%fbcx_qz, dm%fbcy_qz, dm%fbcz_qz, dm%fbcx_pr, dm%fbcy_pr, dm%fbcz_pr)
+
     if(dm%icoordinate == ICYLINDRICAL) then 
       allocate( dm%fbcy_qyr(dm%dcpc%ysz(1), 4,              dm%dcpc%ysz(3)) )
       allocate( dm%fbcz_qyr(dm%dcpc%zsz(1), dm%dcpc%zsz(2), 4             ) )
       allocate( dm%fbcy_qzr(dm%dccp%ysz(1), 4,              dm%dccp%ysz(3)) )
       allocate( dm%fbcz_qzr(dm%dccp%zsz(1), dm%dccp%zsz(2), 4             ) )
+      !$acc enter data create(dm%fbcy_qyr, dm%fbcz_qyr, dm%fbcy_qzr, dm%fbcz_qzr)
     end if
 
     if(dm%is_record_xoutlet) then
+      if(nrank == 0 .and. dm%dxcc%xsz(1)>100) &
+        call Print_warning_msg('consider reducing ndbfre to less than 100 in case of limited GPU memory')
       allocate (dm%fbcx_qx_outl1(dm%dxcc%xsz(1), dm%dxcc%xsz(2), dm%dxcc%xsz(3)) )
       allocate (dm%fbcx_qx_outl2(dm%dxcc%xsz(1), dm%dxcc%xsz(2), dm%dxcc%xsz(3)) )
       allocate (dm%fbcx_qy_outl1(dm%dxpc%xsz(1), dm%dxpc%xsz(2), dm%dxpc%xsz(3)) )
@@ -324,6 +333,8 @@ end function
       allocate (dm%fbcx_qz_outl2(dm%dxcp%xsz(1), dm%dxcp%xsz(2), dm%dxcp%xsz(3)) )
       allocate (dm%fbcx_pr_outl1(dm%dxcc%xsz(1), dm%dxcc%xsz(2), dm%dxcc%xsz(3)) )
       allocate (dm%fbcx_pr_outl2(dm%dxcc%xsz(1), dm%dxcc%xsz(2), dm%dxcc%xsz(3)) )
+      !$acc enter data create(dm%fbcx_qx_outl1, dm%fbcx_qx_outl2, dm%fbcx_qy_outl1, dm%fbcx_qy_outl2, &
+      !$acc&                  dm%fbcx_qz_outl1, dm%fbcx_qz_outl2, dm%fbcx_pr_outl1, dm%fbcx_pr_outl2)
     end if
 
     if(dm%is_read_xinlet) then
@@ -335,10 +346,39 @@ end function
       allocate (dm%fbcx_qz_inl2(dm%dxcp%xsz(1), dm%dxcp%xsz(2), dm%dxcp%xsz(3)) )
       allocate (dm%fbcx_pr_inl1(dm%dxcc%xsz(1), dm%dxcc%xsz(2), dm%dxcc%xsz(3)) )
       allocate (dm%fbcx_pr_inl2(dm%dxcc%xsz(1), dm%dxcc%xsz(2), dm%dxcc%xsz(3)) )
+      !$acc enter data create(dm%fbcx_qx_inl1, dm%fbcx_qx_inl2, dm%fbcx_qy_inl1, dm%fbcx_qy_inl2, &
+      !$acc&                  dm%fbcx_qz_inl1, dm%fbcx_qz_inl2, dm%fbcx_pr_inl1, dm%fbcx_pr_inl2)
     end if
 
     return
-  end subroutine 
+  end subroutine
+!==========================================================================================================
+!==========================================================================================================
+  subroutine cleanup_device_mem_fbc_flow(dm)
+
+    implicit none
+
+    type(t_domain), intent(inout)  :: dm
+
+    !$acc exit data delete(dm%fbcx_qx, dm%fbcy_qx, dm%fbcz_qx, dm%fbcx_qy, dm%fbcy_qy, dm%fbcz_qy, &
+    !$acc&                 dm%fbcx_qz, dm%fbcy_qz, dm%fbcz_qz, dm%fbcx_pr, dm%fbcy_pr, dm%fbcz_pr)
+
+    if(dm%icoordinate == ICYLINDRICAL) then
+      !$acc exit data delete(dm%fbcy_qyr, dm%fbcz_qyr, dm%fbcy_qzr, dm%fbcz_qzr)
+    end if
+
+    if(dm%is_record_xoutlet) then
+      !$acc exit data delete(dm%fbcx_qx_outl1, dm%fbcx_qx_outl2, dm%fbcx_qy_outl1, dm%fbcx_qy_outl2, &
+      !$acc&                 dm%fbcx_qz_outl1, dm%fbcx_qz_outl2, dm%fbcx_pr_outl1, dm%fbcx_pr_outl2)
+    end if
+
+    if(dm%is_read_xinlet) then
+      !$acc exit data delete(dm%fbcx_qx_inl1, dm%fbcx_qx_inl2, dm%fbcx_qy_inl1, dm%fbcx_qy_inl2, &
+      !$acc&                 dm%fbcx_qz_inl1, dm%fbcx_qz_inl2, dm%fbcx_pr_inl1, dm%fbcx_pr_inl2)
+    end if
+
+    return
+  end subroutine
 !==========================================================================================================
 !==========================================================================================================
   subroutine allocate_fbc_thermo(dm)
@@ -358,6 +398,10 @@ end function
     allocate( dm%fbcz_gy(dm%dcpc%zsz(1), dm%dcpc%zsz(2), 4) )! default z pencil
     allocate( dm%fbcz_gz(dm%dccp%zsz(1), dm%dccp%zsz(2), 4) )! default z pencil
 
+    !$acc enter data create(dm%fbcx_gx, dm%fbcx_gy, dm%fbcx_gz, &
+    !$acc&                  dm%fbcy_gx, dm%fbcy_gy, dm%fbcy_gz, &
+    !$acc&                  dm%fbcz_gx, dm%fbcz_gy, dm%fbcz_gz)
+
     !if(dm%icoordinate == ICYLINDRICAL) then 
       !allocate( dm%fbcy_gyr(dm%dcpc%ysz(1), 4, dm%dcpc%ysz(3)) )
       !allocate( dm%fbcy_gzr(dm%dccp%ysz(1), 4, dm%dccp%ysz(3)) )
@@ -374,9 +418,30 @@ end function
     allocate( dm%fbcz_qw (dm%dccp%zsz(1), dm%dccp%zsz(2), 4) )! default x pencil
     allocate( dm%fbcz_ftp(dm%dccp%zsz(1), dm%dccp%zsz(2), 4) )! default z pencil
 
-    return
-  end subroutine 
+    !$acc enter data create(dm%fbcx_qw,  dm%fbcy_qw,  dm%fbcz_qw, &
+    !$acc&                  dm%fbcx_ftp, dm%fbcy_ftp, dm%fbcz_ftp)
 
+    return
+  end subroutine
+!==========================================================================================================
+!==========================================================================================================
+  subroutine cleanup_device_mem_fbc_thermo(dm)
+
+    implicit none
+
+    type(t_domain), intent(inout)  :: dm
+
+    if( .not. dm%is_thermo) return
+
+    !$acc exit data delete(dm%fbcx_gx, dm%fbcx_gy, dm%fbcx_gz, &
+    !$acc&                 dm%fbcy_gx, dm%fbcy_gy, dm%fbcy_gz, &
+    !$acc&                 dm%fbcz_gx, dm%fbcz_gy, dm%fbcz_gz)
+
+    !$acc exit data delete(dm%fbcx_qw,  dm%fbcy_qw,  dm%fbcz_qw, &
+    !$acc&                 dm%fbcx_ftp, dm%fbcy_ftp, dm%fbcz_ftp)
+
+    return
+  end subroutine
 
 !==========================================================================================================
 !==========================================================================================================
@@ -391,7 +456,8 @@ end function
     real(WP), dimension( dtmp%ysz(1), dtmp%ysz(2), dtmp%ysz(3) ) :: var_ypencil, var_ypencil1
     real(WP), dimension( dtmp%zsz(1), dtmp%zsz(2), dtmp%zsz(3) ) :: var_zpencil, var_zpencil1
 
-    integer :: k
+    integer :: i, j, k
+    integer :: nx, ny, nz
     real(WP) :: sign
 
     !if (dm%icase /= ICASE_PIPE .or. dm%icoordinate /= ICYLINDRICAL) return
@@ -400,30 +466,41 @@ end function
 !----------------------------------------------------------------------------------------------------------
 !   transpose from x to z
 !----------------------------------------------------------------------------------------------------------
+    !$acc data create(var_ypencil, var_ypencil1, var_zpencil, var_zpencil1)
     if(present(is_reversed)) then
       if(is_reversed) sign = - ONE
     end if
     call transpose_x_to_y(var_xpencil, var_ypencil, dtmp)
     call transpose_y_to_z(var_ypencil, var_zpencil, dtmp)
 
-    do k = 1, dtmp%zsz(3)
-      var_zpencil1(:, :, k) = sign * var_zpencil(:, :, ksym(k))
-    end do
-    call transpose_z_to_y(var_zpencil1, var_ypencil1, dtmp)
-    fbcy(:, 1, :) = var_ypencil1(:, 1, :)
-    fbcy(:, 3, :) = var_ypencil1(:, 2, :)
+    nx = dtmp%zsz(1); ny = dtmp%zsz(2); nz = dtmp%zsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1, nz; do j=1, ny; do i=1,nx
+      var_zpencil1(i, j, k) = sign * var_zpencil(i, j, ksym(k))
+    end do; end do; end do
+    !$acc end parallel loop
 
-    if(present(is_qr_qrdr)) then ! for qy/r
-      if(is_qr_qrdr == 1) then
-        fbcy(:, 1, :) = ZERO
-      else if (is_qr_qrdr == 2) then
-        fbcy(:, 1, :) = (var_ypencil1(:, 2, :) + var_ypencil(:, 2, :)) * HALF ! multiple values
-      else
+    call transpose_z_to_y(var_zpencil1, var_ypencil1, dtmp)
+
+    nx = dtmp%ysz(1); nz = dtmp%ysz(3)
+    !$acc parallel loop collapse(2) present(fbcy, var_ypencil, var_ypencil1)
+    do k=1, nz; do i=1,nx
+      fbcy(i, 1, k) = var_ypencil1(i, 1, k)
+      fbcy(i, 3, k) = var_ypencil1(i, 2, k)
+      if(present(is_qr_qrdr)) then ! for qy/r
+        if(is_qr_qrdr == 1) then
+          fbcy(i, 1, k) = ZERO
+        else if (is_qr_qrdr == 2) then
+          fbcy(i, 1, k) = (var_ypencil1(i, 2, k) + var_ypencil(i, 2, k)) * HALF ! multiple values
+        else
+        end if
       end if
-    end if
+    end do; end do
+    !$acc end parallel loop
+    !$acc end data
 
     return
-  end subroutine 
+  end subroutine
 
 !==========================================================================================================
 !==========================================================================================================
@@ -433,6 +510,9 @@ end function
     implicit none 
     type(t_domain), intent(inout) :: dm
     type(t_flow), intent(inout)      :: fl
+
+    integer :: i, k
+    integer :: nx, nz
 
     real(WP), dimension( dm%dcpc%xsz(1), dm%dcpc%xsz(2), dm%dcpc%xsz(3) ) :: acpc_xpencil
 
@@ -454,17 +534,26 @@ end function
     call axis_mirroring_interior_fbcy(fl%qy, dm%fbcy_qy, dm%knc_sym, dm%dcpc, &
             is_qr_qrdr = 1, is_reversed = .true.)
     ! Update qy/r boundary conditions in y-direction (on nodes)
-    acpc_xpencil = fl%qy
+    !$acc data create(acpc_xpencil)
+    !$acc kernels default(present)
+      acpc_xpencil(:,:,:) = fl%qy(:,:,:)
+    !$acc end kernels
     call multiple_cylindrical_rn(acpc_xpencil, dm%dcpc, dm%rpi, 1, IPENCIL(1)) ! qr/r
     call axis_mirroring_interior_fbcy(acpc_xpencil, dm%fbcy_qyr, dm%knc_sym, dm%dcpc, &
             is_qr_qrdr = 2, is_reversed = .true.)
+    !$acc end data
 !----------------------------------------------------------------------------------------------------------
 !   Update qz boundary condition in y-direction (interior cell center)
 !----------------------------------------------------------------------------------------------------------
     if(dm%ibcy_qz(1) /= IBC_INTERIOR) call Print_error_msg('Error in ibcy_qz for the centre of the pipe.') ! 
     call axis_mirroring_interior_fbcy(fl%qz, dm%fbcy_qz, dm%knc_sym, dm%dccp, is_reversed = .true.) ! check
-    dm%fbcy_qzr(:, 1, :) = dm%fbcy_qz(:, 1, :) * dm%rci(1) ! interior, not at axis
-    dm%fbcy_qzr(:, 3, :) = dm%fbcy_qz(:, 3, :) * dm%rci(2)
+    nx = dm%dccp%ysz(1); nz = dm%dccp%ysz(3)
+    !$acc parallel loop collapse(2) default(present)
+    do k=1, nz; do i=1, nx
+      dm%fbcy_qzr(i, 1, k) = dm%fbcy_qz(i, 1, k) * dm%rci(1) ! interior, not at axis
+      dm%fbcy_qzr(i, 3, k) = dm%fbcy_qz(i, 3, k) * dm%rci(2)
+    end do; end do
+    !$acc end parallel loop
 !----------------------------------------------------------------------------------------------------------
 !   Update pressure boundary condition in y-direction (interior)
 !----------------------------------------------------------------------------------------------------------
@@ -521,17 +610,29 @@ end function
 !   ! Update thermo boundary condition in y-direction (interior)
 !----------------------------------------------------------------------------------------------------------
     if(dm%ibcy_Tm(1) /= IBC_INTERIOR) call Print_error_msg('Error in ibcy_Tm for the centre of the pipe.') !
-    if(fluidparam%ipropertyState == IPROPERTY_TABLE) then 
-      fbcy = dm%fbcy_ftp%h
+    if(fluidparam%ipropertyState == IPROPERTY_TABLE) then
+      !$acc data create(fbcy)
+      !$acc kernels default(present)
+      fbcy(:,:,:) = dm%fbcy_ftp(:,:,:)%h
+      !$acc end kernels
       call axis_mirroring_interior_fbcy(tm%hEnth, fbcy, dm%knc_sym, dm%dccc)
-      dm%fbcy_ftp%h = fbcy
+      !$acc kernels default(present)
+      dm%fbcy_ftp(:,:,:)%h = fbcy(:,:,:)
+      !$acc end kernels
+      !$acc end data
       call ftp_refresh_thermal_properties_from_H_3Dftp(dm%fbcy_ftp)
     end if
 
-    if(fluidparam%ipropertyState == IPROPERTY_FUNCS) then 
-      fbcy = dm%fbcy_ftp%t
+    if(fluidparam%ipropertyState == IPROPERTY_FUNCS) then
+      !$acc data create(fbcy)
+      !$acc kernels default(present)
+      fbcy(:,:,:) = dm%fbcy_ftp(:,:,:)%t
+      !$acc end kernels
       call axis_mirroring_interior_fbcy(tm%tTemp, fbcy, dm%knc_sym, dm%dccc)
-      dm%fbcy_ftp%t = fbcy
+      !$acc kernels default(present)
+      dm%fbcy_ftp(:,:,:)%t = fbcy(:,:,:)
+      !$acc end kernels
+      !$acc end data
       call ftp_refresh_thermal_properties_from_T_undim_3Dftp(dm%fbcy_ftp)
     end if
 
@@ -841,7 +942,16 @@ end function
       ! to add neumann later, check
     end if
 
-    return 
+    !$acc enter data copyin(mbcx_cov1, mbcy_cov1, mbcz_cov1,            &
+    !$acc&                  mbcx_tau1, mbcy_tau1, mbcz_tau1,            &
+    !$acc&                  mbcx_cov2, mbcy_cov2, mbcz_cov2, mbcr_cov2, &
+    !$acc&                  mbcy_tau2, mbcx_tau2, mbcz_tau2, mbcr_tau2, &
+    !$acc&                  mbcx_cov3, mbcy_cov3, mbcz_cov3, mbcr_cov3, &
+    !$acc&                  mbcy_tau3, mbcx_tau3, mbcz_tau3, mbcr_tau3, &
+    !$acc&                  ebcx_conv, ebcy_conv, ebcz_conv,            &
+    !$acc&                  ebcx_difu, ebcy_difu, ebcz_difu)
+
+    return
   end subroutine
 
 !==========================================================================================================
@@ -855,19 +965,25 @@ end function
     real(WP), intent(out) :: fbc(4, dm%dpcc%xsz(2), dm%dpcc%xsz(3))
 
     integer :: n
+    integer :: j, k
+    integer :: ny, nz
 
-    fbc = ZERO
-    do n = 1, 2
-      if(ibc(n) == IBC_DIRICHLET) then    
-        fbc(n, :, :) = dm%fbcx_ftp(n, :, :)%t
+    ny = dm%dpcc%xsz(2)
+    nz = dm%dpcc%xsz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, nz; do j = 1, ny; do n = 1, 2
+      if(ibc(n) == IBC_DIRICHLET) then
+        fbc(n, j, k) = dm%fbcx_ftp(n, j, k)%t
       else if(ibc(n) == IBC_NEUMANN) then
-        fbc(n, :, :) = dm%fbcx_qw(n, :, :)
+        fbc(n, j, k) = dm%fbcx_qw(n, j, k)
       else
-        fbc(n, :, :) = ZERO
+        fbc(n, j, k) = ZERO
       end if
-    end do 
+    end do; end do; end do
+    !$acc end parallel loop
+
     return
-  end subroutine 
+  end subroutine
 !==========================================================================================================
   subroutine get_fbcy_iTh(ibc, dm, fbc)
     use udf_type_mod
@@ -878,17 +994,23 @@ end function
     real(WP), intent(out) :: fbc(dm%dcpc%ysz(1), 4, dm%dcpc%ysz(3))
 
     integer :: n
+    integer :: i, k
+    integer :: nx, nz
 
-    fbc = ZERO
-    do n = 1, 2
-      if(ibc(n) == IBC_DIRICHLET) then    
-        fbc(:, n, :) = dm%fbcy_ftp(:, n, :)%t
+    nx = dm%dcpc%ysz(1)
+    nz = dm%dcpc%ysz(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, nz; do n = 1, 2; do i = 1, nx
+      if(ibc(n) == IBC_DIRICHLET) then
+        fbc(i, n, k) = dm%fbcy_ftp(i, n, k)%t
       else if(ibc(n) == IBC_NEUMANN) then
-        fbc(:, n, :) = dm%fbcy_qw(:, n, :)
+        fbc(i, n, k) = dm%fbcy_qw(i, n, k)
       else
-        fbc(:, n, :) = ZERO
+        fbc(i, n, k) = ZERO
       end if
-    end do 
+    end do; end do; end do
+    !$acc end parallel loop
+
     return
   end subroutine 
 !==========================================================================================================
@@ -901,17 +1023,23 @@ end function
     real(WP), intent(out) :: fbc(dm%dccp%zsz(1), dm%dccp%zsz(2), 4)
 
     integer :: n
+    integer :: i, j
+    integer :: nx, ny
 
-    fbc = ZERO
-    do n = 1, 2
+    nx = dm%dccp%zsz(1)
+    ny = dm%dccp%zsz(2)
+    !$acc parallel loop collapse(3) default(present)
+    do n = 1, 2; do j = 1, ny; do i = 1, nx
       if(ibc(n) == IBC_DIRICHLET) then    
-        fbc(:, :, n) = dm%fbcz_ftp(:, :, n)%t
+        fbc(i, j, n) = dm%fbcz_ftp(i, j, n)%t
       else if(ibc(n) == IBC_NEUMANN) then
-        fbc(:, :, n) = dm%fbcz_qw(:, :, n)
+        fbc(i, j, n) = dm%fbcz_qw(i, j, n)
       else
-        fbc(:, :, n) = ZERO
+        fbc(i, j, n) = ZERO
       end if
-    end do 
+    end do; end do; end do
+    !$acc end parallel loop
+
     return
   end subroutine 
 
