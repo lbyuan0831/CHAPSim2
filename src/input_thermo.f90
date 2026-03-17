@@ -688,7 +688,7 @@ contains
         end if
         if (ddh < MINP .and. nrank == 0) then
           call Print_warning_msg('The relation (rho * h) = FUNCTION (H) is not monotonicity.') 
-          write(*, wrtfmt1e) ' This occurs from H(J/KG) = ', \
+          write(*, wrtfmt1e) ' This occurs from H(J/KG) = ', &
           ftplist(i)%h  * fluidparam%ftp0ref%t * fluidparam%ftp0ref%cp + fluidparam%ftp0ref%h
           call Print_warning_msg('If this H locates in-between your interested range, please try to increase your reference temeprature.')
         end if

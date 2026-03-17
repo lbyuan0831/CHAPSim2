@@ -847,7 +847,6 @@ module io_field_interpolation_mod
     use geometry_mod
     use domain_decomposition_mod
     use io_restart_mod
-   !use io_visualisation_mod
     implicit none 
     type(t_domain), intent(in) :: dm_src
     type(t_flow)  , intent(in) :: fl_src

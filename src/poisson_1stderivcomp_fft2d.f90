@@ -4,8 +4,8 @@
 module fft2decomp_interface_mod
   use decomp_2d
   use mpi_mod
-  use parameters_constant_mod, disabled => WP!, only: zero, half, one, onepfive, two, twopfive, &
-                             !        three, pi, threepfive, four, twopi, cx_one_one
+  use parameters_constant_mod, only: MINP, zero, half, one, onepfive, two, twopfive, &
+                                     three, pi, threepfive, four, twopi, cx_one_one
   use math_mod, only: cos_prec, abs_prec, sin_prec, sqrt_wp
   !use geometry_mod, only: alpha, beta
   use print_msg_mod

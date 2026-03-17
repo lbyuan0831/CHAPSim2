@@ -844,6 +844,92 @@ contains
           end do
         end if
       !----------------------------------------------------------------------------------------------------------
+      ! [statistics]
+      !----------------------------------------------------------------------------------------------------------
+      else if ( secname(1:slen) == '[statistics]' ) then
+        read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%stat_istart
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_nskip(1:3)
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_u,   &
+                                                    domain(1)%stat_p,   &
+                                                    domain(1)%stat_pu,  &
+                                                    domain(1)%stat_uu,  &
+                                                    domain(1)%stat_uuu, &
+                                                    domain(1)%stat_dudu
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_h,    &
+                                                    domain(1)%stat_T,    &
+                                                    domain(1)%stat_f,    &
+                                                    domain(1)%stat_fu,   &
+                                                    domain(1)%stat_fh,   &
+                                                    domain(1)%stat_TT,   &
+                                                    domain(1)%stat_fuu,  &
+                                                    domain(1)%stat_fuh,  &
+                                                    domain(1)%stat_fuuu, &
+                                                    domain(1)%stat_fuuh
+        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_e,  &
+                                                    domain(1)%stat_j,  &
+                                                    domain(1)%stat_eu, &
+                                                    domain(1)%stat_ej, &
+                                                    domain(1)%stat_jj
+
+        do i = 1, nxdomain
+          domain(i)%stat_nskip(1:3) = domain(1)%stat_nskip(1:3)
+          if(domain(i)%is_stretching(2)) domain(i)%stat_nskip(2) = 1
+          domain(i)%stat_u = domain(1)%stat_u
+          domain(i)%stat_p = domain(1)%stat_p
+          domain(i)%stat_pu = domain(1)%stat_pu
+          domain(i)%stat_uu = domain(1)%stat_uu
+          domain(i)%stat_uuu = domain(1)%stat_uuu
+          domain(i)%stat_dudu = domain(1)%stat_dudu
+          domain(i)%stat_h = domain(1)%stat_h
+          domain(i)%stat_T = domain(1)%stat_T
+          domain(i)%stat_f = domain(1)%stat_f
+          domain(i)%stat_fu = domain(1)%stat_fu
+          domain(i)%stat_fh = domain(1)%stat_fh
+          domain(i)%stat_TT = domain(1)%stat_TT
+          domain(i)%stat_fuu = domain(1)%stat_fuu
+          domain(i)%stat_fuh = domain(1)%stat_fuh
+          domain(i)%stat_fuuu = domain(1)%stat_fuuu
+          domain(i)%stat_fuuh = domain(1)%stat_fuuh
+          domain(i)%stat_e = domain(1)%stat_e
+          domain(i)%stat_j = domain(1)%stat_j
+          domain(i)%stat_eu = domain(1)%stat_eu
+          domain(i)%stat_ej = domain(1)%stat_ej
+          domain(i)%stat_jj = domain(1)%stat_jj
+        end do
+
+        if( nrank == 0) then
+          do i = 1, nxdomain
+            write (*, wrtfmt1i) 'statistics written from :', domain(i)%stat_istart
+            write (*, wrtfmt3i) 'statistics skips in xyz :', domain(i)%stat_nskip(1:3)
+            write (*, *) '                statistics to compute   :'
+            if(domain(i)%stat_u==1) write (*, '(47X,A)') 'u{i}'
+            if(domain(i)%stat_p==1) write (*, '(47X,A)') 'p'
+            if(domain(i)%stat_pu==1) write (*, '(47X,A)') 'p * u{i}'
+            if(domain(i)%stat_uu==1) write (*, '(47X,A)') 'u{i} * u{j}'
+            if(domain(i)%stat_uuu==1) write (*, '(47X,A)') 'u{i} * u{j} * u{k}'
+            if(domain(i)%stat_dudu==1) write (*, '(47X,A)') 'du{i}/dx{k} * du{j}/dx{k}'
+            if(is_any_energyeq) then
+              if(domain(i)%stat_h==1) write (*, '(47X,A)') 'h'
+              if(domain(i)%stat_T==1) write (*, '(47X,A)') 'T'
+              if(domain(i)%stat_f==1) write (*, '(47X,A)') 'rho'
+              if(domain(i)%stat_fu==1) write (*, '(47X,A)') 'rho * u{i}'
+              if(domain(i)%stat_fh==1) write (*, '(47X,A)') 'rho * h'
+              if(domain(i)%stat_TT==1) write (*, '(47X,A)') 'T * T'
+              if(domain(i)%stat_fuu==1) write (*, '(47X,A)') 'rho * u{i} * u{j}'
+              if(domain(i)%stat_fuh==1) write (*, '(47X,A)') 'rho * u{i} * h'
+              if(domain(i)%stat_fuuu==1) write (*, '(47X,A)') 'rho * u{i} * u{j} * u{k}'
+              if(domain(i)%stat_fuuh==1) write (*, '(47X,A)') 'rho * u{i} * u{j} * h'
+            end if
+            if(domain(1)%is_mhd) then
+              if(domain(i)%stat_e==1) write (*, '(47X,A)') 'e'
+              if(domain(i)%stat_j==1) write (*, '(47X,A)') 'j{i}'
+              if(domain(i)%stat_eu==1) write (*, '(47X,A)') 'e * u{i}'
+              if(domain(i)%stat_ej==1) write (*, '(47X,A)') 'e * j{i}'
+              if(domain(i)%stat_jj==1) write (*, '(47X,A)') 'j{i} * j{j}'
+            end if
+          end do
+        end if
+      !----------------------------------------------------------------------------------------------------------
       ! [ioparams]
       !----------------------------------------------------------------------------------------------------------
       else if ( secname(1:slen) == '[io]' ) then
@@ -852,8 +938,6 @@ contains
         read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%visu_idim
         read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%visu_nfre
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%visu_nskip(1:3)
-        read(inputUnit, *, iostat = ioerr) varname, domain(1 : nxdomain)%stat_istart
-        read(inputUnit, *, iostat = ioerr) varname, domain(1)%stat_nskip(1:3)
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%is_record_xoutlet, domain(1)%is_read_xinlet
         read(inputUnit, *, iostat = ioerr) varname, domain(1)%ndbfre, domain(1)%ndbstart, domain(1)%ndbend
         
@@ -862,9 +946,7 @@ contains
           if(domain(1)%ndbfre/=0) &
           domain(:)%ndbend = (domain(1)%ndbend - domain(1)%ndbstart + 1)/domain(1)%ndbfre * domain(1)%ndbfre + domain(1)%ndbstart - 1
           domain(i)%visu_nskip(1:3) = domain(1)%visu_nskip(1:3)
-          domain(i)%stat_nskip(1:3) = domain(1)%stat_nskip(1:3) 
           if(domain(i)%is_stretching(2)) domain(i)%visu_nskip(2) = 1
-          if(domain(i)%is_stretching(2)) domain(i)%stat_nskip(2) = 1
           !
           do n = 1, 3
             if((domain(i)%visu_nskip(n) < 1) .or. &
@@ -896,8 +978,6 @@ contains
             write (*, wrtfmt1i) 'visu data dimensions :', domain(i)%visu_idim
             write (*, wrtfmt1i) 'visu data written freqency :', domain(i)%visu_nfre
             write (*, wrtfmt3i) 'visu data skips in xyz :', domain(i)%visu_nskip(1:3)
-            write (*, wrtfmt1i) 'statistics written from :', domain(i)%stat_istart
-            write (*, wrtfmt3i) 'statistics skips in xyz :', domain(i)%stat_nskip(1:3)
             write (*, wrtfmt1l) 'recording outlet plane? :', domain(1)%is_record_xoutlet
             write (*, wrtfmt1l) 'reading inlet plane? :', domain(1)%is_read_xinlet
             write (*, wrtfmt1i) 'reading/recording plane freqency :', domain(1)%ndbfre

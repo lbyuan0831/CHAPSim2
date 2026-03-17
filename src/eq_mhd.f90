@@ -15,7 +15,6 @@ contains
     use math_mod
     use mpi_mod
     use print_msg_mod
-    !use io_visualisation_mod
     implicit none 
     type(t_domain), intent(in)    :: dm
     type(t_flow),   intent(inout) :: fl

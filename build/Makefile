@@ -81,6 +81,11 @@ else ifeq ($(cfg), gnu-o3)
   FC     = mpif90
   FOPTS  = -O3 $(COMMON_FOPTS)
   FDEBG  = 
+else ifeq ($(cfg), nvhpc_cpu)
+  FC     = mpif90
+  FOPTS  = -O3 -Kieee -Minfo=accel -target=multicore -acc -cpp
+  FOPTS  += -DDOUBLE_PREC
+  FDEBG  = 
 else
   FC     = mpif90
   FOPTS  = -O3 $(COMMON_FOPTS)
@@ -153,7 +158,12 @@ OBJS1 = $(addprefix $(DIR_OBJ)/, \
 OBJS2 = $(addprefix $(DIR_OBJ)/, fftpack.o)
 
 # Compilation flags for FFT library (Fortran 77 files)
-F77_OPTS = $(ARCH_FLAGS) -O2 -w -fdefault-real-8 -fdefault-double-8 -fallow-argument-mismatch
+ifeq ($(cfg), nvhpc_cpu)
+  F77_OPTS = $(ARCH_FLAGS) -O2 -Mfixed -Mextend
+else
+  F77_OPTS = $(ARCH_FLAGS) -O2 -w -fdefault-real-8 -fdefault-double-8 -fallow-argument-mismatch
+endif
+#F77_OPTS = $(ARCH_FLAGS) -O2 -w -fdefault-real-8 -fdefault-double-8 -fallow-argument-mismatch
 
 # Total number of object files for progress display
 TOTAL_OBJS := $(words $(OBJS1) $(OBJS2))

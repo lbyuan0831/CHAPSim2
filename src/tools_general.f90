@@ -451,6 +451,8 @@ module random_number_generation_mod
   public :: initialise_random_number
   public :: Generate_rvec_random
   public :: Generate_r_random
+  public :: lcg_random
+
 
 contains
   subroutine initialise_random_number ( seed )
@@ -635,7 +637,36 @@ contains
 
     return
   end subroutine Generate_r_random
-  
+
+  ! This works with nvfortran
+  subroutine lcg_random(seed, r)
+
+    use parameters_constant_mod, only : ONE, TWO
+    use iso_fortran_env, only: int32
+
+    implicit none
+
+    integer(int32), intent(inout) :: seed
+    real(wp), intent(out) :: r
+    integer(int32), parameter :: a = 16807_int32
+    integer(int32), parameter :: m = 2147483647_int32
+    integer(int32), parameter :: q = 127773_int32
+    integer(int32), parameter :: r0 = 2836_int32
+    integer(int32) :: k
+
+    ! Map any incoming seed safely into [1, m-1].
+    if (seed <= 0_int32) seed = modulo(seed, m - 1_int32) + 1_int32
+
+    ! Park-Miller LCG using Schrage's method (no integer overflow in 32-bit).
+    k = seed / q
+    seed = a * (seed - k * q) - r0 * k
+    if (seed < 0_int32) seed = seed + m
+
+    r = real(seed, wp) / real(m, wp)
+    r = TWO * r - ONE
+
+  end subroutine
+
 end module random_number_generation_mod
 
 !module index_mod

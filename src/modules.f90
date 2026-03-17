@@ -489,6 +489,27 @@ module udf_type_mod
     integer :: visu_nskip(NDIM)
     integer :: stat_istart
     integer :: stat_nskip(NDIM)
+    integer :: stat_u
+    integer :: stat_p
+    integer :: stat_pu
+    integer :: stat_uu
+    integer :: stat_uuu
+    integer :: stat_dudu
+    integer :: stat_h
+    integer :: stat_T
+    integer :: stat_f
+    integer :: stat_fu
+    integer :: stat_fh
+    integer :: stat_TT
+    integer :: stat_fuu
+    integer :: stat_fuh
+    integer :: stat_fuuu
+    integer :: stat_fuuh
+    integer :: stat_e
+    integer :: stat_j
+    integer :: stat_eu
+    integer :: stat_ej
+    integer :: stat_jj
     integer :: nsubitr
     integer :: istret, mstret
     integer :: ndbfre

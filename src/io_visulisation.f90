@@ -720,7 +720,7 @@ contains
     !
     if (nrank /= 0) return
     !
-    if(.not. present(opt_is_savg) .or. .not. opt_is_savg) then
+    if(.not. present(opt_is_savg)) then
     if(dm%visu_idim == Ivisu_3D .or. dm%visu_idim == Ivisu_3D2D) then
       call generate_pathfile_name(xdmf_file, dm%idom, visuname, dir_visu, 'xdmf', iter)
       open(newunit=u, file=trim(xdmf_file), status='replace', action='write')
@@ -786,7 +786,7 @@ contains
     !
     if (nrank /= 0) return
     !
-    if(.not. present(opt_is_savg) .or. .not. opt_is_savg) then
+    if(.not. present(opt_is_savg)) then
     if(dm%visu_idim == Ivisu_3D .or. dm%visu_idim == Ivisu_3D2D) then
       call generate_pathfile_name(xdmf_file, dm%idom, visuname, dir_visu, 'xdmf', iter)
       open(newunit=u, file=trim(xdmf_file), status='old', action='write', position='append')

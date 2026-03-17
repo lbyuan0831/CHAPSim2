@@ -422,9 +422,9 @@ module bc_convective_outlet_mod
       accp_zpencil(:, :, 1) = dm%fbcz_qz(:, :, 2)
       call transpose_from_z_pencil(accp_zpencil, fl%qz, dm%dccp, IPENCIL(1))
     else
-      dm%fbcx_gx = a4cc
-      dm%fbcx_gy = a4pc
-      dm%fbcx_gz = a4cp
+      dm%fbcz_gx = apc4
+      dm%fbcz_gy = acp4
+      dm%fbcz_gz = acc4
       accp_zpencil(:, :, dm%dccp%zsz(3)) = dm%fbcz_gz(:, :, 2)
       call transpose_from_z_pencil(accp_zpencil, fl%gz, dm%dccp, IPENCIL(1))
     end if
@@ -481,7 +481,8 @@ module bc_convective_outlet_mod
     ! update b.c.
     call calculate_fbcx_convective_outlet(a4cc_xpencil, uxdx, tm%fbcx_rhoh_rhs0, a0cc_xpencil, dm, isub)
     !call enforce_domain_energy_balance_dyn_fbc(fl, dm) ! todo-check necessary? 
-    ! update other properties 
+    ! update other properties
+    dm%fbcx_ftp(:, :, :)%rhoh = a4cc_xpencil
     do j = 1, size(dm%fbcx_ftp, 2)
       do k = 1, size(dm%fbcx_ftp, 3)
         call ftp_refresh_thermal_properties_from_DH(dm%fbcx_ftp(2, j, k))
@@ -521,6 +522,7 @@ module bc_convective_outlet_mod
     call calculate_fbcz_convective_outlet(acc4_zpencil, uzdz, tm%fbcz_rhoh_rhs0, acc0_zpencil, dm, isub)
     !!call enforce_domain_energy_balance_dyn_fbc(fl, dm) ! todo-check necessary? 
     ! update other properties
+    dm%fbcz_ftp(:, :, :)%rhoh = acc4_zpencil
     do j = 1, size(dm%fbcz_ftp, 2)
       do i = 1, size(dm%fbcz_ftp, 1)
         call ftp_refresh_thermal_properties_from_DH(dm%fbcz_ftp(i, j, 2))

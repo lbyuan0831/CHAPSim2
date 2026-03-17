@@ -66,7 +66,7 @@ contains
 
       do k = 1, dm%dcpp%zsz(3)
         theta = dm%h(3) * REAL(k, WP)
-        do j = 1, dm%dccc%zsz(2)
+        do j = 1, dm%dcpp%zsz(2)
           fr_cpp_zpencil(:, j, k) =  acpp_zpencil(:, j, k) * sin_wp(theta)
           ft_cpp_zpencil(:, j, k) = -acpp_zpencil(:, j, k) * cos_wp(theta)
         end do
@@ -817,6 +817,8 @@ contains
 !     end if
 ! #endif
       call transpose_y_to_x(acpc_ypencil, acpc_xpencil, dm%dcpc) !acpc_xpencil = muiy_cpc_xpencil
+
+      ! FIXME: need to add fbcx_4pc = MAXP for the case where is_fbcx_velo_required = .false.
       if(is_fbcx_velo_required) call get_fbcx_ftp_4pc(fbcx_4cc, fbcx_4pc, dm)
       call Get_x_midp_C2P_3D(acpc_xpencil, muixy_ppc_xpencil, dm, dm%iAccuracy, dm%ibcx_ftp, fbcx_4pc)
 
@@ -1871,7 +1873,7 @@ contains
     if(dm%is_thermo .and. (fl%igravity == i .or. fl%igravity == -i) )  then
       if(dm%icoordinate == ICYLINDRICAL) then
         call gravity_decomposition_to_rz(d_ccc_xpencil, fl%igravity, fl%fgravity(i), acpc_ypencil, accp_zpencil, dm)
-        my_rhs_pfc_ypencil = my_rhs_pfc_ypencil + accp_zpencil
+        my_rhs_pfc_ypencil = my_rhs_pfc_ypencil + acpc_ypencil
       else
         fbcz_cc4(:, :, :) = dm%fbcz_ftp(:, :, :)%d
         call Get_z_midp_C2P_3D(dDens_zpencil, accp_zpencil, dm, dm%iAccuracy, dm%ibcz_ftp, fbcz_cc4 )
@@ -2320,7 +2322,6 @@ contains
     use cylindrical_rn_mod
     use find_max_min_ave_mod
     use typeconvert_mod
-    !use io_visualisation_mod
     use solver_tools_mod
     implicit none
     !------------------------------------------------------------------

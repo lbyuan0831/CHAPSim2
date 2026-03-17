@@ -167,19 +167,31 @@ contains
     use math_mod
     use boundary_conditions_mod
     use flatten_index_mod
-    !use io_visualisation_mod
     use wtformat_mod
     use find_max_min_ave_mod
     use wrt_debug_field_mod
+    use iso_fortran_env, only : int32, int64
     type(t_domain),  intent(in) :: dm
     type(t_flow), intent(inout) :: fl
-    
+
     integer :: seed
+    integer(int32) :: seed_lcg ! used only for the LCG random number generator
+    integer, parameter :: seed0 = 123456
     integer :: i, j, k! local id
-    integer :: n, nsz  
     integer :: ii, jj, kk ! global id
-    integer :: seed0 = 123456
-    real(WP) :: rd, lownoise
+    integer :: n, nsz  
+    integer(int64) :: seed64, x
+    integer(int64), parameter :: h1 = 73856093_int64
+    integer(int64), parameter :: h2 = 19349663_int64
+    integer(int64), parameter :: h3 = 83492791_int64
+    integer(int64), parameter :: h4 = 2654435761_int64
+    integer(int64), parameter :: lcg_m1 = 2147483646_int64
+    real(WP), parameter :: hash_a = 12.9898_wp
+    real(WP), parameter :: hash_b = 78.233_wp
+    real(WP), parameter :: hash_c = 37.719_wp
+    real(WP), parameter :: hash_d = 11.131_wp
+    real(WP), parameter :: hash_s = 43758.5453123_wp
+    real(WP) :: rd, lownoise, rnd
     type(DECOMP_INFO) :: dtmp
 
     if(nrank == 0) call Print_debug_inline_msg("Generating random field ...")
@@ -209,17 +221,52 @@ contains
       do k = 1, dtmp%xsz(3)
         kk = dtmp%xst(3) + k - 1
         do j = 1, dtmp%xsz(2)
-          jj = dtmp%xst(2) + j - 1 !local2global_yid(j, dtmp)
-          !if( ( ONE - abs_wp(dm%yp(jj)) ) .LT. QUARTER) then
-            !lownoise = fl%noiselevel * fl%noiselevel
-          !else
-            lownoise = fl%noiselevel
-          !end if
+          jj = dtmp%xst(2) + j - 1
+          lownoise = fl%noiselevel
           do i = 1, dtmp%xsz(1)
-            ii = i
-            seed = flatten_index(ii, jj, kk, dtmp%xsz(1), dtmp%ysz(2)) + seed0 * n
-            call initialise_random_number ( seed )
-            call Generate_r_random( -ONE, ONE, rd)
+            ii = dtmp%xst(1) + i - 1
+            ! Method 1: using fortran random number generator
+!            ii = i
+!            seed = flatten_index(ii, jj, kk, dtmp%xsz(1), dtmp%ysz(2)) + seed0 * n
+!            call initialise_random_number ( seed )
+!            call Generate_r_random( -ONE, ONE, rd)
+
+            ! Method 2: Stateless index hash for GPU: avoids seed-neighbor correlation striping.
+            ! sin_wp with scaling may be sensitive across platforms/compilers
+!            rnd = sin_wp( real(ii, WP) * hash_a + real(jj, WP) * hash_b + &
+!                          real(kk, WP) * hash_c + real(n, WP) * hash_d ) * hash_s
+!            rnd = rnd - real(floor(rnd), WP)
+!            rd = TWO * rnd - ONE
+
+            ! Method 3: Integer-only stateless hash (CPU/GPU consistent), then whiten via LCG.
+!            seed64 = int(ii,int64)*h1 + int(jj,int64)*h2 + &
+!                     int(kk,int64)*h3 + int(n,int64)*h4 + &
+!                     int(seed0,int64)
+!            seed_lcg = int(iand(seed64, z'7FFFFFFF'), int32)
+!            if (seed_lcg == 0_int32) seed_lcg = 1_int32
+!            call lcg_random(seed_lcg, rd)
+!            call lcg_random(seed_lcg, rd)
+!            call lcg_random(seed_lcg, rd)
+
+            ! Method 4: 64-bit XOR / Mix Hash (Stateless, CPU/GPU consistent)
+            x = int(ii, int64)
+            x = ieor(x, ishft(int(jj,int64), 21))
+            x = ieor(x, ishft(int(kk,int64), 42))
+            x = ieor(x, ishft(int(n ,int64), 10))
+
+            ! 64-bit mix (splitmix64 style)
+            x = x + int(z'9E3779B97F4A7C15', int64)
+            x = ieor(x, ishft(x, -30))
+            x = x * int(z'BF58476D1CE4E5B9', int64)
+            x = ieor(x, ishft(x, -27))
+            x = x * int(z'94D049BB133111EB', int64)
+            x = ieor(x, ishft(x, -31))
+
+            rnd = real(iand(x, z'7FFFFFFFFFFFFFFF'), wp) / &
+                  real(huge(1_int64), wp)
+
+            rd = TWO*rnd - ONE
+
             if(n == 1) fl%qx(i, j, k) = lownoise * rd
             if(n == 2) fl%qy(i, j, k) = lownoise * HALF * rd * dm%rp(jj)
             if(n == 3) fl%qz(i, j, k) = lownoise * HALF * rd! * dm%rc(jj)

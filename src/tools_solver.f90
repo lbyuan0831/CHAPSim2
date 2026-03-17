@@ -837,7 +837,7 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     !
     if(dm%is_conv_outlet(3)) then
       call transpose_to_z_pencil(accc_xpencil, accc_zpencil, dm%dccc, IPENCIL(1))
-      do i = 1, dm%dccc%zsz(3)
+      do k = 1, dm%dccc%zsz(3)
         accc_zpencil(:,:,k) = accc_zpencil(:,:,k) * (ONE - dm%zdamping(k) )
       end do
     end if
