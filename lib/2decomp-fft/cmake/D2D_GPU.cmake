@@ -30,6 +30,7 @@ if (ENABLE_CUDA)
     set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_COMP} CACHE STRING "Set the correct CUDA architecture" FORCE)
   else()
     set(CUDA_ARCH_COMP ${SET_CUDA_ARCH})
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH_COMP} CACHE STRING "Set CUDA architectures from SET_CUDA_ARCH" FORCE)
   endif()
 endif()
 

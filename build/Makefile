@@ -28,6 +28,8 @@ ifeq ($(mem),)
     mem := default
 endif
 
+cuda_arch ?= 80
+
 # Detect architecture and platform
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
@@ -87,7 +89,7 @@ else ifeq ($(cfg), gnu-o3)
   FDEBG  = 
 else ifeq ($(cfg), gpu)
   FC     = mpif90
-  FOPTS  = -O3 -Mfreeform -Mextend -cpp -acc -gpu=cc80,lineinfo -Minfo=accel \
+  FOPTS  = -O3 -Mfreeform -Mextend -cpp -acc -gpu=cc$(cuda_arch),lineinfo -Minfo=accel \
            -Kieee -target=gpu -traceback -cuda
   FOPTS  += -DDOUBLE_PREC -DUSE_GPU -DPROFILING
   FDEBG  = 
