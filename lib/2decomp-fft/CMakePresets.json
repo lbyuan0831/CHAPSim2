@@ -1,0 +1,113 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "nvidia-base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "BUILD_TARGET": "gpu",
+        "ENABLE_CUDA": "ON",
+        "ENABLE_NCCL": "ON",
+        "FFT_Choice": "cufft"
+      }
+    },
+    {
+      "name": "rtx6000-cuda",
+      "inherits": "nvidia-base",
+      "displayName": "NVIDIA RTX6000 CUDA",
+      "description": "CUDA build targeting RTX6000 Ada (sm89). If using RTX6000 Turing, set SET_CUDA_ARCH=75.",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SET_CUDA_ARCH": "89"
+      }
+    },
+    {
+      "name": "rtx4000-cuda",
+      "inherits": "nvidia-base",
+      "displayName": "NVIDIA RTX4000 CUDA",
+      "description": "CUDA build targeting RTX4000 (Turing, sm75)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SET_CUDA_ARCH": "75"
+      }
+    },
+    {
+      "name": "v100-cuda",
+      "inherits": "nvidia-base",
+      "displayName": "NVIDIA V100 CUDA",
+      "description": "CUDA build targeting V100 (sm70)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SET_CUDA_ARCH": "70"
+      }
+    },
+    {
+      "name": "a100-cuda",
+      "inherits": "nvidia-base",
+      "displayName": "NVIDIA A100 CUDA",
+      "description": "CUDA build targeting A100 (sm80)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SET_CUDA_ARCH": "80"
+      }
+    },
+    {
+      "name": "h100-cuda",
+      "inherits": "nvidia-base",
+      "displayName": "NVIDIA H100 CUDA",
+      "description": "CUDA build targeting H100 (sm90)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SET_CUDA_ARCH": "90"
+      }
+    },
+    {
+      "name": "h200-cuda",
+      "inherits": "nvidia-base",
+      "displayName": "NVIDIA H200 CUDA",
+      "description": "CUDA build targeting H200 (sm90)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SET_CUDA_ARCH": "90"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "rtx6000-cuda",
+      "configurePreset": "rtx6000-cuda",
+      "jobs": 8
+    },
+    {
+      "name": "rtx4000-cuda",
+      "configurePreset": "rtx4000-cuda",
+      "jobs": 8
+    },
+    {
+      "name": "v100-cuda",
+      "configurePreset": "v100-cuda",
+      "jobs": 8
+    },
+    {
+      "name": "a100-cuda",
+      "configurePreset": "a100-cuda",
+      "jobs": 8
+    },
+    {
+      "name": "h100-cuda",
+      "configurePreset": "h100-cuda",
+      "jobs": 8
+    },
+    {
+      "name": "h200-cuda",
+      "configurePreset": "h200-cuda",
+      "jobs": 8
+    }
+  ]
+}
