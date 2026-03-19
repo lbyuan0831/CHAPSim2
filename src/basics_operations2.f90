@@ -1612,14 +1612,7 @@ contains
 
     integer :: i, j, m, k
 
-    !$acc kernels default(present)
-    a(:, :, :, :) =  ZERO
-    b(:, :, :, :) =  ZERO
-    c(:, :, :, :) =  ZERO
-    d(:, :, :, :) =  ZERO
-    !$acc end kernels
     k = IBC_PERIODIC
-    !$acc parallel loop collapse(3) present(a, b, c, d, coeff)
     do m = 1, NACC
       do j = NBCS, NBCE
         do i = NBCS, NBCE
@@ -1658,7 +1651,6 @@ contains
         end do
       end do
     end do
-    !$acc end parallel loop
 
     return
   end subroutine Buildup_TDMA_LHS_array
@@ -1697,25 +1689,25 @@ contains
     allocate (bd1y_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_C2C = ZERO
     allocate (cd1y_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_C2C = ZERO
     allocate (dd1y_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_C2C = ZERO
-    !$acc enter data create(ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
     call Buildup_TDMA_LHS_array(nsz, d1fC2C, &
           ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
+    !$acc enter data copyin(ad1y_C2C, bd1y_C2C, cd1y_C2C, dd1y_C2C)
 
     allocate (ad1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); ad1y_P2C = ZERO
     allocate (bd1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_P2C = ZERO
     allocate (cd1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_P2C = ZERO
     allocate (dd1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_P2C = ZERO
-    !$acc enter data create(ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
     call Buildup_TDMA_LHS_array(nsz, d1fP2C, &
           ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
+    !$acc enter data copyin(ad1y_P2C, bd1y_P2C, cd1y_P2C, dd1y_P2C)
 
     allocate (am1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); am1y_P2C = ZERO
     allocate (bm1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1y_P2C = ZERO
     allocate (cm1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1y_P2C = ZERO
     allocate (dm1y_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm1y_P2C = ZERO
-    !$acc enter data create(am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
     call Buildup_TDMA_LHS_array(nsz, m1fP2C, &
           am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
+    !$acc enter data copyin(am1y_P2C, bm1y_P2C, cm1y_P2C, dm1y_P2C)
 
 !----------------------------------------------------------------------------------------------------------
 ! y-direction, with np unknows
@@ -1726,25 +1718,25 @@ contains
     allocate (bd1y_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_P2P = ZERO
     allocate (cd1y_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_P2P = ZERO
     allocate (dd1y_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_P2P = ZERO
-    !$acc enter data create(ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
     call Buildup_TDMA_LHS_array(nsz, d1fP2P, &
           ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
+    !$acc enter data copyin(ad1y_P2P, bd1y_P2P, cd1y_P2P, dd1y_P2P)
 
     allocate (ad1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); ad1y_C2P = ZERO
     allocate (bd1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1y_C2P = ZERO
     allocate (cd1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1y_C2P = ZERO
     allocate (dd1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1y_C2P = ZERO
-    !$acc enter data create(ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P)
     call Buildup_TDMA_LHS_array(nsz, d1fC2P, &
-          ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P) 
+          ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P)
+    !$acc enter data copyin(ad1y_C2P, bd1y_C2P, cd1y_C2P, dd1y_C2P)
 
     allocate (am1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); am1y_C2P = ZERO
     allocate (bm1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1y_C2P = ZERO
     allocate (cm1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1y_C2P = ZERO
     allocate (dm1y_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm1y_C2P = ZERO
-    !$acc enter data create(am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
     call Buildup_TDMA_LHS_array(nsz, m1fC2P, &
           am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
+    !$acc enter data copyin(am1y_C2P, bm1y_C2P, cm1y_C2P, dm1y_C2P)
 
 !----------------------------------------------------------------------------------------------------------
 ! z-direction, with nc unknows
@@ -1756,25 +1748,25 @@ contains
     allocate (bd1z_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_C2C = ZERO
     allocate (cd1z_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_C2C = ZERO
     allocate (dd1z_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_C2C = ZERO
-    !$acc enter data create(ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
     call Buildup_TDMA_LHS_array(nsz, d1fC2C, &
           ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
+    !$acc enter data copyin(ad1z_C2C, bd1z_C2C, cd1z_C2C, dd1z_C2C)
 
     allocate (ad1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); ad1z_P2C = ZERO
     allocate (bd1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_P2C = ZERO
     allocate (cd1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_P2C = ZERO
     allocate (dd1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_P2C = ZERO
-    !$acc enter data create(ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
     call Buildup_TDMA_LHS_array(nsz, d1fP2C, &
           ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
+    !$acc enter data copyin(ad1z_P2C, bd1z_P2C, cd1z_P2C, dd1z_P2C)
 
     allocate (am1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); am1z_P2C = ZERO
     allocate (bm1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1z_P2C = ZERO
     allocate (cm1z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1z_P2C = ZERO
     allocate (dm2z_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm2z_P2C = ZERO
-    !$acc enter data create(am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
     call Buildup_TDMA_LHS_array(nsz, m1fP2C, &
           am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
+    !$acc enter data copyin(am1z_P2C, bm1z_P2C, cm1z_P2C, dm2z_P2C)
 
 !----------------------------------------------------------------------------------------------------------
 ! z-direction, with np unknows
@@ -1787,25 +1779,25 @@ contains
     allocate (bd1z_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_P2P = ZERO
     allocate (cd1z_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_P2P = ZERO
     allocate (dd1z_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_P2P = ZERO
-    !$acc enter data create(ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
     call Buildup_TDMA_LHS_array(nsz, d1fP2P, &
           ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
+    !$acc enter data copyin(ad1z_P2P, bd1z_P2P, cd1z_P2P, dd1z_P2P)
 
     allocate (ad1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); ad1z_C2P = ZERO
     allocate (bd1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bd1z_C2P = ZERO
     allocate (cd1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cd1z_C2P = ZERO
     allocate (dd1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dd1z_C2P = ZERO
-    !$acc enter data create(ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
     call Buildup_TDMA_LHS_array(nsz, d1fC2P, &
           ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
+    !$acc enter data copyin(ad1z_C2P, bd1z_C2P, cd1z_C2P, dd1z_C2P)
 
     allocate (am1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); am1z_C2P = ZERO
     allocate (bm1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); bm1z_C2P = ZERO
     allocate (cm1z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); cm1z_C2P = ZERO
     allocate (dm2z_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); dm2z_C2P = ZERO
-    !$acc enter data create(am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
     call Buildup_TDMA_LHS_array(nsz, m1fC2P, &
           am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
+    !$acc enter data copyin(am1z_C2P, bm1z_C2P, cm1z_C2P, dm2z_C2P)
 
 !----------------------------------------------------------------------------------------------------------
 ! x-direction
@@ -1822,37 +1814,37 @@ contains
       allocate (xtdma_lhs(i)%bd1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_C2C = ZERO
       allocate (xtdma_lhs(i)%cd1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_C2C = ZERO
       allocate (xtdma_lhs(i)%dd1x_C2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_C2C = ZERO
-      !$acc enter data create(xtdma_lhs(i)%ad1x_C2C, xtdma_lhs(i)%bd1x_C2C, &
-      !$acc&                  xtdma_lhs(i)%cd1x_C2C, xtdma_lhs(i)%dd1x_C2C)
       call Buildup_TDMA_LHS_array(nsz , d1fC2C, &
             xtdma_lhs(i)%ad1x_C2C, &
             xtdma_lhs(i)%bd1x_C2C, &
             xtdma_lhs(i)%cd1x_C2C, &
             xtdma_lhs(i)%dd1x_C2C)
+      !$acc enter data copyin(xtdma_lhs(i)%ad1x_C2C, xtdma_lhs(i)%bd1x_C2C, &
+      !$acc&                  xtdma_lhs(i)%cd1x_C2C, xtdma_lhs(i)%dd1x_C2C)
 
       allocate (xtdma_lhs(i)%ad1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%ad1x_P2C = ZERO
       allocate (xtdma_lhs(i)%bd1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_P2C = ZERO
       allocate (xtdma_lhs(i)%cd1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_P2C = ZERO
       allocate (xtdma_lhs(i)%dd1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_P2C = ZERO
-      !$acc enter data create(xtdma_lhs(i)%ad1x_P2C, xtdma_lhs(i)%bd1x_P2C, &
-      !$acc&                  xtdma_lhs(i)%cd1x_P2C, xtdma_lhs(i)%dd1x_P2C)
       call Buildup_TDMA_LHS_array(nsz , d1fP2C, &
             xtdma_lhs(i)%ad1x_P2C, &
             xtdma_lhs(i)%bd1x_P2C, &
             xtdma_lhs(i)%cd1x_P2C, &
             xtdma_lhs(i)%dd1x_P2C)
+      !$acc enter data copyin(xtdma_lhs(i)%ad1x_P2C, xtdma_lhs(i)%bd1x_P2C, &
+      !$acc&                  xtdma_lhs(i)%cd1x_P2C, xtdma_lhs(i)%dd1x_P2C)
 
       allocate (xtdma_lhs(i)%am1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%am1x_P2C = ZERO
       allocate (xtdma_lhs(i)%bm1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bm1x_P2C = ZERO
       allocate (xtdma_lhs(i)%cm1x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cm1x_P2C = ZERO
       allocate (xtdma_lhs(i)%dm2x_P2C ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dm2x_P2C = ZERO
-      !$acc enter data create(xtdma_lhs(i)%am1x_P2C, xtdma_lhs(i)%bm1x_P2C, &
-      !$acc&                  xtdma_lhs(i)%cm1x_P2C, xtdma_lhs(i)%dm2x_P2C)
       call Buildup_TDMA_LHS_array(nsz , m1fP2C, &
           xtdma_lhs(i)%am1x_P2C, &
           xtdma_lhs(i)%bm1x_P2C, &
           xtdma_lhs(i)%cm1x_P2C, &
           xtdma_lhs(i)%dm2x_P2C)
+      !$acc enter data copyin(xtdma_lhs(i)%am1x_P2C, xtdma_lhs(i)%bm1x_P2C, &
+      !$acc&                  xtdma_lhs(i)%cm1x_P2C, xtdma_lhs(i)%dm2x_P2C)
 
 !----------------------------------------------------------------------------------------------------------
 ! x-direction, with np unknows
@@ -1863,37 +1855,37 @@ contains
       allocate (xtdma_lhs(i)%bd1x_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_P2P = ZERO
       allocate (xtdma_lhs(i)%cd1x_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_P2P = ZERO
       allocate (xtdma_lhs(i)%dd1x_P2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_P2P = ZERO
-      !$acc enter data create(xtdma_lhs(i)%ad1x_P2P, xtdma_lhs(i)%bd1x_P2P, &
-      !$acc&                  xtdma_lhs(i)%cd1x_P2P, xtdma_lhs(i)%dd1x_P2P)
       call Buildup_TDMA_LHS_array(nsz , d1fP2P, &
             xtdma_lhs(i)%ad1x_P2P, &
             xtdma_lhs(i)%bd1x_P2P, &
             xtdma_lhs(i)%cd1x_P2P, &
             xtdma_lhs(i)%dd1x_P2P)
+      !$acc enter data copyin(xtdma_lhs(i)%ad1x_P2P, xtdma_lhs(i)%bd1x_P2P, &
+      !$acc&                  xtdma_lhs(i)%cd1x_P2P, xtdma_lhs(i)%dd1x_P2P)
 
       allocate (xtdma_lhs(i)%ad1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%ad1x_C2P = ZERO
       allocate (xtdma_lhs(i)%bd1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bd1x_C2P = ZERO
       allocate (xtdma_lhs(i)%cd1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cd1x_C2P = ZERO
       allocate (xtdma_lhs(i)%dd1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dd1x_C2P = ZERO
-      !$acc enter data create(xtdma_lhs(i)%ad1x_C2P, xtdma_lhs(i)%bd1x_C2P, &
-      !$acc&                  xtdma_lhs(i)%cd1x_C2P, xtdma_lhs(i)%dd1x_C2P)
       call Buildup_TDMA_LHS_array(nsz , d1fC2P, &
             xtdma_lhs(i)%ad1x_C2P, &
             xtdma_lhs(i)%bd1x_C2P, &
             xtdma_lhs(i)%cd1x_C2P, &
             xtdma_lhs(i)%dd1x_C2P)
+      !$acc enter data copyin(xtdma_lhs(i)%ad1x_C2P, xtdma_lhs(i)%bd1x_C2P, &
+      !$acc&                  xtdma_lhs(i)%cd1x_C2P, xtdma_lhs(i)%dd1x_C2P)
 
       allocate (xtdma_lhs(i)%am1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%am1x_C2P = ZERO
       allocate (xtdma_lhs(i)%bm1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%bm1x_C2P = ZERO
       allocate (xtdma_lhs(i)%cm1x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%cm1x_C2P = ZERO
       allocate (xtdma_lhs(i)%dm2x_C2P ( nsz, NBCS:NBCE, NBCS:NBCE, NACC ) ); xtdma_lhs(i)%dm2x_C2P = ZERO
-      !$acc enter data create(xtdma_lhs(i)%am1x_C2P, xtdma_lhs(i)%bm1x_C2P, &
-      !$acc&                  xtdma_lhs(i)%cm1x_C2P, xtdma_lhs(i)%dm2x_C2P)
       call Buildup_TDMA_LHS_array(nsz , m1fC2P, &
           xtdma_lhs(i)%am1x_C2P, &
           xtdma_lhs(i)%bm1x_C2P, &
           xtdma_lhs(i)%cm1x_C2P, &
           xtdma_lhs(i)%dm2x_C2P)
+      !$acc enter data copyin(xtdma_lhs(i)%am1x_C2P, xtdma_lhs(i)%bm1x_C2P, &
+      !$acc&                  xtdma_lhs(i)%cm1x_C2P, xtdma_lhs(i)%dm2x_C2P)
 
     end do
 
