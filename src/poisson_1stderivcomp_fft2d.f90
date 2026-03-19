@@ -2192,9 +2192,11 @@ module decomp_2d_poisson
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
     !integer :: nx,ny,nz, 
-    integer :: i,j,k,ii,jj,kk
+    integer :: i,j,k,ii,jj,kk,iline,nline
     integer :: nxst, nxen, nyst, nyen, nzst, nzen
-    real(mytype) :: bbb_real(ny), bbb_imag(ny), ty_real(ny), ty_imag(ny)
+    real(mytype), allocatable :: bbb_real(:,:), bbb_imag(:,:)
+    real(mytype), allocatable :: ty_real(:,:), ty_imag(:,:)
+    real(mytype), allocatable :: dd(:,:)
     complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw2
     complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw2
     type(c_ptr) :: cptr
@@ -2316,32 +2318,44 @@ module decomp_2d_poisson
 !-----------------------------------------------------------
 ! TMDA in the Y direction (stretching grids direction)
 !-----------------------------------------------------------
+    nline    = nx * nz
+    allocate(bbb_real(ny, nline))
+    allocate(bbb_imag(ny, nline))
+    allocate(ty_real(ny, nline))
+    allocate(ty_imag(ny, nline))
+    allocate(dd(ny, nline))
+    !$acc data create(bbb_real, bbb_imag, ty_real, ty_imag, dd)
+
     nxst = sp%yst(1); nxen = sp%yen(1)
     nyst = sp%yst(2); nyen = sp%yen(2)
     nzst = sp%yst(3); nzen = sp%yen(3)
-    !$acc parallel loop collapse(2) default(present) &
-    !$acc&         private(bbb_real, bbb_imag, ty_real, ty_imag)
+    !$acc parallel loop collapse(2) gang default(present) private(ii,kk,iline,jj)
     do k = nzst, nzen
       do i = nxst, nxen
+        ii = i - nxst + 1
+        kk = k - nzst + 1
+        iline = ii + (kk - 1) * nx
         !$acc loop seq
         do j = nyst, nyen
-          bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
-          bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
-          ty_real(j) = rl(cw2(i, j, k))
-          ty_imag(j) = iy(cw2(i, j, k))
+          bbb_real(j, iline) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
+          bbb_imag(j, iline) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
+          ty_real(j, iline) = rl(cw2(i, j, k))
+          ty_imag(j, iline) = iy(cw2(i, j, k))
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test31', ty(j), i, j, k
         end do
         !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
-        call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
-        call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
+        call Solve_TDMA_standard(sp%ysz(2), ty_real(:, iline), aa, bbb_real(:, iline), cc, dd(:, iline))
+        call Solve_TDMA_standard(sp%ysz(2), ty_imag(:, iline), aa, bbb_imag(:, iline), cc, dd(:, iline))
         !$acc loop seq
         do j = nyst, nyen
-          cw2(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
+          cw2(i, j, k) = cmplx(ty_real(j, iline), ty_imag(j, iline), kind=mytype)
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
         end do
       end do
     end do
     !$acc end parallel loop
+
+    !$acc end data
 
 !!   perform TDMA on CPU for checking
 !    !$acc update self(cw2)
@@ -2367,6 +2381,12 @@ module decomp_2d_poisson
 !      end do
 !    end do
 !    !$acc update device(cw2)
+
+    deallocate(bbb_real)
+    deallocate(bbb_imag)
+    deallocate(ty_real)
+    deallocate(ty_imag)
+    deallocate(dd)
 
     ! Back to X-pencil
     cptr = c_loc(fl%wk1(1))
@@ -3130,11 +3150,12 @@ module decomp_2d_poisson
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
-    integer :: i,j,k
-
+    integer :: i,j,k,ii,jj,kk,iline,nline
     integer :: nxst, nxen, nyst, nyen, nzst, nzen
     integer :: nxsz, nysz, nzsz
-    real(mytype) :: bbb_real(ny), bbb_imag(ny), ty_real(ny), ty_imag(ny)
+    real(mytype), allocatable :: bbb_real(:,:), bbb_imag(:,:)
+    real(mytype), allocatable :: ty_real(:,:), ty_imag(:,:)
+    real(mytype), allocatable :: dd(:,:)
     real(mytype),    pointer, dimension(:,:,:)   :: rw1, rw1b, rw2, rw3
     complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw1b, cw2b
     complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw1b, tcw2b
@@ -3326,32 +3347,50 @@ module decomp_2d_poisson
 
     call transpose_x_to_y(cw1b,cw2b,sp)
 
+    nline    = nx * nz
+    allocate(bbb_real(ny, nline))
+    allocate(bbb_imag(ny, nline))
+    allocate(ty_real(ny, nline))
+    allocate(ty_imag(ny, nline))
+    allocate(dd(ny, nline))
+    !$acc data create(bbb_real, bbb_imag, ty_real, ty_imag, dd)
+
     nxst = sp%yst(1); nxen = sp%yen(1)
     nyst = sp%yst(2); nyen = sp%yen(2)
     nzst = sp%yst(3); nzen = sp%yen(3)
-    !$acc parallel loop collapse(2) default(present) &
-    !$acc&         private(bbb_real, bbb_imag, ty_real, ty_imag)
+    !$acc parallel loop collapse(2) gang default(present) private(ii,kk,iline,jj)
     do k = nzst, nzen
       do i = nxst, nxen
+        ii = i - nxst + 1
+        kk = k - nzst + 1
+        iline = ii + (kk - 1) * nx
         !$acc loop seq
         do j = nyst, nyen
-          bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
-          bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
-          ty_imag(j) = iy(cw2b(i, j, k))
-          ty_real(j) = rl(cw2b(i, j, k))
+          bbb_real(j, iline) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
+          bbb_imag(j, iline) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
+          ty_imag(j, iline) = iy(cw2b(i, j, k))
+          ty_real(j, iline) = rl(cw2b(i, j, k))
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test31', ty(j), i, j, k
         end do
         !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
-        call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
-        call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
+        call Solve_TDMA_standard(sp%ysz(2), ty_real(:, iline), aa, bbb_real(:, iline), cc, dd(:, iline))
+        call Solve_TDMA_standard(sp%ysz(2), ty_imag(:, iline), aa, bbb_imag(:, iline), cc, dd(:, iline))
         !$acc loop seq
         do j = nyst, nyen
-          cw2b(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
+          cw2b(i, j, k) = cmplx(ty_real(j, iline), ty_imag(j, iline), kind=mytype)
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
         end do
       end do
     end do
     !$acc end parallel loop
+
+    !$acc end data
+
+    deallocate(bbb_real)
+    deallocate(bbb_imag)
+    deallocate(ty_real)
+    deallocate(ty_imag)
+    deallocate(dd)
 
     call transpose_y_to_x(cw2b,cw1b,sp)
 
@@ -3499,11 +3538,12 @@ module decomp_2d_poisson
     real(mytype) :: tmp1, tmp2, tmp3, tmp4
     real(mytype) :: xx1,xx2,xx3,xx4,xx5,xx6,xx7,xx8
 
-    integer :: i,j,k
-
+    integer :: i,j,k,ii,jj,kk,iline,nline
     integer :: nxst, nxen, nyst, nyen, nzst, nzen
     integer :: nxsz, nysz, nzsz
-    real(mytype) :: bbb_real(ny), bbb_imag(ny), ty_real(ny), ty_imag(ny)
+    real(mytype), allocatable :: bbb_real(:,:), bbb_imag(:,:)
+    real(mytype), allocatable :: ty_real(:,:), ty_imag(:,:)
+    real(mytype), allocatable :: dd(:,:)
     real(mytype),    pointer, dimension(:,:,:)   :: rw3
     complex(mytype), pointer, dimension(:,:,:)   :: cw1, cw2b
     complex(mytype), pointer, contiguous, dimension(:,:,:)   :: tcw1, tcw2b
@@ -3596,31 +3636,50 @@ module decomp_2d_poisson
 
     call transpose_x_to_y(cw1,cw2b,sp)
 
+    nline    = nx * nz
+    allocate(bbb_real(ny, nline))
+    allocate(bbb_imag(ny, nline))
+    allocate(ty_real(ny, nline))
+    allocate(ty_imag(ny, nline))
+    allocate(dd(ny, nline))
+    !$acc data create(bbb_real, bbb_imag, ty_real, ty_imag, dd)
+
     nxst = sp%yst(1); nxen = sp%yen(1)
     nyst = sp%yst(2); nyen = sp%yen(2)
     nzst = sp%yst(3); nzen = sp%yen(3)
-    !$acc parallel loop collapse(2) default(present) &
-    !$acc&         private(bbb_real, bbb_imag, ty_real, ty_imag)
+    !$acc parallel loop collapse(2) gang default(present) private(ii,kk,iline,jj)
     do k = nzst, nzen
       do i = nxst, nxen
+        ii = i - nxst + 1
+        kk = k - nzst + 1
+        iline = ii + (kk - 1) * nx
         !$acc loop seq
         do j = nyst, nyen
-          bbb_real(j) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
-          bbb_imag(j) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
-          ty_imag(j) = iy(cw2b(i, j, k))
-          ty_real(j) = rl(cw2b(i, j, k))
+          bbb_real(j, iline) = bb(j) - (rl(xk2(i)) * rc2(j) + rl(zk2(k)))
+          bbb_imag(j, iline) = bb(j) - (iy(xk2(i)) * rc2(j) + iy(zk2(k)))
+          ty_imag(j, iline) = iy(cw2b(i, j, k))
+          ty_real(j, iline) = rl(cw2b(i, j, k))
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test31', ty(j), i, j, k
         end do
         !call TRID0(ph%ysz(2), ty)!a, bb, c, ty)
-        call Solve_TDMA_standard(sp%ysz(2), ty_real, aa, bbb_real, cc)
-        call Solve_TDMA_standard(sp%ysz(2), ty_imag, aa, bbb_imag, cc)
+        call Solve_TDMA_standard(sp%ysz(2), ty_real(:, iline), aa, bbb_real(:, iline), cc, dd(:, iline))
+        call Solve_TDMA_standard(sp%ysz(2), ty_imag(:, iline), aa, bbb_imag(:, iline), cc, dd(:, iline))
         !$acc loop seq
         do j = nyst, nyen
-          cw2b(i, j, k) = cmplx(ty_real(j), ty_imag(j), kind=mytype)
+          cw2b(i, j, k) = cmplx(ty_real(j, iline), ty_imag(j, iline), kind=mytype)
           !if(dabs(ty(j)) > 1.E+8) write(*,*) 'test32', ty(j), i, j, k
         end do
       end do
     end do
+    !$acc end parallel loop
+
+    !$acc end data
+
+    deallocate(bbb_real)
+    deallocate(bbb_imag)
+    deallocate(ty_real)
+    deallocate(ty_imag)
+    deallocate(dd)
 
     call transpose_y_to_x(cw2b,cw1,sp)
     ! sweep TMDA in the x direction (stretching grids direction)

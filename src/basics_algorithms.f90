@@ -11,7 +11,7 @@ module tridiagonal_matrix_algorithm
   public :: Solve_TDMA_standard
 
 contains
- SUBROUTINE Solve_TDMA_standard(NG, T, A, BB, C)
+ SUBROUTINE Solve_TDMA_standard(NG, T, A, BB, C, D)
     !$acc routine seq
     use precision_mod
     IMPLICIT NONE
@@ -24,7 +24,7 @@ contains
     
     INTEGER :: NR, MM1, I, IP
     REAL(WP) :: Z
-    REAL(WP), DIMENSION(NG) :: D
+    REAL(WP), DIMENSION(NG), INTENT(INOUT)  :: D
 
     NR = NG
     MM1 = NR - 1
