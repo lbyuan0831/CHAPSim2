@@ -451,12 +451,11 @@ contains
 
     if(dm%is_thermo) then
       do n = 1, 2
-        nx = dm%dccc%xsz(1)
-        ny = dm%dccc%xsz(2)
-        nz = dm%dccc%xsz(3)
 !----------------------------------------------------------------------------------------------------------
 ! x-bc in x-pencil, gx, gy, gz
 !----------------------------------------------------------------------------------------------------------
+        ny = dm%dccc%xsz(2)
+        nz = dm%dccc%xsz(3)
         !$acc parallel loop collapse(2) default(present)
         do k=1, nz; do j=1, ny
           dm%fbcx_gx(n, j, k) = dm%fbcx_qx(n, j, k) * dm%fbcx_ftp(n, 1, 1)%d
@@ -467,6 +466,8 @@ contains
 !----------------------------------------------------------------------------------------------------------
 ! y-bc in y-pencil, gx, gy, gz, qyr = qy/r = uy
 !----------------------------------------------------------------------------------------------------------
+        nx = dm%dccc%ysz(1)
+        nz = dm%dccc%ysz(3)
         !$acc parallel loop collapse(2) default(present)
         do k=1, nz; do i=1, nx
           dm%fbcy_gx(i, n, k) = dm%fbcy_qx(i, n, k) * dm%fbcy_ftp(1, n, 1)%d
@@ -481,6 +482,8 @@ contains
 !----------------------------------------------------------------------------------------------------------
 ! z-bc in z-pencil, gx, gy, gz, gyr = gy/r
 !----------------------------------------------------------------------------------------------------------
+        nx = dm%dccc%zsz(1)
+        ny = dm%dccc%zsz(2)
         !$acc parallel loop collapse(2) default(present)
         do j=1, ny; do i=1, nx
           dm%fbcz_gx(i, j, n) = dm%fbcz_qx(i, j, n) * dm%fbcz_ftp(1, 1, n)%d
