@@ -523,9 +523,11 @@ subroutine Check_cfl_diffusion(fl, dm, opt_tm)
     accc_xpencil(1:ncccx(1),1:ncccx(2),1:ncccx(3)) => fl%wk1
     call Get_x_midp_P2C_3D(u, accc_xpencil, dm, dm%iAccuracy, dm%ibcx_qx, dm%fbcx_qx)
     var_xpencil(1:ncccx(1),1:ncccx(2),1:ncccx(3))  => fl%wk2
-    !$acc kernels default(present)
-    var_xpencil(:,:,:) = accc_xpencil(:,:,:) * dm%h1r(1)
-    !$acc end kernels
+    nx = ncccx(1); ny = ncccx(2); nz = ncccx(3)
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,nz; do j=1,ny; do i=1,nx
+      var_xpencil(i,j,k) = accc_xpencil(i,j,k) * dm%h1r(1)
+    end do; end do; end do
 !----------------------------------------------------------------------------------------------------------
 ! Y-pencil : v_ccc / dy / r
 !----------------------------------------------------------------------------------------------------------
