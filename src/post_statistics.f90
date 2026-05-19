@@ -204,16 +204,19 @@ contains
     implicit none
     real(WP), intent(in)          :: data_xpencil(:,:,:)
     type(t_domain), intent(in)    :: dm
-    integer, intent(in)           :: dir
-    real(WP), allocatable, intent(out) :: profile_out(:)
+    integer,  intent(in)          :: dir
+    real(WP), intent(out)         :: profile_out(:)
 
     real(WP), allocatable :: tmp_x(:,:,:), tmp_y(:,:,:), tmp_z(:,:,:)
     type(DECOMP_INFO) :: dtmp
+    integer :: i, j, k, n_size
 
+    n_size = size(profile_out)
     dtmp = dm%dccc
     select case(dir)
     case (XDIR)
       ! Average over YZ to get X-profile
+      if (n_size /= dtmp%xsz(1)) call Print_error_msg("wrong X profile size")
       allocate(tmp_x(dtmp%xsz(1), dtmp%xsz(2), dtmp%xsz(3)))
       allocate(tmp_y(dtmp%ysz(1), dtmp%ysz(2), dtmp%ysz(3)))
       allocate(tmp_z(dtmp%zsz(1), dtmp%zsz(2), dtmp%zsz(3)))
@@ -224,15 +227,18 @@ contains
       call mean_data_zpencil_over_zdir(tmp_z, dtmp)
       call transpose_z_to_y(tmp_z, tmp_y, dtmp)
       call transpose_y_to_x(tmp_y, tmp_x, dtmp)
-      !$acc kernels default(present)
-      profile_out = tmp_x(:, 1, 1)
-      !$acc end kernels
+      !$acc parallel loop default(present)
+      do i = 1, n_size
+        profile_out(i) = tmp_x(i, 1, 1)
+      end do
+      !$acc end parallel loop
       !$acc update self(profile_out)
       !$acc end data
       deallocate(tmp_x, tmp_y, tmp_z)
 
     case (YDIR)
       ! Average over XZ to get Y-profile
+      if (n_size /= dtmp%ysz(2)) call Print_error_msg("wrong Y profile size")
       allocate(tmp_x(dtmp%xsz(1), dtmp%xsz(2), dtmp%xsz(3)))
       allocate(tmp_y(dtmp%ysz(1), dtmp%ysz(2), dtmp%ysz(3)))
       allocate(tmp_z(dtmp%zsz(1), dtmp%zsz(2), dtmp%zsz(3)))
@@ -245,15 +251,18 @@ contains
       call transpose_y_to_z(tmp_y, tmp_z, dtmp)
       call mean_data_zpencil_over_zdir(tmp_z, dtmp)
       call transpose_z_to_y(tmp_z, tmp_y, dtmp)
-      !$acc kernels default(present)
-      profile_out = tmp_y(1, :, 1)
-      !$acc end kernels
+      !$acc parallel loop default(present)
+      do j = 1, n_size
+        profile_out(j) = tmp_y(1, j, 1)
+      end do
+      !$acc end parallel loop
       !$acc update self(profile_out)
       !$acc end data
       deallocate(tmp_x, tmp_y, tmp_z)
 
     case (ZDIR)
       ! Average over XY to get Z-profile
+      if (n_size /= dtmp%zsz(3)) call Print_error_msg("wrong Z profile size")
       allocate(tmp_x(dtmp%xsz(1), dtmp%xsz(2), dtmp%xsz(3)))
       allocate(tmp_y(dtmp%ysz(1), dtmp%ysz(2), dtmp%ysz(3)))
       allocate(tmp_z(dtmp%zsz(1), dtmp%zsz(2), dtmp%zsz(3)))
@@ -265,16 +274,17 @@ contains
       call transpose_x_to_y(tmp_x, tmp_y, dtmp)
       call mean_data_ypencil_over_ydir(tmp_y, dtmp)
       call transpose_y_to_z(tmp_y, tmp_z, dtmp)
-      !$acc kernels default(present)
-      profile_out = tmp_z(1, 1, :)
-      !$acc end kernels
+      !$acc parallel loop default(present)
+      do k = 1, n_size
+        profile_out(k) = tmp_z(1, 1, k)
+      end do
+      !$acc end parallel loop
       !$acc update self(profile_out)
       !$acc end data
       deallocate(tmp_x, tmp_y, tmp_z)
 
     case default
       call Print_error_msg("mean_over_two_dirs_to_profile: invalid dir")
-      allocate(profile_out(0))
     end select
 
   end subroutine mean_over_two_dirs_to_profile
