@@ -721,6 +721,7 @@ contains
         do i = 1, nxdomain
           if(flow(i)%inittype /= INIT_RESTART) flow(i)%iterfrom = 0
           flow(i)%init_velo3d(1:3) = flow(1)%init_velo3d(1:3)
+          ! FIXME: boundary is read after this, depending on the input file
           if(flow(i)%inittype == INIT_RESTART) flow(i)%reninit = flow(i)%ren
           if(domain(i)%ibcx_nominal(1, 1) /= IBC_PERIODIC .or. &
             domain(i)%ibcx_nominal(2, 1) /= IBC_PERIODIC) then 
